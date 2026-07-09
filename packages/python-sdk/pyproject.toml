@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "taop"
+version = "0.0.1"
+description = "TAOP — Trustless Agent Orchestration Protocol Python SDK"
+requires-python = ">=3.10"
+dependencies = [
+    "web3>=6.0,<8.0",
+    "eth-account>=0.10,<0.14",
+    "eth-utils>=2.0,<6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-asyncio>=0.20"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

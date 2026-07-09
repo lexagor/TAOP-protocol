@@ -1,0 +1,10 @@
+{
+  "chainId": 84532,
+  "network": "base-sepolia",
+  "ron": "0x9bd022B6f41360f774fDD93844FA319Ed5f58e36",
+  "registry": "0x93415ac1cB1c2EDDC47033FFE421d85EaE674Acb",
+  "validator": "0x37374FD4f27c2b46Fd5d1a9BAFdc709315E51120",
+  "agentA": "0x7b237457b8e0EA89073592646686c5390343179A",
+  "agentAPk": "0x34c1f294c26d3c13f37b3bd244750d1af84ebcfe9424e64a0f770418af5001a5",
+  "deployedAt": "2026-07-01T17:30:00.000Z"
+}

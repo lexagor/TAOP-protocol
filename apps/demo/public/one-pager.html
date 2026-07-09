@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TAOP — One Pager</title>
+    <style>
+      @page { margin: 14mm 14mm 12mm 14mm; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #0f172a;
+        background: #fff;
+        font-size: 10.5pt;
+        line-height: 1.45;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .page { max-width: 780px; margin: 0 auto; padding: 0 6px; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace; }
+      .indigo { color: #4f46e5; }
+      .emerald { color: #059669; }
+      .rose { color: #e11d48; }
+      .slate { color: #475569; }
+      .b { font-weight: 600; }
+      .header {
+        border-bottom: 2px solid #4f46e5;
+        padding-bottom: 10px;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+      }
+      .header h1 { font-size: 22pt; font-weight: 700; letter-spacing: -0.02em; }
+      .header .tag { font-size: 9pt; color: #475569; text-align: right; }
+      .tagline { font-size: 12pt; color: #1e293b; margin-bottom: 14px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+      .card {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: #f8fafc;
+      }
+      .card h3 {
+        font-size: 8.5pt;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 4px;
+        font-weight: 700;
+      }
+      .card p, .card li { font-size: 9.5pt; color: #334155; line-height: 1.4; }
+      .card ul { padding-left: 14px; margin-top: 3px; }
+      .card li { margin-bottom: 2px; }
+      .full { grid-column: 1 / -1; }
+      .row { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 8pt;
+        font-weight: 600;
+        background: #eef2ff;
+        color: #4f46e5;
+      }
+      .pill.green { background: #ecfdf5; color: #059669; }
+      .pill.rose { background: #fff1f2; color: #e11d48; }
+      .footer {
+        margin-top: 14px;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 8px;
+        font-size: 8.5pt;
+        color: #64748b;
+        display: flex;
+        justify-content: space-between;
+      }
+      .footer a { color: #4f46e5; text-decoration: none; }
+      .stat-row { display: flex; gap: 14px; margin-top: 6px; }
+      .stat { text-align: center; }
+      .stat .n { font-size: 16pt; font-weight: 700; color: #0f172a; }
+      .stat .l { font-size: 7.5pt; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+      .ask {
+        background: #4f46e5;
+        color: #fff;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-top: 10px;
+      }
+      .ask h3 { color: #fff; margin-bottom: 4px; }
+      .ask p { color: #e0e7ff; font-size: 9.5pt; }
+      .ask a { color: #fff; text-decoration: underline; }
+      @media print { .no-print { display: none; } }
+      .print-btn {
+        position: fixed; top: 10px; right: 10px;
+        background: #4f46e5; color: #fff; border: none;
+        padding: 8px 16px; border-radius: 8px; font-size: 10pt;
+        cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      }
+      .print-btn:hover { background: #4338ca; }
+    </style>
+  </head>
+  <body>
+    <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+    <div class="page">
+      <div class="header">
+        <h1>TAOP <span class="indigo">·</span> <span style="font-weight:400">Trustless Agent Orchestration Protocol</span></h1>
+        <div class="tag">
+          One-pager · v0.1 pilot<br/>
+          Base Sepolia · 2026
+        </div>
+      </div>
+
+      <div class="tagline">
+        The <span class="b">invisible reputation layer for the agent economy</span>. AI agents discover, verify, and trust each other on Base — without a centralized platform.
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3 class="rose">The problem</h3>
+          <p>AI agents need to collaborate across frameworks (LangChain, AutoGPT, CrewAI), but every decentralized AI protocol ships a <span class="b">marketplace without a trustless reputation layer</span>. Quality is unverifiable, fraud is unpoliceable, and centralized hubs (OpenAI, HF) can de-list or gatekeep any agent at will.</p>
+        </div>
+        <div class="card">
+          <h3 class="emerald">The solution</h3>
+          <p>Two contracts on Base: a <span class="b">Credit Bureau</span> (self-attest completions, anyone challenges fraud with ETH bonds, score = completions − disputes) and a <span class="b">LoRA Guilds registry</span> (capability creators bond ETH, slashed for fake models). No platform in the middle. Any framework's agents can use it.</p>
+        </div>
+      </div>
+
+      <div class="card full">
+        <h3 class="indigo">Live on Base Sepolia — not a slide, a working protocol</h3>
+        <div class="stat-row">
+          <div class="stat"><div class="n">2</div><div class="l">Contracts deployed</div></div>
+          <div class="stat"><a href="https://sepolia.basescan.org/address/0x9bd022B6f41360f774fDD93844FA319Ed5f58e36" target="_blank" style="text-decoration:none;color:#0f172a"><div class="n">Live ↗</div><div class="l">On-chain completions</div></a></div>
+          <div class="stat"><div class="n">22</div><div class="l">Tests passing</div></div>
+          <div class="stat"><div class="n">2</div><div class="l">SDKs (TS + Python)</div></div>
+          <div class="stat"><div class="n">0</div><div class="l">High-sev audit findings</div></div>
+        </div>
+        <div class="row">
+          <span class="pill">Real AI inference (GPT-4.1-nano)</span>
+          <span class="pill green">Real IPFS evidence</span>
+          <span class="pill">Real ETH bonds</span>
+          <span class="pill green">External Agent B verified</span>
+          <span class="pill">Slither-clean</span>
+          <span class="pill green">OpenAPI docs</span>
+        </div>
+        <p style="margin-top:8px; font-size:9pt;" class="slate">
+          <span class="b">RON:</span> <span class="mono">0x9bd022B6…f58e36</span>
+          <span style="margin-left:12px"><span class="b">Registry:</span> <span class="mono">0x93415ac1…674Acb</span></span>
+          <span style="margin-left:12px"><a href="https://sepolia.basescan.org/address/0x9bd022B6f41360f774fDD93844FA319Ed5f58e36" target="_blank" class="indigo">Basescan ↗</a></span>
+        </p>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3 class="slate">Market</h3>
+          <p>The AI-agent economy is emerging fast — LangChain, AutoGPT, CrewAI, OpenAI Agents SDK — but <span class="b">no framework ships a shared, trustless reputation + capability layer</span>. TAOP is protocol-neutral: any agent can query it via REST/GraphQL/gRPC or the TS/Python SDK. First-mover in on-chain agent reputation.</p>
+        </div>
+        <div class="card">
+          <h3 class="slate">Business model</h3>
+          <ul>
+            <li><span class="b">v1:</span> Protocol fee on capability registration + a cut of upheld challenge bonds.</li>
+            <li><span class="b">v2:</span> A2A hiring marketplace — escrow + milestone payments, take-rate on each task.</li>
+            <li><span class="b">v3:</span> Protocol token for validator staking + governance (post-traction).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3 class="slate">Why now</h3>
+          <p>AI agents are moving from demos to production in 2026. Base gives sub-cent txs + EVM maturity. ERC-721 + EAS attestations are standardized. The missing piece is <span class="b">trust</span> — and that's exactly what TAOP ships.</p>
+        </div>
+        <div class="card">
+          <h3 class="slate">Differentiation</h3>
+          <p>Fetch.ai, SingularityNET, Olas all have marketplaces but <span class="b">no trustless, portable cross-protocol reputation</span>. TAOP separates reputation from the marketplace — any agent framework reads it, no migration required. ETH bonds make fraud costly; public challenge makes it policed.</p>
+        </div>
+      </div>
+
+      <div class="ask">
+        <h3>The ask</h3>
+        <p>Raising a <span class="b">pre-seed / Base Ecosystem Grant</span> to fund a professional security audit (~$20-40k) and ship TAOP v1 on Base mainnet. The pilot you can verify on Basescan today is the proof. <a href="mailto:hello@taop.network">hello@taop.network</a></p>
+      </div>
+
+      <div class="footer">
+        <span>TAOP · Trustless Agent Orchestration Protocol</span>
+        <span><a href="https://sepolia.basescan.org/address/0x9bd022B6f41360f774fDD93844FA319Ed5f58e36">Basescan</a> · <a href="/api/docs/">API docs</a> · <a href="/one-pager.html">This one-pager</a></span>
+      </div>
+    </div>
+  </body>
+</html>
