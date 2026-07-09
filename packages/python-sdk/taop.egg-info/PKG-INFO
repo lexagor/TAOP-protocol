@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: taop
+Version: 0.0.1
+Summary: TAOP — Trustless Agent Orchestration Protocol Python SDK
+Requires-Python: >=3.10
+Requires-Dist: web3<8.0,>=6.0
+Requires-Dist: eth-account<0.14,>=0.10
+Requires-Dist: eth-utils<6.0,>=2.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.20; extra == "dev"

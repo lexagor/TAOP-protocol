@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "strict": false,
+    "noEmit": false,
+    "outDir": "./dist-hardhat"
+  },
+  "include": ["scripts/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist", "artifacts", "cache"]
+}

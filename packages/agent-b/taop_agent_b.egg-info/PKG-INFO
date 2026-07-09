@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: taop-agent-b
+Version: 0.0.1
+Summary: TAOP Agent B — discovers and uses Agent A's capability via the TAOP Python SDK
+Requires-Python: >=3.10
+Requires-Dist: taop
+Requires-Dist: requests>=2.28
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
