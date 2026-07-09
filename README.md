@@ -1,8 +1,14 @@
 # TAOP MVP — Agent Credit Bureau + LoRA Guilds
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Live on Base Sepolia:** contracts deployed, real IPFS evidence, public demo,
-Python SDK, and an external Agent B that discovers + uses Agent A's capability
+TypeScript + Python SDKs, and an external Agent B that discovers + uses Agent A's capability
 via the TAOP protocol.
+
+**Repository:** https://github.com/lexagor/TAOP-protocol
+
+> **Note:** This repo was recently made public. For the latest, star/watch the repository above.
 
 Two on-chain pillars on a single L2 (Base Sepolia):
 
@@ -33,7 +39,9 @@ The demo page proves the loop:
 ### Run the pilot
 
 ```bash
-cd /Users/a/Documents/new-credit-bureau
+# Clone the repo
+git clone https://github.com/lexagor/TAOP-protocol.git
+cd TAOP-protocol
 
 # Terminal 1: backend (serves API + demo on :4000)
 set -a; . ./.env; set +a; export RPC_URL="$BASE_SEPOLIA_RPC_URL"
@@ -58,6 +66,8 @@ Once the backend is running, OpenAPI/Swagger docs are at:
 ## Quick start (local hardhat)
 
 ```bash
+git clone https://github.com/lexagor/TAOP-protocol.git
+cd TAOP-protocol
 npm install
 npm run contracts:build          # hardhat compile
 npx hardhat node                 # terminal 1 — local node on :8545
@@ -67,6 +77,9 @@ npm run demo:dev                 # terminal 4 — demo page on :5173
 ```
 
 Open http://localhost:5173 and click **Run the live demo**.
+
+See `IMPROVEMENTS_PLAN.md` for the current prioritized roadmap.
+
 
 ## Layout
 
