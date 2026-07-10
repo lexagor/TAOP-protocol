@@ -1,13 +1,33 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 dist/
-out/
 artifacts/
 cache/
-broadcast/
-lib/
+typechain-types/
+
+# Environment
 .env
 .env.local
+.env.*.local
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS
 .DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Hardhat
+deployments.json
+# Keep example
+!deployments.json.example
+
+# Misc
+*.tgz
 coverage/
-.vite/

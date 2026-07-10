@@ -27,6 +27,7 @@ export interface Deployment {
   network?: string;
   ron: string;
   registry: string;
+  timelock?: string;   // P0: owner is now the TimelockController
   validator: string;
   agentA: string;
   agentAPk?: string;

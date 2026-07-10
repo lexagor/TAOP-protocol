@@ -4,6 +4,8 @@ export interface Contracts {
   chainId: number;
   ron: string;
   registry: string;
+  timelock: string | null;
+  timelockDelay: string;
   validator: string;
   agentA: string;
   capabilityId: string;
@@ -71,7 +73,7 @@ export const challengeCompletion = (id: string) =>
     body: JSON.stringify({ evidenceCID: "ipfs://challenge-evidence" }),
   });
 export const resolveChallenge = (id: string, upheld: boolean) =>
-  json<{ txHash: string | null; upheld: boolean }>(`${BASE}/completions/${id}/resolve`, {
+  json<{ txHash: string | null; upheld: boolean; scheduled?: boolean; executed?: boolean; delay?: string; message?: string }>(`${BASE}/completions/${id}/resolve`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ upheld }),

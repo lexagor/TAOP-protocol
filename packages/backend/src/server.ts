@@ -6,7 +6,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { initState, type BackendState } from "./contracts.js";
 import { runDemo } from "./demo.js";
-import { LORA_CAPABILITY_TYPE } from "@taop/sdk";
+import { LORA_CAPABILITY_TYPE } from "@taopp/sdk";
 import { listCapabilities, listCompletions } from "./db.js";
 import { openApiSpec } from "./openapi.js";
 
@@ -32,6 +32,8 @@ api.get("/contracts", (_req, res) => {
     network: state.deployment.network ?? "localhost",
     ron: state.deployment.ron,
     registry: state.deployment.registry,
+    timelock: state.deployment.timelock ?? null,
+    timelockDelay: state.timelockDelay.toString(),
     validator: state.deployment.validator,
     agentA: state.deployment.agentA,
     capabilityId: state.capabilityId.toString(),
@@ -131,7 +133,34 @@ api.post("/completions/:id/challenge", async (req, res) => {
 api.post("/completions/:id/resolve", async (req, res) => {
   try {
     const upheld = Boolean(req.body?.upheld ?? false);
-    const receipt = await state.ron.resolveChallenge(BigInt(req.params.id), upheld);
+    const completionId = BigInt(req.params.id);
+
+    let receipt: any = null;
+    if (state.executeViaTimelock) {
+      // Call through Timelock (P0 hardened ownership). For non-zero delay, only schedules.
+      const ronInterface = new ethers.Interface([
+        "function resolveChallenge(uint256 completionId, bool upheld)"
+      ]);
+      const data = ronInterface.encodeFunctionData("resolveChallenge", [completionId, upheld]);
+      const target = state.deployment.ron;
+      const result = await state.executeViaTimelock(target, data);
+      receipt = result.receipt;
+
+      res.json({
+        txHash: receipt?.hash ?? null,
+        upheld,
+        scheduled: result.scheduled,
+        executed: result.executed,
+        delay: result.delay.toString(),
+        message: result.scheduled
+          ? `Action scheduled on Timelock with ${result.delay}s delay. It will not take effect until executed after the delay.`
+          : undefined,
+      });
+      return;
+    } else {
+      receipt = await state.ron.resolveChallenge(completionId, upheld);
+    }
+
     res.json({ txHash: receipt?.hash ?? null, upheld });
   } catch (e) {
     res.status(500).json({ error: String((e as Error).message ?? e) });
@@ -175,13 +204,10 @@ api.get("/agents/:address/score", async (req, res) => {
 api.get("/discover", async (req, res) => {
   const typeLabel = String(req.query.capabilityType ?? LORA_CAPABILITY_TYPE);
   const minScore = Number(req.query.minScore ?? 0);
-  const loraHash = ethers.id(typeLabel).toLowerCase();
-  const total = await state.registryOracle.totalSupply();
+  const ids = await state.registryOracle.getCapabilitiesByType(typeLabel);
   const out: unknown[] = [];
-  for (let i = 0n; i < total; i++) {
-    const id = await state.registryOracle.tokenByIndex(i);
+  for (const id of ids) {
     const cap = await state.registryOracle.getCapability(id);
-    if (cap.capabilityType.toLowerCase() !== loraHash) continue;
     if (!cap.certified || cap.slashed) continue;
     const score = await state.ron.getSelfAttestScore(cap.creator);
     const scoreNum = Number(score.score);

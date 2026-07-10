@@ -1,7 +1,7 @@
 """TAOP — Trustless Agent Orchestration Protocol Python SDK.
 
 Typed contract clients for the ReputationOracleNetwork (Credit Bureau) and
-CapabilityRegistry (LoRA Guilds) contracts, mirroring @taop/sdk (TypeScript).
+CapabilityRegistry (LoRA Guilds) contracts, mirroring @taopp/sdk (TypeScript).
 """
 
 from .clients import (

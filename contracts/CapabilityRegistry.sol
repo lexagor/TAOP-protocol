@@ -5,6 +5,7 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol"; // ensure artifact for Timelock deploys/tests (P0)
 
 /**
  * @title CapabilityRegistry
@@ -31,6 +32,8 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     mapping(uint256 => Capability) private _capabilities;
     uint256 private _nextTokenId; // first minted tokenId is 1
     uint256 public slashedEthPool; // slashed ETH bonds, owner-withdrawable
+
+    mapping(bytes32 => uint256[]) public capabilitiesByType; // for efficient discovery by type
 
     event CapabilityRegistered(uint256 capabilityId, address creator);
     event CapabilityCertified(uint256 capabilityId, address certifier);
@@ -74,6 +77,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
             certified: false,
             slashed: false
         });
+        capabilitiesByType[capabilityType].push(capabilityId);
         emit CapabilityRegistered(capabilityId, msg.sender);
     }
 
@@ -131,5 +135,10 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     function capabilityTypeOf(uint256 capabilityId) external view returns (bytes32) {
         return _capabilities[capabilityId].capabilityType;
+    }
+
+    /// @notice Get all capability IDs for a given type (for efficient discovery).
+    function getCapabilitiesByType(bytes32 capabilityType) external view returns (uint256[] memory) {
+        return capabilitiesByType[capabilityType];
     }
 }

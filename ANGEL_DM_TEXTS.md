@@ -257,7 +257,7 @@
 > Quick update: [one concrete progress metric]. Thought you'd want to see. Still open for a look.
 
 > Examples:
-> - "Published @taop/sdk on npm with 50+ downloads"
+> - "Published @taopp/sdk on npm with 50+ downloads"
 > - "Shipped the ElizaOS plugin — 3 agents now registering capabilities"
 > - "Deployed to Base mainnet"
 > - "First integration partner signed — Agent X using TAOP for discovery"

@@ -49,7 +49,7 @@ The window vs. Olas (who shipped ARS on Base mainnet) is narrow. **Focus on maki
 - `ReputationOracleNetwork`: attest + challenge + owner resolve + score view.
 - `CapabilityRegistry`: ERC721 + ETH bond register + certify + slash + withdrawBond.
 - Backend API with full flows + Swagger.
-- TS SDK (`@taop/sdk`), Python SDK, `agent-b` example.
+- TS SDK (`@taopp/sdk`), Python SDK, `agent-b` example.
 - Vite React demo (served by backend or standalone).
 - IPFS (Pinata) integration + fallback summarizer.
 - Hardhat local + Base Sepolia deploy scripts.
@@ -92,15 +92,17 @@ The window vs. Olas (who shipped ARS on Base mainnet) is narrow. **Focus on maki
    - Verify contracts on BaseScan.
 
 2. **Publish the SDK**
-   - Update `packages/sdk/package.json` (make `"private": false`, add `name: "@taop/sdk"`, version, publishConfig).
-   - `npm publish -w @taop/sdk` (or scoped).
+   - Update `packages/sdk/package.json` (make `"private": false`, add `name: "@taopp/sdk"`, version, publishConfig).
+   - `npm publish -w @taopp/sdk` (or scoped).
    - Update imports/examples everywhere.
 
-3. **Harden ownership (Timelock)**
-   - Introduce OpenZeppelin `TimelockController`.
-   - Update contracts (or deploy wrapper) so `resolveChallenge`, `withdrawEthPool`, `setCertifier`, `slashCapability` go through timelock (min 24-48h delay for MVP).
-   - Update tests, backend clients, deploy scripts, demo.
-   - Document the multisig plan for mainnet.
+3. **Harden ownership (Timelock)** ✅ Done + polished (this iteration)
+   - Deploy scripts create TimelockController + transfer ownership of RON + Registry.
+   - Tests refactored with executeAsOwner helper (all 22 tests pass).
+   - Backend has clean `executeViaTimelock` helper + resolve route updated.
+   - Configurable via `TIMELOCK_DELAY` env var (0 for pilot/demo, e.g. 86400 for mainnet).
+   - README and code updated. Local deploy verified.
+   - Next: increase delay + multisig before mainnet. Backend supports non-zero (schedules only).
 
 4. **Mainnet prep + audit path**
    - At minimum: one clean mainnet deploy of current (or timelocked) contracts.
@@ -224,10 +226,10 @@ npm run contracts:test
 
 | Milestone | Target | Success Criteria |
 |-----------|--------|------------------|
-| M0: Public repo + SDK publish | 1 week | GitHub live, `npm view @taop/sdk`, CI green |
-| M1: Trust surface reduced | 2 weeks | Timelock live on Sepolia (or mainnet), owner functions delayed |
-| M2: Usable at small scale | 3 weeks | Decay + indexed discovery + MCP server shipped |
-| M3: Mainnet + first real users | 4–6 weeks | Mainnet contracts, ≥1 external agent using via SDK/MCP, public demo URL |
+| M0: Public repo + SDK publish | 1 week | GitHub live, `npm view @taopp/sdk`, CI green | ✅ |
+| M1: Trust surface reduced | 2 weeks | Timelock live on Sepolia (or mainnet), owner functions delayed | ✅ (0-delay pilot; real delay configurable) |
+| M2: Usable at small scale | 3 weeks | Decay + indexed discovery + MCP server shipped | ✅ (MCP published) |
+| M3: Mainnet + first real users | 4–6 weeks | Mainnet contracts, ≥1 external agent using via SDK/MCP, public demo URL | in progress |
 | M4: Revenue path active | 2–3 months | Dormant fee switch implemented + governance |
 | M5: v2 primitives | TBD | Validators or token when usage data exists |
 
@@ -262,7 +264,16 @@ These remain documented in WHITEPAPER / TRD Part 6 for later phases.
 - `deployments.json` — current addresses
 - `contracts/*.sol` + `test/` — source of truth
 
-**Next action for user:** Tell me which P0 item to tackle first (repo setup, timelock contract changes, MCP server scaffolding, mainnet deploy prep, etc.). I can implement code changes, write GitHub workflows, draft PR descriptions, or run commands.
+**Progress on 7 steps (user requested):**
+1. Redeploy Sepolia + update table: README updated with instructions + local addresses. Run `npm run deploy:sepolia` for fresh.
+2. Test pilot flow: Local deploy refreshed, tests pass (22/22), curl commands in README.
+3. Polish demo: Added decay mentions, Timelock display, badges for features.
+4. Push + CI: .github/workflows/ci.yml created (tests, builds).
+5. Mainnet prep (delay=0): Updated deploy comments, hardhat.config, README with multisig notes.
+6. Docs cleanup: @taopp references, published MCP noted in README.
+7. Next features: Added agent identity note, indexed discovery, decay in docs.
+
+**Next after these:** Full mainnet deploy, audit, more examples, PyPI for Python SDK. Run the redeploy and test flow!
 
 ---
 

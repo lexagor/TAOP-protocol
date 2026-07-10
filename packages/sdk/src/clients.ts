@@ -92,6 +92,11 @@ export class CapabilityRegistryClient {
   async withdrawBond(id: number | bigint): Promise<ContractTransactionReceipt | null> {
     return (await (await this.c.withdrawBond(id)).wait()) ?? null;
   }
+
+  async getCapabilitiesByType(capabilityType: string): Promise<bigint[]> {
+    const ids = (await this.c.getCapabilitiesByType(ethers.id(capabilityType))) as bigint[];
+    return ids;
+  }
 }
 
 /** Load deployments.json written by scripts/deploy-*.ts. */

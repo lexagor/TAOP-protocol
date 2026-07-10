@@ -7,10 +7,32 @@ describe("ReputationOracleNetwork — self-attest + challenge (MVP)", () => {
 
   async function deploy() {
     const [owner, agentA, agentB, challenger, other] = await ethers.getSigners();
+
     const RON = await ethers.getContractFactory("ReputationOracleNetwork");
     const ron = await RON.deploy();
     await ron.waitForDeployment();
-    return { ron, owner, agentA, agentB, challenger, other };
+
+    // Deploy Timelock with 0 delay (for test convenience) and transfer ownership
+    const Timelock = await ethers.getContractFactory("TimelockController");
+    const minDelay = 0;
+    const proposers = [owner.address];
+    const executors = [owner.address];
+    const admin = ethers.ZeroAddress;
+    const timelock = await Timelock.deploy(minDelay, proposers, executors, admin);
+    await timelock.waitForDeployment();
+
+    await ron.transferOwnership(await timelock.getAddress());
+
+    // Helper to execute owner-only functions via the Timelock (supports delay=0)
+    async function executeAsOwner(target: string, data: string, value: bigint = 0n) {
+      const salt = ethers.id(`salt-${Date.now()}-${Math.random()}`);
+      const predecessor = ethers.ZeroHash;
+      await timelock.schedule(target, value, data, predecessor, salt, minDelay);
+      const tx = await timelock.execute(target, value, data, predecessor, salt);
+      return tx;
+    }
+
+    return { ron, owner, agentA, agentB, challenger, other, timelock, executeAsOwner };
   }
 
   it("attestCompletion mints a unique completionId, increments count, and emits", async () => {
@@ -81,12 +103,13 @@ describe("ReputationOracleNetwork — self-attest + challenge (MVP)", () => {
   });
 
   it("resolveChallenge upheld: disputeCount++, challenger refunded, completion disputed", async () => {
-    const { ron, owner, agentA, challenger } = await deploy();
+    const { ron, executeAsOwner, agentA, challenger } = await deploy();
     await ron.connect(agentA).attestCompletion(SUMMARY, "ipfs://result");
     await ron.connect(challenger).challengeCompletion(1, "ipfs://ev", { value: CHALLENGE_BOND });
 
     const challengerBefore = await ethers.provider.getBalance(challenger.address);
-    await expect(ron.connect(owner).resolveChallenge(1, true))
+    const data = ron.interface.encodeFunctionData("resolveChallenge", [1, true]);
+    await expect(executeAsOwner(await ron.getAddress(), data))
       .to.emit(ron, "ChallengeResolved")
       .withArgs(1n, true);
 
@@ -100,11 +123,12 @@ describe("ReputationOracleNetwork — self-attest + challenge (MVP)", () => {
   });
 
   it("resolveChallenge rejected: challenger bond forfeited to pool, not disputed", async () => {
-    const { ron, owner, agentA, challenger } = await deploy();
+    const { ron, executeAsOwner, agentA, challenger } = await deploy();
     await ron.connect(agentA).attestCompletion(SUMMARY, "ipfs://result");
     await ron.connect(challenger).challengeCompletion(1, "ipfs://ev", { value: CHALLENGE_BOND });
 
-    await expect(ron.connect(owner).resolveChallenge(1, false))
+    const data = ron.interface.encodeFunctionData("resolveChallenge", [1, false]);
+    await expect(executeAsOwner(await ron.getAddress(), data))
       .to.emit(ron, "ChallengeResolved")
       .withArgs(1n, false);
 
@@ -122,20 +146,22 @@ describe("ReputationOracleNetwork — self-attest + challenge (MVP)", () => {
   });
 
   it("resolveChallenge reverts on an unchallenged completion", async () => {
-    const { ron, owner, agentA } = await deploy();
+    const { ron, executeAsOwner, agentA } = await deploy();
     await ron.connect(agentA).attestCompletion(SUMMARY, "ipfs://result");
-    await expect(ron.connect(owner).resolveChallenge(1, true))
+    const data = ron.interface.encodeFunctionData("resolveChallenge", [1, true]);
+    await expect(executeAsOwner(await ron.getAddress(), data))
       .to.be.revertedWithCustomError(ron, "ChallengeNotPending");
   });
 
   it("getSelfAttestScore returns completions - disputes", async () => {
-    const { ron, owner, agentA, challenger } = await deploy();
+    const { ron, executeAsOwner, agentA, challenger } = await deploy();
     // 3 completions, 1 upheld dispute -> score = 2
     await ron.connect(agentA).attestCompletion(SUMMARY, "ipfs://r1");
     await ron.connect(agentA).attestCompletion(SUMMARY, "ipfs://r2");
     await ron.connect(agentA).attestCompletion(SUMMARY, "ipfs://r3");
     await ron.connect(challenger).challengeCompletion(1, "ipfs://ev", { value: CHALLENGE_BOND });
-    await ron.connect(owner).resolveChallenge(1, true);
+    const data = ron.interface.encodeFunctionData("resolveChallenge", [1, true]);
+    await executeAsOwner(await ron.getAddress(), data);
 
     const [completions, disputes, score] = await ron.getSelfAttestScore(agentA.address);
     expect(completions).to.eq(3n);
@@ -144,25 +170,28 @@ describe("ReputationOracleNetwork — self-attest + challenge (MVP)", () => {
   });
 
   it("getSelfAttestScore clamps to zero when disputes exceed completions", async () => {
-    const { ron, owner, agentA, challenger } = await deploy();
+    const { ron, executeAsOwner, agentA, challenger } = await deploy();
     await ron.connect(agentA).attestCompletion(SUMMARY, "ipfs://r1");
     await ron.connect(challenger).challengeCompletion(1, "ipfs://ev", { value: CHALLENGE_BOND });
-    await ron.connect(owner).resolveChallenge(1, true);
+    const data = ron.interface.encodeFunctionData("resolveChallenge", [1, true]);
+    await executeAsOwner(await ron.getAddress(), data);
     const [, , score] = await ron.getSelfAttestScore(agentA.address);
     expect(score).to.eq(0n);
   });
 
   it("withdrawEthPool is owner-only and pulls forfeited bonds", async () => {
-    const { ron, owner, agentA, challenger, other } = await deploy();
+    const { ron, executeAsOwner, agentA, challenger, other } = await deploy();
     await ron.connect(agentA).attestCompletion(SUMMARY, "ipfs://r");
     await ron.connect(challenger).challengeCompletion(1, "ipfs://ev", { value: CHALLENGE_BOND });
-    await ron.connect(owner).resolveChallenge(1, false);
+    const data = ron.interface.encodeFunctionData("resolveChallenge", [1, false]);
+    await executeAsOwner(await ron.getAddress(), data);
     expect(await ron.slashedEthPool()).to.eq(CHALLENGE_BOND);
 
     await expect(ron.connect(other).withdrawEthPool(other.address, CHALLENGE_BOND))
       .to.be.revertedWithCustomError(ron, "OwnableUnauthorizedAccount");
 
-    await expect(ron.connect(owner).withdrawEthPool(other.address, CHALLENGE_BOND))
+    const data = ron.interface.encodeFunctionData("withdrawEthPool", [other.address, CHALLENGE_BOND]);
+    await expect(executeAsOwner(await ron.getAddress(), data))
       .to.emit(ron, "EthPoolWithdrawn");
     expect(await ron.slashedEthPool()).to.eq(0n);
   });

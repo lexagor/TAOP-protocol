@@ -651,7 +651,7 @@ All owner functions are intended to route through a `TimelockController` (7-day 
 
 ## 8. SDK & Developer Surface
 
-### 8.1 TypeScript SDK (`@taop/sdk`)
+### 8.1 TypeScript SDK (`@taopp/sdk`)
 
 **Status:** Working; currently `private` (not yet published to npm — a P0 fix).
 **Dependencies:** ethers.js ^6.13.5
@@ -670,7 +670,7 @@ All owner functions are intended to route through a `TimelockController` (7-day 
 | `withdrawEthPool(to, amount)` | Owner withdraws forfeited bonds |
 
 ```typescript
-import { ReputationOracleNetworkClient } from "@taop/sdk";
+import { ReputationOracleNetworkClient } from "@taopp/sdk";
 
 const ron = new ReputationOracleNetworkClient("0x...", signer);
 const { completionId } = await ron.attestCompletion("LoRA", "ipfs://Qm...");
@@ -690,7 +690,7 @@ console.log(`Score: ${score.score} (completions ${score.completions} − dispute
 | `totalSupply()` / `tokenByIndex(i)` / `ownerOf(id)` | ERC-721Enumerable discovery helpers |
 
 ```typescript
-import { CapabilityRegistryClient, LORA_CAPABILITY_TYPE } from "@taop/sdk";
+import { CapabilityRegistryClient, LORA_CAPABILITY_TYPE } from "@taopp/sdk";
 import { ethers } from "ethers";
 
 const registry = new CapabilityRegistryClient("0x...", signer);
@@ -796,7 +796,7 @@ Claude: "I found Agent A with 5 verified completions and a 0.01 ETH bond.
 | Framework | Integration Method | Status |
 |-----------|-------------------|--------|
 | REST API | Direct HTTP | ✅ Shipped (v0.1) |
-| TypeScript SDK | `@taop/sdk` | ✅ Shipped (v0.1, private) |
+| TypeScript SDK | `@taopp/sdk` | ✅ Shipped (v0.1, private) |
 | Python SDK | `taop` (web3.py) | ✅ Shipped (v0.1) |
 | Agent B (demo) | External agent discovers + uses Agent A via Python SDK | ✅ Shipped (v0.1) |
 | Claude (MCP) | TAOP MCP server → native tools | Planned (v0.2) |
@@ -847,7 +847,7 @@ Claude: "I found Agent A with 5 verified completions and a 0.01 ETH bond.
 3. **No agent identity:** Agents are raw EOAs; no persistent identity across address changes. AgentRegistry planned for v2. (P1-3)
 4. **No score decay:** Scores never decay — stale reputations persist. (P2)
 5. **No protocol revenue:** v0.1 generates zero fees by design; the dormant fee switch is documented in `FEE_MODEL.md`. (intentional)
-6. **SDK not published:** `@taop/sdk` has `"private": true`. P0 fix (npm publish).
+6. **SDK not published:** `@taopp/sdk` has `"private": true`. P0 fix (npm publish).
 7. **No public repo / no BaseScan verification:** No git repo, contracts not yet source-verified. P0 fix.
 8. **No mainnet deployment:** Contracts live on Base Sepolia only. Pending audit.
 9. **No upgrade mechanism:** Contracts are immutable (no UUPS proxy). Upgrades require redeployment + migration.
@@ -936,7 +936,7 @@ AgentSafe launched June 10, 2026 on Base testnet:
 
 - [x] Two smart contracts (ReputationOracleNetwork + CapabilityRegistry, 279 lines Solidity)
 - [x] Self-attest + public-challenge reputation model with ETH bonds
-- [x] TypeScript SDK (`@taop/sdk`, ethers.js v6)
+- [x] TypeScript SDK (`@taopp/sdk`, ethers.js v6)
 - [x] Python SDK (`taop`, web3.py, 6 passing tests)
 - [x] REST API with Express.js + OpenAPI/Swagger docs
 - [x] React + Vite demo UI with live demo flow
@@ -949,7 +949,7 @@ AgentSafe launched June 10, 2026 on Base testnet:
 | Milestone | Deliverable | Effort |
 |-----------|-------------|--------|
 | Public git repo + BaseScan verification | Source-verify the deployed contracts | hours |
-| Publish `@taop/sdk` to npm | Remove `"private": true`, publish | 30 min |
+| Publish `@taopp/sdk` to npm | Remove `"private": true`, publish | 30 min |
 | MCP server | Tools for `get_agent_score`, `discover`, `register`, `attest` | 2 days |
 | Timelock on owner functions | `TimelockController` (7-day delay) | 0.5 day |
 | Grant application | Base Batches / a16z Crypto Startup School | 1 day |
