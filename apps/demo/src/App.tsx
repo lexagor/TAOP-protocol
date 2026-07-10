@@ -30,6 +30,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [challenging, setChallenging] = useState(false);
+  const [lastResolve, setLastResolve] = useState<any>(null);
 
   async function refresh() {
     const [c, d] = await Promise.all([getContracts(), getDiscover()]);
@@ -65,9 +66,13 @@ export default function App() {
     setError(null);
     try {
       await challengeCompletion(demo.completionId);
-      await resolveChallenge(demo.completionId, true);
+      const res = await resolveChallenge(demo.completionId, true);
+      setLastResolve(res);
       await refresh();
       setStatus("challenged");
+      if (res.scheduled) {
+        setError(`Resolve scheduled (delay ${res.delay}s). ${res.message || ''}`);
+      }
     } catch (e) {
       setError(String((e as Error).message ?? e));
     } finally {
@@ -81,12 +86,15 @@ export default function App() {
   const beforeCompletions = demo ? Number(demo.before.completions) : 0;
   const beforeDisputes = demo ? Number(demo.before.disputes) : 0;
 
+  const timelockDelaySec = contracts ? Number(contracts.timelockDelay) : 0;
+  const isZeroDelay = timelockDelaySec === 0;
+
   const statusCopy: Record<string, string> = {
-    idle: "Agent A is ready. Capability proof verified.",
+    idle: "Agent A is ready. Capability proof verified on-chain (indexed registry).",
     running: "Agent A is running the LoRA summarization model…",
     attesting: "Pinning evidence to IPFS + self-attesting on Base…",
-    done: "Completion logged on-chain. Agent A's score updated.",
-    challenged: "Challenge upheld. Score reduced by dispute.",
+    done: "Completion logged on-chain. Agent A's score updated (subject to decay for inactivity).",
+    challenged: "Challenge resolved via Timelock. Score adjusted by dispute.",
     error: "Something went wrong. See below.",
   };
 
@@ -199,10 +207,10 @@ function InvestorSection({ contracts }: { contracts: Contracts | null }) {
             <h3 className="text-sm font-semibold uppercase tracking-wider text-sky-300">Live now</h3>
             <ul className="mt-2 space-y-1.5 text-sm text-slate-300">
               <li>● Contracts deployed on <span className="text-slate-100">Base Sepolia</span> — real txs, real ETH bonds</li>
-              <li>● <span className="text-slate-100">9+ completions</span> self-attested on-chain by a real AI agent</li>
-              <li>● <span className="text-slate-100">Real AI inference</span> (GPT-4.1-nano) → pinned to IPFS → attested on Base</li>
+              <li>● <span className="text-slate-100">Score decay</span> via lastActivity (halves every 30d inactivity)</li>
+              <li>● <span className="text-slate-100">Indexed discovery</span> (O(1) getCapabilitiesByType)</li>
+              <li>● <span className="text-slate-100">Timelock</span> for admin actions (0-delay for demo)</li>
               <li>● <span className="text-slate-100">Python SDK</span> + external Agent B proving discovery → use → verify</li>
-              <li>● <span className="text-slate-100">37 contract tests</span> passing, Slither-clean, OpenAPI docs</li>
             </ul>
             {contracts && (
               <a
@@ -265,8 +273,14 @@ function Hero({ contracts, onRun, running }: { contracts: Contracts | null; onRu
           <span className="bg-gradient-to-r from-indigo-300 to-sky-300 bg-clip-text text-transparent">On Base.</span>
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-slate-300">
-          Self-attest completions · public challenge with ETH bonds · score = completions − disputes. No platform in the middle.
+          Self-attest completions · public challenge with ETH bonds · score = completions − disputes (decays over inactivity). Indexed discovery (O(1)). Timelock-protected admin. No platform in the middle.
         </p>
+        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+          <span className="rounded bg-emerald-800 px-2 py-0.5">Score Decay</span>
+          <span className="rounded bg-sky-800 px-2 py-0.5">Indexed Discovery</span>
+          <span className="rounded bg-amber-800 px-2 py-0.5">Timelock Admin</span>
+          <span className="rounded bg-purple-800 px-2 py-0.5">MCP + @taopp/sdk</span>
+        </div>
         <div className="mt-7 flex flex-wrap items-center gap-3">
           <button
             onClick={onRun}
@@ -285,10 +299,21 @@ function Hero({ contracts, onRun, running }: { contracts: Contracts | null; onRu
           </a>
           {contracts && (
             <span className="mono ml-1 text-xs text-slate-400">
-              {chainLabel(contracts.chainId)} · RON {trunc(contracts.ron)}
+              {chainLabel(contracts.chainId)} · RON {trunc(contracts.ron)} · Timelock {contracts.timelock ? trunc(contracts.timelock) : 'N/A'} (delay {Number(contracts.timelockDelay)}s)
+            </span>
+          )}
+          {contracts && (
+            <span className={`mono text-xs ${isZeroDelay ? 'text-green-400' : 'text-amber-400'}`}>
+              {isZeroDelay ? 'Demo mode (0 delay)' : 'Hardened mode'}
             </span>
           )}
         </div>
+        {contracts && (
+          <div className="mt-2 text-xs text-slate-400">
+            Timelock: {contracts.timelock ? trunc(contracts.timelock) : 'N/A'} • Delay: {contracts.timelockDelay}s
+            {isZeroDelay && ' (demo-friendly, set TIMELOCK_DELAY for real delay)'}
+          </div>
+        )}
       </div>
     </header>
   );
@@ -357,6 +382,18 @@ function PanelA({
         >
           {challenging ? "Resolving challenge…" : "Challenge this completion (fraud simulation)"}
         </button>
+      )}
+
+      {lastResolve && (
+        <div className="mt-3 rounded-lg border border-amber-800/60 bg-amber-950/20 p-3 text-xs">
+          <div className="font-medium text-amber-300">Timelock outcome</div>
+          <div className="mono mt-1 text-amber-200">
+            {lastResolve.executed ? "✅ Executed immediately" : "⏳ Scheduled"}
+            {lastResolve.delay ? ` (delay ${lastResolve.delay}s)` : ""}
+          </div>
+          {lastResolve.message && <div className="mt-1 text-amber-300">{lastResolve.message}</div>}
+          <div className="mt-1 text-[10px] text-amber-400">Admin actions protected by TimelockController (0 delay for demo)</div>
+        </div>
       )}
 
       <div
@@ -445,7 +482,7 @@ function PanelB({
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-            <div className="text-xs uppercase tracking-wider text-slate-500">Score before → after</div>
+            <div className="text-xs uppercase tracking-wider text-slate-500">Score before → after (with decay)</div>
             <div className="mt-2 flex items-center gap-3">
               <div className="mono text-2xl font-semibold text-slate-300">
                 {beforeCompletions === 0 && beforeDisputes === 0 ? "unrated" : beforeScore}
@@ -457,7 +494,7 @@ function PanelB({
                 {demo.after.completions} completions · {demo.after.disputes} disputes
               </span>
             </div>
-            <div className="mono mt-2 text-xs text-slate-500">score = completions − disputes</div>
+            <div className="mono mt-2 text-xs text-slate-500">score = completions − disputes (decays with inactivity via lastActivity on RON)</div>
           </div>
         </div>
       )}
@@ -504,15 +541,18 @@ function PanelC({
     <section className="fade-up rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
-          Panel C · Agent B discovers Agent A
+          Panel C · Agent B discovers Agent A (indexed)
         </h2>
         <div className="flex items-center gap-2">
-          <Chip tone="blue">search by capability proof</Chip>
+          <Chip tone="blue">indexed on-chain</Chip>
           <Chip>min score 0</Chip>
         </div>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-xl border border-slate-800">
+        <div className="bg-slate-950/60 px-4 py-1.5 text-xs text-slate-500">
+          Discovered via on-chain indexed registry (getCapabilitiesByType — O(1) lookup)
+        </div>
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-950/60 text-xs uppercase tracking-wider text-slate-500">
             <tr>

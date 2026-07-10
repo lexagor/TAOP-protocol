@@ -1,4 +1,4 @@
-"""Typed contract clients for TAOP MVP — mirrors @taop/sdk (TypeScript)."""
+"""Typed contract clients for TAOP MVP — mirrors @taopp/sdk (TypeScript)."""
 
 from __future__ import annotations
 

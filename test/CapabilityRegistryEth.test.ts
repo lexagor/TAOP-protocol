@@ -6,10 +6,31 @@ describe("CapabilityRegistry — ETH bonds (MVP)", () => {
 
   async function deploy() {
     const [owner, creator, certifier, other] = await ethers.getSigners();
+
     const Registry = await ethers.getContractFactory("CapabilityRegistry");
     const registry = await Registry.deploy(certifier.address);
     await registry.waitForDeployment();
-    return { registry, owner, creator, certifier, other };
+
+    // Deploy Timelock (0 delay for tests) and transfer ownership
+    const Timelock = await ethers.getContractFactory("TimelockController");
+    const minDelay = 0;
+    const proposers = [owner.address];
+    const executors = [owner.address];
+    const admin = ethers.ZeroAddress;
+    const timelock = await Timelock.deploy(minDelay, proposers, executors, admin);
+    await timelock.waitForDeployment();
+
+    await registry.transferOwnership(await timelock.getAddress());
+
+    async function executeAsOwner(target: string, data: string, value: bigint = 0n) {
+      const salt = ethers.id(`salt-${Date.now()}-${Math.random()}`);
+      const predecessor = ethers.ZeroHash;
+      await timelock.schedule(target, value, data, predecessor, salt, minDelay);
+      const tx = await timelock.execute(target, value, data, predecessor, salt);
+      return tx;
+    }
+
+    return { registry, owner, creator, certifier, other, timelock, executeAsOwner };
   }
 
   it("registerCapabilityEth mints an NFT, locks the ETH bond, and emits", async () => {
@@ -81,7 +102,7 @@ describe("CapabilityRegistry — ETH bonds (MVP)", () => {
   });
 
   it("withdrawEthPool is owner-only and pulls slashed ETH", async () => {
-    const { registry, owner, creator, certifier, other } = await deploy();
+    const { registry, executeAsOwner, creator, certifier, other } = await deploy();
     const bond = ethers.parseEther("0.1");
     await registry.connect(creator).registerCapabilityEth(LORA, "ipfs://m", { value: bond });
     await registry.connect(certifier).slashCapability(1, ethers.parseEther("0.04"));
@@ -90,7 +111,8 @@ describe("CapabilityRegistry — ETH bonds (MVP)", () => {
     await expect(registry.connect(other).withdrawEthPool(other.address, ethers.parseEther("0.04")))
       .to.be.revertedWithCustomError(registry, "OwnableUnauthorizedAccount");
 
-    await expect(registry.connect(owner).withdrawEthPool(other.address, ethers.parseEther("0.04")))
+    const data = registry.interface.encodeFunctionData("withdrawEthPool", [other.address, ethers.parseEther("0.04")]);
+    await expect(executeAsOwner(await registry.getAddress(), data))
       .to.emit(registry, "EthPoolWithdrawn");
     expect(await registry.slashedEthPool()).to.eq(0n);
   });

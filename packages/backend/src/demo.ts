@@ -1,9 +1,17 @@
 import { ethers } from "ethers";
 import type { BackendState } from "./contracts.js";
-import { LORA_CAPABILITY_TYPE } from "@taop/sdk";
+import { LORA_CAPABILITY_TYPE } from "@taopp/sdk";
 import { pinJSON, buildEvidence } from "./ipfs.js";
 import { recordCompletion } from "./db.js";
 import { summarize, DEMO_CORPORA } from "./lora.js";
+
+/**
+ * Note on Timelock:
+ * When the backend is started with a non-zero timelockDelay (via TIMELOCK_DELAY env on deploy),
+ * admin actions like resolve will only *schedule* on the Timelock and not execute immediately.
+ * The demo flow focuses on the happy path (attest). For challenge/resolve with delay,
+ * the /resolve endpoint now returns clear `scheduled` / `delay` / `message` fields.
+ */
 
 export interface DemoResult {
   agentAddress: string;

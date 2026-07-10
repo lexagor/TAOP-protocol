@@ -1,10 +1,11 @@
 {
   "chainId": 84532,
   "network": "base-sepolia",
-  "ron": "0x9bd022B6f41360f774fDD93844FA319Ed5f58e36",
-  "registry": "0x93415ac1cB1c2EDDC47033FFE421d85EaE674Acb",
+  "ron": "0xc0ee3c29147bc68d320b7Ac6cC5234ee79Bc4F1d",
+  "registry": "0xdeed09CAD527851e926b8387A0F710498AdECe3e",
+  "timelock": "0x6904A455f53728d1BcE2F6827750d6e9F7132A4D",
   "validator": "0x37374FD4f27c2b46Fd5d1a9BAFdc709315E51120",
-  "agentA": "0x7b237457b8e0EA89073592646686c5390343179A",
-  "agentAPk": "0x34c1f294c26d3c13f37b3bd244750d1af84ebcfe9424e64a0f770418af5001a5",
-  "deployedAt": "2026-07-01T17:30:00.000Z"
+  "agentA": "0x9071c40465f8Bd6a42C3CF936ff0E1901b4333ed",
+  "agentAPk": "0xff16cc95cbc122349f8e9640769d83b01a6e4cb02c5a4cb125ea3b97e070a288",
+  "deployedAt": "2026-07-10T12:00:00.000Z"
 }

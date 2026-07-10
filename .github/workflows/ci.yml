@@ -31,7 +31,11 @@ jobs:
       - name: Run contract tests
         run: npm run contracts:test
 
-      - name: Backend typecheck (if needed)
-        run: |
-          cd packages/backend || true
-          npx tsc --noEmit || true
+      - name: Build SDK
+        run: npm run sdk:build
+
+      - name: Build MCP server
+        run: npm run mcp:build
+
+      - name: Run backend typecheck
+        run: cd packages/backend && npx tsc --noEmit || true

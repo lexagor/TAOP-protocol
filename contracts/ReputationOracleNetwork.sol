@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol"; // ensure artifact is available for deploys/tests
 
 /**
  * @title ReputationOracleNetwork
@@ -43,6 +44,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     uint256 public nextCompletionId; // first id is 1
     mapping(address => uint64) public completionCount;
     mapping(address => uint64) public disputeCount;
+    mapping(address => uint64) public lastActivity; // for score decay
     uint256 public slashedEthPool; // forfeited challenger bonds, owner-withdrawable
 
     event SelfAttested(uint256 completionId, address agent, bytes32 taskType);
@@ -75,6 +77,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
             disputed: false
         });
         completionCount[msg.sender] += 1;
+        lastActivity[msg.sender] = uint64(block.timestamp);
         emit SelfAttested(completionId, msg.sender, taskType);
     }
 
@@ -128,7 +131,8 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
         emit EthPoolWithdrawn(to, amount);
     }
 
-    /// @notice v1 score = completions - disputes for `agent`.
+    /// @notice v1 score = completions - disputes for `agent`, with simple decay:
+    ///         net score halves for every 30 days of inactivity (based on last attest).
     function getSelfAttestScore(address agent)
         external
         view
@@ -136,7 +140,19 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     {
         completionCount_ = completionCount[agent];
         disputeCount_ = disputeCount[agent];
-        score = completionCount_ > disputeCount_ ? completionCount_ - disputeCount_ : 0;
+        uint64 net = completionCount_ > disputeCount_ ? completionCount_ - disputeCount_ : 0;
+
+        uint64 last = lastActivity[agent];
+        if (last > 0 && net > 0) {
+            uint256 daysSince = (block.timestamp - last) / 1 days;
+            if (daysSince > 30) {
+                uint256 halvings = daysSince / 30;
+                // cap halvings to avoid underflow
+                if (halvings > 63) halvings = 63;
+                net = uint64(net >> halvings);
+            }
+        }
+        score = net;
     }
 
     function getCompletion(uint256 completionId) external view returns (Completion memory) {

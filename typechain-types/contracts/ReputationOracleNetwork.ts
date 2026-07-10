@@ -62,6 +62,7 @@ export interface ReputationOracleNetworkInterface extends Interface {
       | "disputeCount"
       | "getCompletion"
       | "getSelfAttestScore"
+      | "lastActivity"
       | "nextCompletionId"
       | "owner"
       | "renounceOwnership"
@@ -114,6 +115,10 @@ export interface ReputationOracleNetworkInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "getSelfAttestScore",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "lastActivity",
     values: [AddressLike]
   ): string;
   encodeFunctionData(
@@ -173,6 +178,10 @@ export interface ReputationOracleNetworkInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getSelfAttestScore",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "lastActivity",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -386,6 +395,8 @@ export interface ReputationOracleNetwork extends BaseContract {
     "view"
   >;
 
+  lastActivity: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
   nextCompletionId: TypedContractMethod<[], [bigint], "view">;
 
   owner: TypedContractMethod<[], [string], "view">;
@@ -489,6 +500,9 @@ export interface ReputationOracleNetwork extends BaseContract {
     ],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "lastActivity"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
   getFunction(
     nameOrSignature: "nextCompletionId"
   ): TypedContractMethod<[], [bigint], "view">;

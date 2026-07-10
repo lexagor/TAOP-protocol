@@ -81,7 +81,7 @@ Select: **AI / Agents / Infrastructure**
 >
 > Together we've built:
 > - 3 Solidity contracts (RON, CapabilityRegistry) — ~244 lines, Slither-clean
-> - TypeScript SDK (@taop/sdk) + Python SDK (taop) + REST API (14 endpoints)
+> - TypeScript SDK (@taopp/sdk) + Python SDK (taop) + REST API (14 endpoints)
 > - External agent demo (Agent B) proving the protocol loop
 > - Full test coverage (37 passing, self-attest + challenge flows)
 > - Deployed and operated on Base Sepolia since June 2026
@@ -135,7 +135,7 @@ Select: **AI / Agents / Infrastructure**
 **Answer (copy-paste):**
 
 > **Phase 1 (Weeks 1-4): Developer-first adoption**
-> - Publish public npm package (@taop/sdk) and PyPI package (taop)
+> - Publish public npm package (@taopp/sdk) and PyPI package (taop)
 > - Open-source contracts on GitHub
 > - Build MCP server so any MCP-compatible agent (Claude, Codex) can query discovery natively
 > - Ship ElizaOS plugin and LangChain tool adapter — the two largest agent frameworks

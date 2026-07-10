@@ -1,7 +1,7 @@
 # TAOP Credit Bureau + LoRA Guilds — Deep-Dive Improvements Analysis
 
 > Generated: June 22, 2026 (originally) · **Re-graded July 2026 against the shipped v0.1 contracts.**
-> Codebase snapshot at re-grade: `contracts/ReputationOracleNetwork.sol` (145 lines), `contracts/CapabilityRegistry.sol` (134 lines), `@taop/sdk` (~180 lines), REST API (~1143 lines), 2 test files (22 tests), Python SDK (`taop`), deployed on **Base Sepolia (chainId 84532), live**.
+> Codebase snapshot at re-grade: `contracts/ReputationOracleNetwork.sol` (145 lines), `contracts/CapabilityRegistry.sol` (134 lines), `@taopp/sdk` (~180 lines), REST API (~1143 lines), 2 test files (22 tests), Python SDK (`taop`), deployed on **Base Sepolia (chainId 84532), live**.
 > Purpose: Exhaustive product improvements, ranked by impact, with code-level specifics.
 
 ---
@@ -26,7 +26,7 @@ Therefore several "P0 critical" items below are **already done or moot**. The ta
 | P1-3 | No agent identity | **OPEN (P1)** | Still open. Agents are raw EOAs in v0.1. |
 | P1-4 | Score precision (0-255 uint8) | **MOOT** | v0.1 score is `completions − disputes` (two `uint64`s), not a 0–255 rating. No aggregation arithmetic to lose precision. |
 | P1-5 | Capability type validation | **OPEN (P1-5)** | Still open. `capabilityType` is still an arbitrary `bytes32`. |
-| P1-6 | Publish SDK to npm (private) | **OPEN (P0)** | Still open. `@taop/sdk` is still `private: true`. |
+| P1-6 | Publish SDK to npm (private) | **OPEN (P0)** | Still open. `@taopp/sdk` is still `private: true`. |
 | P1-7 | Open-source contracts on GitHub | **OPEN (P0)** | Still open. There is **no git repo** at all yet. |
 | P1-8 | MCP server | **OPEN (P1)** | Still open. REST API + SDKs shipped; MCP not built. |
 | P1-9 | Discovery is O(n) | **OPEN (P1)** | Still open. `/discover` iterates `totalSupply` on-chain. |
@@ -377,14 +377,14 @@ This also prevents spam — no one can register a "fake" capability type.
 
 ### P1-6: Publish SDK to npm (it's private) ⚠️ CRITICAL
 
-**Current:** `packages/sdk/package.json` has `"private": true`. Nobody can install `@taop/sdk`.
+**Current:** `packages/sdk/package.json` has `"private": true`. Nobody can install `@taopp/sdk`.
 
 **Impact:** Zero SDK downloads = zero integrations = zero value.
 
 **Fix in 30 seconds:**
 ```json
 {
-  "name": "@taop/sdk",
+  "name": "@taopp/sdk",
   "version": "0.1.0",
   "private": false,  // ← change this
   "publishConfig": {
@@ -709,7 +709,7 @@ function withdrawBond(uint256 capabilityId) external nonReentrant {
 
 ### P2-8: SDK uses ethers.js v6 — no viem support
 
-**Current:** `@taop/sdk` uses `ethers.js ^6.13.5`. Viem is the dominant web3 library in 2026 (more TypeScript-native, better tree-shaking, wagmi/rainbowkit compatible).
+**Current:** `@taopp/sdk` uses `ethers.js ^6.13.5`. Viem is the dominant web3 library in 2026 (more TypeScript-native, better tree-shaking, wagmi/rainbowkit compatible).
 
 **Fix:** Add a viem-based client:
 ```typescript
@@ -846,7 +846,7 @@ Integrate with Ethereum Attestation Service (EAS) so agents can receive attestat
 | # | Improvement | Effort | Impact | Dependency |
 |---|-------------|--------|--------|------------|
 | P1-7 | Public git repo + BaseScan source verification | 2 hours | CRITICAL — no repo exists today; required for grants/audits | None |
-| P1-6 | Publish `@taop/sdk` to npm (it's `private: true`) | 30 minutes | CRITICAL — zero distribution | None |
+| P1-6 | Publish `@taopp/sdk` to npm (it's `private: true`) | 30 minutes | CRITICAL — zero distribution | None |
 | P0-5 | Timelock on owner functions (`resolveChallenge`, `withdrawEthPool`, `setCertifier`) | 0.5 day | HIGH — the one trust boundary; needed before mainnet | None |
 | P2-2 | Base mainnet deployment (post-audit) | 1 day + audit | CRITICAL — Sepolia is live; mainnet pending audit | P0-5, audit |
 

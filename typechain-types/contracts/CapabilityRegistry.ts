@@ -55,10 +55,12 @@ export interface CapabilityRegistryInterface extends Interface {
     nameOrSignature:
       | "approve"
       | "balanceOf"
+      | "capabilitiesByType"
       | "capabilityTypeOf"
       | "certifier"
       | "certifyCapability"
       | "getApproved"
+      | "getCapabilitiesByType"
       | "getCapability"
       | "isApprovedForAll"
       | "name"
@@ -106,6 +108,10 @@ export interface CapabilityRegistryInterface extends Interface {
     values: [AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "capabilitiesByType",
+    values: [BytesLike, BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "capabilityTypeOf",
     values: [BigNumberish]
   ): string;
@@ -117,6 +123,10 @@ export interface CapabilityRegistryInterface extends Interface {
   encodeFunctionData(
     functionFragment: "getApproved",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getCapabilitiesByType",
+    values: [BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "getCapability",
@@ -205,6 +215,10 @@ export interface CapabilityRegistryInterface extends Interface {
   decodeFunctionResult(functionFragment: "approve", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "balanceOf", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "capabilitiesByType",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "capabilityTypeOf",
     data: BytesLike
   ): Result;
@@ -215,6 +229,10 @@ export interface CapabilityRegistryInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getApproved",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getCapabilitiesByType",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -488,6 +506,12 @@ export interface CapabilityRegistry extends BaseContract {
 
   balanceOf: TypedContractMethod<[owner: AddressLike], [bigint], "view">;
 
+  capabilitiesByType: TypedContractMethod<
+    [arg0: BytesLike, arg1: BigNumberish],
+    [bigint],
+    "view"
+  >;
+
   capabilityTypeOf: TypedContractMethod<
     [capabilityId: BigNumberish],
     [string],
@@ -503,6 +527,12 @@ export interface CapabilityRegistry extends BaseContract {
   >;
 
   getApproved: TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
+
+  getCapabilitiesByType: TypedContractMethod<
+    [capabilityType: BytesLike],
+    [bigint[]],
+    "view"
+  >;
 
   getCapability: TypedContractMethod<
     [capabilityId: BigNumberish],
@@ -622,6 +652,13 @@ export interface CapabilityRegistry extends BaseContract {
     nameOrSignature: "balanceOf"
   ): TypedContractMethod<[owner: AddressLike], [bigint], "view">;
   getFunction(
+    nameOrSignature: "capabilitiesByType"
+  ): TypedContractMethod<
+    [arg0: BytesLike, arg1: BigNumberish],
+    [bigint],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "capabilityTypeOf"
   ): TypedContractMethod<[capabilityId: BigNumberish], [string], "view">;
   getFunction(
@@ -633,6 +670,9 @@ export interface CapabilityRegistry extends BaseContract {
   getFunction(
     nameOrSignature: "getApproved"
   ): TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
+  getFunction(
+    nameOrSignature: "getCapabilitiesByType"
+  ): TypedContractMethod<[capabilityType: BytesLike], [bigint[]], "view">;
   getFunction(
     nameOrSignature: "getCapability"
   ): TypedContractMethod<

@@ -19,20 +19,41 @@ async function main() {
 
   // RON: deploy with address(0) — validator path is dormant, ETH challenge
   // path is the MVP.
-const RON = await ethers.getContractFactory("ReputationOracleNetwork");
+  const RON = await ethers.getContractFactory("ReputationOracleNetwork");
   const ron = await RON.deploy();
   await ron.waitForDeployment();
+  const ronAddr = await ron.getAddress();
 
   // --- Deploy CapabilityRegistry (ETH-only, certifier = deployer) ---
   const Registry = await ethers.getContractFactory("CapabilityRegistry");
   const registry = await Registry.deploy(deployer.address);
   await registry.waitForDeployment();
+  const registryAddr = await registry.getAddress();
+
+  // --- Deploy TimelockController and transfer ownership (P0 hardening) ---
+  // We use 0 delay for local tests and the public pilot/demo so admin actions remain instant
+  // and the full interactive flow is usable. For hardened testing or pre-mainnet use:
+  //   TIMELOCK_DELAY=86400 npm run deploy:local
+  // (and configure a multisig in the proposers/executors arrays).
+  const Timelock = await ethers.getContractFactory("TimelockController");
+  const minDelay = process.env.TIMELOCK_DELAY ? BigInt(process.env.TIMELOCK_DELAY) : 0n;
+  const proposers = [deployer.address];
+  const executors = [deployer.address];
+  const admin = ethers.ZeroAddress; // renounce admin role after setup
+  const timelock = await Timelock.deploy(minDelay, proposers, executors, admin);
+  await timelock.waitForDeployment();
+  const timelockAddr = await timelock.getAddress();
+
+  // Transfer ownership so only the Timelock can call owner-only functions
+  await ron.transferOwnership(timelockAddr);
+  await registry.transferOwnership(timelockAddr);
 
   const deployment = {
     chainId: 31337,
     token: ethers.ZeroAddress,
-    ron: await ron.getAddress(),
-    registry: await registry.getAddress(),
+    ron: ronAddr,
+    registry: registryAddr,
+    timelock: timelockAddr,
     validator: deployer.address,
     agentA: agentA.address,
     validatorStake: "0",
