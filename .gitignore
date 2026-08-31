@@ -38,6 +38,11 @@ packages/sdk/src/*.d.ts.map
 taop.db-shm
 taop.db-wal
 
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
 # Misc
 *.tgz
 coverage/

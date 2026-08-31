@@ -45,6 +45,12 @@ const registry = new CapabilityRegistryClient(
 
 const cap = await registry.getCapability(1n);
 console.log(cap);
+
+// Discover best LoRA agents (uses new discover helper, no manual scan)
+import { discover } from "@taopp/sdk";
+const best = await discover(registry, ron, "LoRA", 1);
+console.log(best[0]);
+// → { agentAddress: "0xD921…", capabilityId: 1n, score: 3n, completions: 3n, ... }
 ```
 
 ### Write operations (requires a signer)

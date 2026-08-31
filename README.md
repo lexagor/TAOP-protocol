@@ -204,6 +204,26 @@ Install: `pip install taop` (or from packages/python-sdk).
 
 See `packages/python-sdk/` and `packages/agent-b/` for full Agent B example that discovers + uses capabilities.
 
+### LangChain Integration (Python, minimal)
+
+```python
+from taop import connect, CapabilityRegistryClient, ReputationOracleNetworkClient
+from taop.integrations.langchain import TaopDiscoverTool
+
+w3 = connect("https://sepolia.base.org", 84532)
+ron = ReputationOracleNetworkClient("0x716EB78D4E7B297b53d9962e3952228691e3CEaA", w3)
+reg = CapabilityRegistryClient("0x6132175a065295A51FC6d0eA8f1a7456F5c82019", w3)
+tool = TaopDiscoverTool(reg, ron)
+print(tool._run(capabilityType="LoRA", minScore=1))  # best LoRA agents
+
+# With an LLM agent:
+# from langchain.agents import create_agent
+# agent = create_agent(model, tools=[tool])
+# agent.invoke({"messages": [{"role": "user", "content": "find best LoRA summarizer"}]})
+```
+
+Requires `pip install langchain-core` (optional). Also available: `TaopScoreTool` + `load_taop_tools(reg, ron)`. TS parity: `import { discover } from "@taopp/sdk"` — `await discover(registry, ron, "LoRA", 1)`.
+
 ### Published Packages — Getting Started
 
 Both the TypeScript SDK and MCP server are published and ready for use:

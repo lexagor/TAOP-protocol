@@ -113,6 +113,58 @@ export class CapabilityRegistryClient {
   }
 }
 
+export type DiscoveryItem = {
+  agentAddress: string;
+  capabilityId: bigint;
+  capabilityType: string;
+  certified: boolean;
+  slashed: boolean;
+  bond: bigint;
+  metadataCID: string;
+  completions: bigint;
+  disputes: bigint;
+  score: bigint;
+};
+
+export async function discover(
+  registry: CapabilityRegistryClient,
+  ron: ReputationOracleNetworkClient,
+  capabilityType = "LoRA",
+  minScore = 0n as bigint | number,
+): Promise<DiscoveryItem[]> {
+  const min = typeof minScore === "bigint" ? minScore : BigInt(minScore);
+  let ids: bigint[];
+  try {
+    ids = await registry.getCapabilitiesByType(capabilityType);
+  } catch {
+    const total = await registry.totalSupply();
+    ids = [];
+    for (let i = 0n; i < total; i++) ids.push(await registry.tokenByIndex(i));
+  }
+  const out: DiscoveryItem[] = [];
+  for (const capId of ids) {
+    const cap = await registry.getCapability(capId);
+    if (cap.capabilityType.toLowerCase() !== ethers.id(capabilityType).toLowerCase()) continue;
+    if (!cap.certified || cap.slashed) continue;
+    const s = await ron.getSelfAttestScore(cap.creator);
+    if (s.score < min) continue;
+    out.push({
+      agentAddress: cap.creator,
+      capabilityId: capId,
+      capabilityType,
+      certified: cap.certified,
+      slashed: cap.slashed,
+      bond: cap.bond,
+      metadataCID: cap.metadataCID,
+      completions: s.completions,
+      disputes: s.disputes,
+      score: s.score,
+    });
+  }
+  out.sort((a, b) => (b.score > a.score ? 1 : b.score < a.score ? -1 : 0));
+  return out;
+}
+
 /** Load deployments.json written by scripts/deploy-*.ts. */
 export async function loadDeployment(path: string) {
   const fs = await import("node:fs/promises");

@@ -74,6 +74,18 @@ Add to your Claude config (claude_desktop_config.json):
 }
 ```
 
+## LangChain alternative (no MCP)
+
+For LangChain Python agents without MCP, use the SDK's native tools:
+
+```python
+from taop.integrations.langchain import TaopDiscoverTool, TaopScoreTool, load_taop_tools
+tool = TaopDiscoverTool(registry, ron)
+tool._run(capabilityType="LoRA", minScore=1)
+```
+
+See `packages/python-sdk/taop/integrations/langchain.py` and main `README.md`.
+
 ## Development
 
 ```bash
