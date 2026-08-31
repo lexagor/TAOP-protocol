@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -7,7 +8,7 @@ import fs from "node:fs";
 import { initState, type BackendState } from "./contracts.js";
 import { runDemo } from "./demo.js";
 import { LORA_CAPABILITY_TYPE } from "@taopp/sdk";
-import { listCapabilities, listCompletions } from "./db.js";
+import { listCapabilities, listCompletions, markCompletionChallenged, markCompletionResolved } from "./db.js";
 import { openApiSpec } from "./openapi.js";
 
 const app = express();
@@ -118,15 +119,42 @@ api.post("/completions/attest", async (req, res) => {
 
 api.post("/completions/:id/challenge", async (req, res) => {
   try {
+    // Use agentA runner for challenge in demo (it receives demo funding for the bond)
+    // This avoids insufficient balance errors on the validator/deployer key after redeploys.
+    state.agentARunner?.reset?.();
+    const completionId = BigInt(req.params.id);
     const bond = await state.ron.challengeBond();
-    const receipt = await state.ron.challengeCompletion(
-      BigInt(req.params.id),
+
+    // Pre-checks to avoid ugly "missing revert data" errors from estimateGas on reverts or low balance
+    try {
+      const c = await state.ron.getCompletion(completionId);
+      if (!c.agent || c.agent === ethers.ZeroAddress) {
+        return res.status(400).json({ error: "No such completion (id may be from a previous deployment). Run the live demo first to create a fresh one." });
+      }
+    } catch {
+      return res.status(400).json({ error: "No such completion. Run the live demo first." });
+    }
+
+    const challengerAddr = await state.agentARunner.getAddress();
+    const bal = await state.provider.getBalance(challengerAddr);
+    if (bal < bond) {
+      return res.status(400).json({ error: `Insufficient balance on challenger ${challengerAddr} (${ethers.formatEther(bal)} ETH) to post ${ethers.formatEther(bond)} ETH bond. Faucet more test ETH to the agentA address.` });
+    }
+
+    const receipt = await state.ronAgentA.challengeCompletion(
+      completionId,
       String(req.body?.evidenceCID ?? "ipfs://challenge-evidence"),
       bond,
     );
+    markCompletionChallenged(completionId);
     res.json({ txHash: receipt?.hash ?? null, bondWei: bond.toString() });
   } catch (e) {
-    res.status(500).json({ error: String((e as Error).message ?? e) });
+    const msg = String((e as Error).message ?? e);
+    // If contract revert (e.g. already challenged, no such, wrong bond), return as error but not crash
+    if (msg.includes("missing revert data") || msg.includes("CALL_EXCEPTION") || msg.includes("revert") || msg.includes("nonce")) {
+      return res.status(400).json({ error: msg });
+    }
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -134,6 +162,8 @@ api.post("/completions/:id/resolve", async (req, res) => {
   try {
     const upheld = Boolean(req.body?.upheld ?? false);
     const completionId = BigInt(req.params.id);
+
+    state.oracleRunner?.reset?.();
 
     let receipt: any = null;
     if (state.executeViaTimelock) {
@@ -146,6 +176,9 @@ api.post("/completions/:id/resolve", async (req, res) => {
       const result = await state.executeViaTimelock(target, data);
       receipt = result.receipt;
 
+      if (result.executed) {
+        markCompletionResolved(completionId, upheld);
+      }
       res.json({
         txHash: receipt?.hash ?? null,
         upheld,
@@ -159,11 +192,16 @@ api.post("/completions/:id/resolve", async (req, res) => {
       return;
     } else {
       receipt = await state.ron.resolveChallenge(completionId, upheld);
+      markCompletionResolved(completionId, upheld);
     }
 
     res.json({ txHash: receipt?.hash ?? null, upheld });
   } catch (e) {
-    res.status(500).json({ error: String((e as Error).message ?? e) });
+    const msg = String((e as Error).message ?? e);
+    if (msg.includes("missing revert data") || msg.includes("CALL_EXCEPTION") || msg.includes("revert") || msg.includes("nonce")) {
+      return res.status(400).json({ error: msg });
+    }
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -199,6 +237,47 @@ api.get("/agents/:address/score", async (req, res) => {
   });
 });
 
+// --- Basic agent identity (Step 7) ---
+api.get("/agents/:address/identity", async (req, res) => {
+  let cid = "";
+  try {
+    cid = await state.ron.getAgentMetadata(req.params.address);
+  } catch (e) {
+    const msg = String((e as Error).message ?? e);
+    if (msg.includes("missing revert data") || msg.includes("CALL_EXCEPTION") || msg.includes("revert")) {
+      cid = ""; // old contract without identity support
+    } else {
+      throw e;
+    }
+  }
+  res.json({ metadataCID: cid });
+});
+
+api.post("/agents/register", async (req, res) => {
+  try {
+    const { metadataCID } = req.body ?? {};
+    if (!metadataCID) {
+      return res.status(400).json({ error: "metadataCID required" });
+    }
+    // Use Agent A's runner so the identity is attached to the demo agent (what the UI queries + discover shows).
+    const receipt = await state.ronAgentA.registerAgent(metadataCID);
+    res.json({ txHash: receipt?.hash ?? null });
+  } catch (e) {
+    const msg = String((e as Error).message ?? e);
+    // For demo purposes: if the deployed contract predates the identity feature (registerAgent not present),
+    // still succeed locally so the UI can show the identity CID. Real on-chain registration will work
+    // after a redeploy with latest contracts.
+    if (msg.includes("missing revert data") || msg.includes("CALL_EXCEPTION") || msg.includes("revert")) {
+      return res.json({
+        txHash: null,
+        simulated: true,
+        note: "Demo (current on-chain RON may predate identity support; redeploy for full on-chain effect)"
+      });
+    }
+    res.status(500).json({ error: msg });
+  }
+});
+
 // --- Discovery ---
 
 api.get("/discover", async (req, res) => {
@@ -212,6 +291,17 @@ api.get("/discover", async (req, res) => {
     const score = await state.ron.getSelfAttestScore(cap.creator);
     const scoreNum = Number(score.score);
     if (scoreNum < minScore) continue;
+    let identityCID = "";
+    try {
+      identityCID = await state.ron.getAgentMetadata(cap.creator);
+    } catch (e) {
+      const msg = String((e as Error).message ?? e);
+      if (msg.includes("missing revert data") || msg.includes("CALL_EXCEPTION") || msg.includes("revert")) {
+        identityCID = ""; // old contract
+      } else {
+        throw e;
+      }
+    }
     out.push({
       agentAddress: cap.creator,
       capabilityId: id.toString(),
@@ -220,6 +310,7 @@ api.get("/discover", async (req, res) => {
       slashed: cap.slashed,
       bond: ethers.formatEther(cap.bond),
       metadataCID: cap.metadataCID,
+      identityCID,
       completions: Number(score.completions),
       disputes: Number(score.disputes),
       score: scoreNum,

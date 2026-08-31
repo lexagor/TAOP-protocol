@@ -62,7 +62,26 @@ export async function runDemo(state: BackendState): Promise<DemoResult> {
   const resultCID = await pinJSON(evidence, `taop-evidence-task${state.taskCounter}`);
 
   // Agent A self-attests the completion (must be called by Agent A's signer).
-  const { completionId, receipt } = await state.ronAgentA.attestCompletion(taskType, resultCID);
+  // Reset nonce manager first to avoid "nonce too low" / NONCE_EXPIRED from
+  // public RPC desync, previous failed runs, or multiple backend instances.
+  // Retry on nonce errors for robustness.
+  let attestResult;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      state.agentARunner?.reset?.();
+      attestResult = await state.ronAgentA.attestCompletion(taskType, resultCID);
+      break;
+    } catch (e) {
+      const msg = String((e as Error).message ?? e).toLowerCase();
+      if ((msg.includes("nonce") || msg.includes("nonce_expired") || msg.includes("nonce too low")) && attempt < 2) {
+        console.warn(`Nonce error on attempt ${attempt+1} for attest, retrying after reset...`);
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+      throw e;
+    }
+  }
+  const { completionId, receipt } = attestResult;
 
   // Read-after-write can lag on L2; retry until the count increments.
   const beforeCount = before.completions;

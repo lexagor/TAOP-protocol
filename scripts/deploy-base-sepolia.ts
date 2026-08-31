@@ -3,14 +3,15 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 /**
- * Deploy the TAOP MVP contracts to Base Sepolia (chainId 84532) and write
- * deployments.json at the repo root. ETH-only mode (token = address(0)).
+ * Deploy the TAOP MVP contracts (works for Sepolia or mainnet).
+ * Writes deployments.json. ETH-only mode.
  *
- * The deployer (signer #0, from DEPLOYER_PK) becomes the certifier + the
- * challenge resolver (owner). A fresh Agent A wallet is generated, saved,
- * and funded from the deployer so it can bond + self-attest.
+ * For mainnet prep (Step 5): `npm run deploy:mainnet`
+ * - Keep 0 delay for pilot usability (see minDelay below and README).
+ * - Update hardhat "base" + provide BASE_MAINNET_RPC_URL + real funds.
+ * - Use multisig for proposers/executors post-audit.
  *
- *   npm run deploy:sepolia
+ * Sepolia: npm run deploy:sepolia
  */
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -24,6 +25,7 @@ async function main() {
     console.error("   - thirdweb: https://thirdweb.com/base-sepolia-testnet");
     console.error("   - Official list: https://docs.base.org/base-chain/network-information/network-faucets");
     console.error("   - Chainlink: https://faucets.chain.link/base-sepolia\n");
+    console.error("   For the full demo (capability 0.01 bond + attest gas + challenge 0.01 bond + buffer): faucet at least ~0.1 ETH to your DEPLOYER_PK.\n");
     console.error("   Then: npm run deploy:sepolia\n");
     process.exit(1);
   }
@@ -48,14 +50,33 @@ async function main() {
   console.log("CapabilityRegistry:", registryAddr);
 
   // --- Deploy TimelockController and transfer ownership (P0: harden single owner) ---
-  // Using 0 delay for the live pilot/demo so resolve flows remain instant and the demo is usable.
-  // For real use (e.g. testing hardened flows or before mainnet): set TIMELOCK_DELAY=86400 (1 day)
-  // and use a multisig as proposer (update proposers/executors arrays).
-  // Mainnet prep: increase delay, use multisig, run audit. See IMPROVEMENTS_PLAN.md
+  // IMPORTANT for mainnet prep (Step 5): We deliberately keep 0 delay for the pilot/demo
+  // so flows remain instant and usable. Do NOT change this default to a non-zero value
+  // until after audit + multisig setup.
+  // For hardened mainnet: set TIMELOCK_DELAY=86400 (or more) + use multisig in proposers/executors.
+  // See hardhat.config.ts "base" network, README "Mainnet preparation", and IMPROVEMENTS_PLAN.md
   const Timelock = await ethers.getContractFactory("TimelockController");
   const minDelay = process.env.TIMELOCK_DELAY ? BigInt(process.env.TIMELOCK_DELAY) : 0n;
-  const proposers = [deployerAddr];
-  const executors = [deployerAddr];
+
+  // Multisig support for mainnet/hardened deploys.
+  // Set MULTISIG_ADDRESS=0x... (recommended) or PROPOSERS=0xA,0xB and EXECUTORS=0xA,0xB
+  // If MULTISIG_ADDRESS is set, it is used for both proposers and executors.
+  // Admin is left as ZeroAddress (no admin after deploy).
+  let proposers: string[];
+  let executors: string[];
+  const multisig = process.env.MULTISIG_ADDRESS;
+  if (multisig && multisig.length === 42) {
+    proposers = [multisig];
+    executors = [multisig];
+    console.log("Using MULTISIG for Timelock proposers/executors:", multisig);
+  } else if (process.env.PROPOSERS || process.env.EXECUTORS) {
+    proposers = (process.env.PROPOSERS || deployerAddr).split(",").map(s => s.trim());
+    executors = (process.env.EXECUTORS || deployerAddr).split(",").map(s => s.trim());
+    console.log("Using custom PROPOSERS/EXECUTORS for Timelock");
+  } else {
+    proposers = [deployerAddr];
+    executors = [deployerAddr];
+  }
   const admin = ethers.ZeroAddress;
   const timelock = await Timelock.deploy(minDelay, proposers, executors, admin);
   await timelock.waitForDeployment();
@@ -69,7 +90,7 @@ async function main() {
   const agentAWallet = ethers.Wallet.createRandom();
   const agentAAddr = agentAWallet.address;
   const agentAPk = agentAWallet.privateKey;
-  const fundAmount = ethers.parseEther("0.02"); // lowered from 0.05 for small testnet balances (still enough for several 0.01 bonds + gas)
+  const fundAmount = ethers.parseEther("0.05"); // enough for capability bond (0.01) + attest gas + challenge bond (0.01) + buffer on testnet
   console.log("Funding Agent A:", agentAAddr, "with", ethers.formatEther(fundAmount), "ETH");
   const fundTx = await deployer.sendTransaction({
     to: agentAAddr,
@@ -92,7 +113,7 @@ async function main() {
   const outPath = path.resolve(__dirname, "..", "deployments.json");
   fs.writeFileSync(outPath, JSON.stringify(deployment, null, 2) + "\n");
 
-  console.log("\n=== TAOP MVP deployed to Base Sepolia ===");
+  console.log("\n=== TAOP MVP deployed (network from hardhat) ===");
   console.log("RON:       ", ronAddr);
   console.log("Registry:  ", registryAddr);
   console.log("Agent A:   ", agentAAddr);
@@ -100,6 +121,10 @@ async function main() {
   console.log("Basescan:  https://sepolia.basescan.org/address/" + ronAddr);
   console.log("\nWrote", outPath);
   console.log("\nNext: set AGENT_A_PK=" + agentAPk + " in .env");
+
+  // Mainnet prep (Step 5): For Base mainnet use `npm run deploy:mainnet`
+  // (requires BASE_MAINNET_RPC_URL + real ETH in DEPLOYER_PK).
+  // Keep delay=0 for pilot. Use multisig + higher TIMELOCK_DELAY only after audit.
 }
 
 main().catch((e) => {

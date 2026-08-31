@@ -20,6 +20,7 @@ export interface DiscoveryItem {
   slashed: boolean;
   bond: string;
   metadataCID: string;
+  identityCID: string;
   completions: number;
   disputes: number;
   score: number;
@@ -77,4 +78,12 @@ export const resolveChallenge = (id: string, upheld: boolean) =>
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ upheld }),
+  });
+
+export const getIdentity = (address: string) => json<{ metadataCID: string }>(`${BASE}/agents/${address}/identity`);
+export const registerIdentity = (metadataCID: string) =>
+  json<{ txHash: string | null; simulated?: boolean; note?: string }>(`${BASE}/agents/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ metadataCID }),
   });

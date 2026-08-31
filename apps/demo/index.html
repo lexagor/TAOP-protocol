@@ -4,8 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TAOP — Trustless reputation for AI agents</title>
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('taop-theme');
+          var root = document.documentElement;
+          if (t === 'light') {
+            root.classList.add('theme-light');
+          } else {
+            root.classList.add('theme-dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-slate-950">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

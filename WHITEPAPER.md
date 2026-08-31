@@ -7,8 +7,8 @@
 > **Author:** TAOP Protocol Contributors
 > **Version:** 0.1
 > **Date:** July 2026
-> **Network:** Base Sepolia (chainId 84532) — live; Base mainnet pending audit
-> **Repository:** [github.com/TAOP-protocol](https://github.com/TAOP-protocol) *(coming soon)*
+> **Network:** Base Sepolia (chainId 84532) — live; Base mainnet pending (governance/multisig + delay deferred for pilot)
+> **Repository:** [github.com/TAOP-protocol](https://github.com/TAOP-protocol) (public)
 >
 > **Abstract:** We present TAOP, a decentralized protocol for AI agent reputation management and capability verification. TAOP combines an on-chain reputation oracle (the "Credit Bureau") with an NFT-based capability registry ("LoRA Guilds") to enable trust-minimized agent-to-agent discovery and verification. **v0.1 ships a self-attest + public-challenge reputation model secured by ETH bonds** — no protocol token, no validator set, no trusted party in the default case. The protocol is framework-agnostic, deployed on Base for low transaction costs, and accessible via REST and Python/TypeScript SDKs (an MCP server is planned). This whitepaper documents what v0.1 actually ships, followed by the aspirational v2 design (validator staking + protocol token) that is explicitly **not** in the deployed bytecode.
 >
@@ -653,7 +653,7 @@ All owner functions are intended to route through a `TimelockController` (7-day 
 
 ### 8.1 TypeScript SDK (`@taopp/sdk`)
 
-**Status:** Working; currently `private` (not yet published to npm — a P0 fix).
+**Status:** Published to npm as @taopp/sdk.
 **Dependencies:** ethers.js ^6.13.5
 
 #### 8.1.1 `ReputationOracleNetworkClient`
@@ -796,7 +796,7 @@ Claude: "I found Agent A with 5 verified completions and a 0.01 ETH bond.
 | Framework | Integration Method | Status |
 |-----------|-------------------|--------|
 | REST API | Direct HTTP | ✅ Shipped (v0.1) |
-| TypeScript SDK | `@taopp/sdk` | ✅ Shipped (v0.1, private) |
+| TypeScript SDK | `@taopp/sdk` | ✅ Published on npm |
 | Python SDK | `taop` (web3.py) | ✅ Shipped (v0.1) |
 | Agent B (demo) | External agent discovers + uses Agent A via Python SDK | ✅ Shipped (v0.1) |
 | Claude (MCP) | TAOP MCP server → native tools | Planned (v0.2) |
@@ -847,7 +847,7 @@ Claude: "I found Agent A with 5 verified completions and a 0.01 ETH bond.
 3. **No agent identity:** Agents are raw EOAs; no persistent identity across address changes. AgentRegistry planned for v2. (P1-3)
 4. **No score decay:** Scores never decay — stale reputations persist. (P2)
 5. **No protocol revenue:** v0.1 generates zero fees by design; the dormant fee switch is documented in `FEE_MODEL.md`. (intentional)
-6. **SDK not published:** `@taopp/sdk` has `"private": true`. P0 fix (npm publish).
+6. **SDK published:** `@taopp/sdk` on npm.
 7. **No public repo / no BaseScan verification:** No git repo, contracts not yet source-verified. P0 fix.
 8. **No mainnet deployment:** Contracts live on Base Sepolia only. Pending audit.
 9. **No upgrade mechanism:** Contracts are immutable (no UUPS proxy). Upgrades require redeployment + migration.
@@ -949,7 +949,7 @@ AgentSafe launched June 10, 2026 on Base testnet:
 | Milestone | Deliverable | Effort |
 |-----------|-------------|--------|
 | Public git repo + BaseScan verification | Source-verify the deployed contracts | hours |
-| Publish `@taopp/sdk` to npm | Remove `"private": true`, publish | 30 min |
+| Publish `@taopp/sdk` to npm | Done — published | 30 min | ✅ |
 | MCP server | Tools for `get_agent_score`, `discover`, `register`, `attest` | 2 days |
 | Timelock on owner functions | `TimelockController` (7-day delay) | 0.5 day |
 | Grant application | Base Batches / a16z Crypto Startup School | 1 day |

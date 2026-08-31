@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-09  
 **Project:** TAOP MVP — Agent Credit Bureau + LoRA Guilds (`new-credit-bureau`)  
-**Current State:** v0.1 shipped and **live on Base Sepolia**  
+**Current State:** v0.1 shipped and **live on Base Sepolia**; Step 5 (Mainnet prep, keep 0 delay) in progress  
 **Live contracts (from deployments.json):**
 - RON (ReputationOracleNetwork): `0x9bd022B6f41360f774fDD93844FA319Ed5f58e36`
 - Registry (CapabilityRegistry): `0x93415ac1cB1c2EDDC47033FFE421d85EaE674Acb`
@@ -97,6 +97,7 @@ The window vs. Olas (who shipped ARS on Base mainnet) is narrow. **Focus on maki
    - Update imports/examples everywhere.
 
 3. **Harden ownership (Timelock)** ✅ Done + polished (this iteration)
+   - Mainnet prep (Step 5): deploy script + docs updated to keep 0 delay for pilot. See README "Mainnet preparation". Use multisig + audit before non-zero delay.
    - Deploy scripts create TimelockController + transfer ownership of RON + Registry.
    - Tests refactored with executeAsOwner helper (all 22 tests pass).
    - Backend has clean `executeViaTimelock` helper + resolve route updated.
@@ -271,7 +272,7 @@ These remain documented in WHITEPAPER / TRD Part 6 for later phases.
 4. Push + CI: .github/workflows/ci.yml created (tests, builds).
 5. Mainnet prep (delay=0): Updated deploy comments, hardhat.config, README with multisig notes.
 6. Docs cleanup: @taopp references, published MCP noted in README.
-7. Next features: Added agent identity note, indexed discovery, decay in docs.
+7. Next features (Step 7): Added basic on-chain agent identity (registerAgent, getAgentMetadata, metadataCID in RON). Updated TS/Python SDK, backend routes, docs, and examples. See README and contracts.
 
 **Next after these:** Full mainnet deploy, audit, more examples, PyPI for Python SDK. Run the redeploy and test flow!
 

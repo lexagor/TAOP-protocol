@@ -159,4 +159,22 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
         if (completions[completionId].agent == address(0)) revert NoSuchCompletion();
         return completions[completionId];
     }
+
+    // --- Basic Agent Identity (Step 7) ---
+
+    mapping(address => string) public agentMetadataCID;
+
+    event AgentRegistered(address indexed agent, string metadataCID);
+
+    /// @notice Register or update basic on-chain identity metadata for the caller
+    ///         (e.g. IPFS CID pointing to JSON with name, description, avatar, links).
+    ///         This is self-sovereign and optional. Future versions may add verification.
+    function registerAgent(string calldata metadataCID) external {
+        agentMetadataCID[msg.sender] = metadataCID;
+        emit AgentRegistered(msg.sender, metadataCID);
+    }
+
+    function getAgentMetadata(address agent) external view returns (string memory) {
+        return agentMetadataCID[agent];
+    }
 }

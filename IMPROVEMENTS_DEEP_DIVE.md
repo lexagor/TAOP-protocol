@@ -26,7 +26,7 @@ Therefore several "P0 critical" items below are **already done or moot**. The ta
 | P1-3 | No agent identity | **OPEN (P1)** | Still open. Agents are raw EOAs in v0.1. |
 | P1-4 | Score precision (0-255 uint8) | **MOOT** | v0.1 score is `completions − disputes` (two `uint64`s), not a 0–255 rating. No aggregation arithmetic to lose precision. |
 | P1-5 | Capability type validation | **OPEN (P1-5)** | Still open. `capabilityType` is still an arbitrary `bytes32`. |
-| P1-6 | Publish SDK to npm (private) | **OPEN (P0)** | Still open. `@taopp/sdk` is still `private: true`. |
+| P1-6 | Publish SDK to npm | **DONE** | `@taopp/sdk` published. |
 | P1-7 | Open-source contracts on GitHub | **OPEN (P0)** | Still open. There is **no git repo** at all yet. |
 | P1-8 | MCP server | **OPEN (P1)** | Still open. REST API + SDKs shipped; MCP not built. |
 | P1-9 | Discovery is O(n) | **OPEN (P1)** | Still open. `/discover` iterates `totalSupply` on-chain. |
@@ -377,7 +377,7 @@ This also prevents spam — no one can register a "fake" capability type.
 
 ### P1-6: Publish SDK to npm (it's private) ⚠️ CRITICAL
 
-**Current:** `packages/sdk/package.json` has `"private": true`. Nobody can install `@taopp/sdk`.
+**Current:** `@taopp/sdk` published on npm.
 
 **Impact:** Zero SDK downloads = zero integrations = zero value.
 
@@ -709,7 +709,7 @@ function withdrawBond(uint256 capabilityId) external nonReentrant {
 
 ### P2-8: SDK uses ethers.js v6 — no viem support
 
-**Current:** `@taopp/sdk` uses `ethers.js ^6.13.5`. Viem is the dominant web3 library in 2026 (more TypeScript-native, better tree-shaking, wagmi/rainbowkit compatible).
+**Current:** `@taopp/sdk` uses `ethers.js ^6.13.5`. Published. (Viem note for future.)
 
 **Fix:** Add a viem-based client:
 ```typescript
@@ -846,7 +846,7 @@ Integrate with Ethereum Attestation Service (EAS) so agents can receive attestat
 | # | Improvement | Effort | Impact | Dependency |
 |---|-------------|--------|--------|------------|
 | P1-7 | Public git repo + BaseScan source verification | 2 hours | CRITICAL — no repo exists today; required for grants/audits | None |
-| P1-6 | Publish `@taopp/sdk` to npm (it's `private: true`) | 30 minutes | CRITICAL — zero distribution | None |
+| P1-6 | Publish `@taopp/sdk` to npm | Done | Published on npm. | ✅ |
 | P0-5 | Timelock on owner functions (`resolveChallenge`, `withdrawEthPool`, `setCertifier`) | 0.5 day | HIGH — the one trust boundary; needed before mainnet | None |
 | P2-2 | Base mainnet deployment (post-audit) | 1 day + audit | CRITICAL — Sepolia is live; mainnet pending audit | P0-5, audit |
 

@@ -83,6 +83,27 @@ class ReputationOracleNetworkClient:
         tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
         return self.w3.eth.wait_for_transaction_receipt(tx_hash)
 
+    # Basic agent identity (Step 7)
+    def last_activity(self, agent: str) -> int:
+        return self.contract.functions.lastActivity(agent).call()
+
+    def agent_metadata_cid(self, agent: str) -> str:
+        return self.contract.functions.agentMetadataCID(agent).call()
+
+    def register_agent(self, metadata_cid: str) -> dict:
+        if self.account is None:
+            raise ValueError("No account set")
+        fn = self.contract.functions.registerAgent(metadata_cid)
+        tx = fn.build_transaction({
+            "from": self.account.address,
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
+            "gas": 100_000,
+            "gasPrice": self.w3.eth.gas_price,
+            "chainId": self.w3.eth.chain_id,
+        })
+        receipt = self._send_tx(tx)
+        return {"receipt": receipt}
+
     def attest_completion(self, task_type: str, result_cid: str) -> dict:
         """Self-attest a completion. Returns {'completionId': int, 'receipt': dict}."""
         fn = self.contract.functions.attestCompletion(_keccak(task_type), result_cid)

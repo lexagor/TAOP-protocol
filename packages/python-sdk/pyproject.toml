@@ -4,14 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "taop"
-version = "0.0.1"
+version = "0.1.0"
 description = "TAOP — Trustless Agent Orchestration Protocol Python SDK"
+readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "web3>=6.0,<8.0",
     "eth-account>=0.10,<0.14",
     "eth-utils>=2.0,<6.0",
 ]
+# Publish: pip install build twine; python -m build; twine upload dist/*
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-asyncio>=0.20"]

@@ -46,9 +46,9 @@ The demo page proves the loop:
 
 | Contract | Address | Basescan |
 |---|---|---|
-| ReputationOracleNetwork | `0xc0ee3c29147bc68d320b7Ac6cC5234ee79Bc4F1d` | [view](https://sepolia.basescan.org/address/0xc0ee3c29147bc68d320b7Ac6cC5234ee79Bc4F1d) |
-| CapabilityRegistry | `0xdeed09CAD527851e926b8387A0F710498AdECe3e` | [view](https://sepolia.basescan.org/address/0xdeed09CAD527851e926b8387A0F710498AdECe3e) |
-| TimelockController | `0x6904A455f53728d1BcE2F6827750d6e9F7132A4D` | [view](https://sepolia.basescan.org/address/0x6904A455f53728d1BcE2F6827750d6e9F7132A4D) |
+| ReputationOracleNetwork | `0x716EB78D4E7B297b53d9962e3952228691e3CEaA` | [view](https://sepolia.basescan.org/address/0x716EB78D4E7B297b53d9962e3952228691e3CEaA) |
+| CapabilityRegistry | `0x6132175a065295A51FC6d0eA8f1a7456F5c82019` | [view](https://sepolia.basescan.org/address/0x6132175a065295A51FC6d0eA8f1a7456F5c82019) |
+| TimelockController | `0x7231849806e96f4d9233d104e7B7C2030Bda9539` | [view](https://sepolia.basescan.org/address/0x7231849806e96f4d9233d104e7B7C2030Bda9539) |
 
 **Validator / Deployer:** `0x37374FD4f27c2b46Fd5d1a9BAFdc709315E51120`
 
@@ -60,7 +60,7 @@ If you need to redeploy again: `npm run deploy:sepolia` (we lowered the Agent A 
 - Alchemy: https://www.alchemy.com/faucets/base-sepolia  
 - More: https://docs.base.org/base-chain/network-information/network-faucets
 
-**Current status (v0.1):** Public repo, published `@taopp/sdk` + `@taopp/mcp-server`, Timelock (0-delay for demo), score decay, indexed discovery. See `IMPROVEMENTS_PLAN.md`.
+**Current status (v0.1):** Public repo, published `@taopp/sdk` + `@taopp/mcp-server`, Timelock (0-delay for demo), score decay (on-chain), indexed discovery, basic agent identity. Pilot stabilized: UI polished (decay/raw, indexed, Timelock status), full E2E documented (TEST_RESULTS), tests 23 passing, MCP/SDK examples + public demo instructions expanded, security basics + CI done. Governance (multisig/delay) deferred. See `PRE_MAINNET_CHECKLIST.md`, `TEST_RESULTS.md`, `NEXT_STEPS.md`.
 
 To redeploy with latest on-chain features (decay + indexed + Timelock), use the command in the Contracts section above. It will update `deployments.json`. Then paste fresh addresses into the table.
 
@@ -86,6 +86,39 @@ python -m taop_agent_b.run
 Open the Cloudflare tunnel URL in your browser to see the demo page.
 Click **Run the live demo** to self-attest a completion on Base Sepolia.
 
+To share a public demo without deploying:
+```bash
+# In one terminal: backend on 4000
+npx tsx packages/backend/src/server.ts
+# In another:
+cloudflared tunnel --url http://localhost:4000
+```
+Share the https URL from cloudflared.
+
+### Verified Pilot Flow (curls)
+
+Once backend is running on :4000:
+
+```bash
+# Health & contracts
+curl http://127.0.0.1:4000/api/healthz
+curl http://127.0.0.1:4000/api/contracts
+
+# Discover agents by capability
+curl 'http://127.0.0.1:4000/api/discover?capabilityType=LoRA&minScore=0'
+
+# Full demo run (attest via real inference + IPFS + on-chain)
+curl -X POST http://127.0.0.1:4000/api/demo/run
+
+# Challenge + resolve a completion (uses Timelock for resolve)
+curl -X POST http://127.0.0.1:4000/api/completions/8/challenge \
+  -H 'content-type: application/json' -d '{"evidenceCID":"ipfs://evidence"}'
+curl -X POST http://127.0.0.1:4000/api/completions/8/resolve \
+  -H 'content-type: application/json' -d '{"upheld":true}'
+```
+
+See browser UI for the full interactive experience (including score before/after with decay).
+
 ### API docs
 
 Once the backend is running, OpenAPI/Swagger docs are at:
@@ -105,12 +138,41 @@ import { ethers } from "ethers";
 
 const provider = new ethers.JsonRpcProvider("https://base-sepolia.infura.io/v3/...");
 
-const ron = new ReputationOracleNetworkClient("0xc0ee3c29147bc68d320b7Ac6cC5234ee79Bc4F1d", provider); // live on Base Sepolia
+const ron = new ReputationOracleNetworkClient("0x716EB78D4E7B297b53d9962e3952228691e3CEaA", provider); // live on Base Sepolia
 const score = await ron.getSelfAttestScore("0x...");
 console.log(score); // { completions, disputes, score }
 ```
 
 See `packages/sdk/README.md` for full docs and examples.
+
+### MCP Server for AI Agents
+The MCP server exposes tools (get_agent_score, discover capabilities, attest, challenge, etc.) for Claude / other agents.
+
+Install & run (with deployments.json or env):
+```bash
+npx @taopp/mcp-server
+```
+
+See `packages/mcp-server/README.md` and SDK for integration.
+
+### Basic Agent Identity
+
+Agents can self-register a profile metadata CID (IPFS JSON with name, description, avatar, links, etc.):
+
+```ts
+await ron.registerAgent("ipfs://QmYourProfileCID...");
+const profile = await ron.getAgentMetadata("0xAgent...");
+```
+
+Backend API:
+- GET /api/agents/:address/identity
+- POST /api/agents/register {metadataCID}
+
+In the demo UI you can now register a sample identity for the agent.
+
+See contracts/ReputationOracleNetwork.sol for on-chain details. This is the first step toward richer agent profiles (future: verified credentials, ENS, etc.).
+
+Updated in Step 7.
 
 ### MCP Server (for AI Agents)
 
@@ -125,6 +187,33 @@ Exposes tools like `get_agent_score`, `discover_capabilities`, `attest_completio
 See `packages/mcp-server/README.md` for configuration and Claude Desktop integration.
 
 Requires `RPC_URL` and optionally `PRIVATE_KEY` + `deployments.json`.
+
+### Python SDK Example
+
+```python
+from taop import ReputationOracleNetworkClient, CapabilityRegistryClient
+from web3 import Web3
+
+w3 = Web3(Web3.HTTPProvider("https://sepolia.base.org"))
+ron = ReputationOracleNetworkClient(w3, "0x716EB78D4E7B297b53d9962e3952228691e3CEaA")
+score = ron.get_self_attest_score("0xAgent...")
+print(score)
+```
+
+Install: `pip install taop` (or from packages/python-sdk).
+
+See `packages/python-sdk/` and `packages/agent-b/` for full Agent B example that discovers + uses capabilities.
+
+### Published Packages — Getting Started
+
+Both the TypeScript SDK and MCP server are published and ready for use:
+
+- **TypeScript SDK**: `npm install @taopp/sdk`
+- **MCP Server**: `npm install -g @taopp/mcp-server` or `npx @taopp/mcp-server`
+
+See the sections above and the individual package READMEs (`packages/sdk/README.md`, `packages/mcp-server/README.md`) for examples, including Claude Desktop integration for the MCP server.
+
+Python SDK (`taop`) is available locally via the workspace but not yet on PyPI (symmetry planned).
 
 ## Quick start (local hardhat)
 
@@ -142,16 +231,52 @@ npm run demo:dev                 # terminal 4 — demo page on :5173
 Open http://localhost:5173 and click **Run the live demo**.
 
 See `IMPROVEMENTS_PLAN.md` for the current prioritized roadmap.
+See `PRE_MAINNET_CHECKLIST.md` for a detailed pre-mainnet readiness checklist.
 
-## Mainnet preparation
+## Mainnet preparation (Step 5)
 
-1. Get a mainnet RPC and set BASE_MAINNET_RPC_URL in .env.
-2. Use a wallet with real Base ETH.
-3. For mainnet, keep 0 delay for now (as per pilot decision) or set via TIMELOCK_DELAY. Use multisig for proposers.
-4. Update hardhat.config for "base" network and run appropriate deploy.
-5. Security audit recommended before mainnet.
+**Pilot decision: keep Timelock delay=0 on mainnet for now** (for usability, same as Sepolia pilot). Increase only after audit + multisig.
 
-See deploy scripts for multisig setup. Current pilot stays at 0 delay for usability.
+### Hardened Sepolia Test (recommended before mainnet)
+Test with real delay + multisig-like setup **without spending real ETH**:
+
+```bash
+# 1. Set up a test multisig (or use a Safe you control on Sepolia)
+export MULTISIG_ADDRESS=0xYourSepoliaSafeOrEOA
+export TIMELOCK_DELAY=3600   # 1 hour for test (or 86400)
+
+# 2. Ensure deployer has Sepolia ETH
+# 3. Deploy hardened version
+npm run deploy:sepolia
+
+# 4. Update .env and restart backend with the new deployments.json
+# 5. Test full flow (challenge will now be scheduled + executable after delay)
+```
+
+See `PRE_MAINNET_CHECKLIST.md` for the full pre-mainnet readiness list.
+See `TEST_RESULTS.md` for latest verified E2E pilot flows (cURL + UI + on-chain).
+
+### Quick mainnet deploy checklist
+1. Get a mainnet RPC and set `BASE_MAINNET_RPC_URL` in `.env`.
+2. Fund a deployer wallet with real Base ETH.
+3. Decide on multisig (e.g. Gnosis Safe on Base) and set `proposers`/`executors` in deploy script (see comments).
+4. (Optional but recommended for hardened) `TIMELOCK_DELAY=86400` (24h) in env before deploy.
+5. `npm run deploy:mainnet`
+6. Update README table + deployments.json (auto), verify on Basescan.
+7. **Strongly recommended**: professional audit (or at least Slither + manual review) before public mainnet usage with real value.
+
+See:
+- `scripts/deploy-base-sepolia.ts` (detailed comments on multisig + delay + mainnet)
+- `hardhat.config.ts` (base network)
+- `IMPROVEMENTS_PLAN.md` and `NEXT_STEPS.md` for full roadmap.
+
+See:
+- `scripts/deploy-base-sepolia.ts` (comments on multisig + delay)
+- `hardhat.config.ts` ("base" network + etherscan)
+- `package.json` (deploy:mainnet script)
+- This keeps the pilot experience identical to Sepolia while hardening ownership.
+
+Current pilot (Sepolia + planned mainnet) stays at 0 delay.
 
 
 ## Layout
@@ -160,12 +285,12 @@ See deploy scripts for multisig setup. Current pilot stays at 0 delay for usabil
 contracts/              Solidity (full TRD signatures)
 test/                   Hardhat + ethers v6 tests (22 passing)
 scripts/                deploy-local.ts, deploy-base-sepolia.ts
-packages/sdk/           @taopp/sdk — TypeScript SDK (published to npm, early access)
+packages/sdk/           @taopp/sdk — TypeScript SDK (published to npm)
 packages/backend/       @taop/backend — REST API + demo orchestrator + IPFS pinning
 packages/python-sdk/    taop — Python SDK (web3.py, mirrors @taopp/sdk)
 packages/agent-b/       taop-agent-b — external agent that discovers + uses Agent A
 apps/demo/              @taop/demo — React + Vite + Tailwind demo page
-packages/mcp-server/    @taopp/mcp-server — MCP server for AI agents (Claude etc.)
+packages/mcp-server/    @taopp/mcp-server — MCP server for AI agents (Claude etc.) (published)
 ```
 
 ## Verify
@@ -197,6 +322,13 @@ slither . --filter "high,medium"
   TRD.md Appendix). Upgradeable to DAO/optimistic in v2.
 - **Bonds:** in ETH on Base. No protocol token in v0.1.
 - **Audit:** not yet audited. Not ready for mainnet.
+
+## Operations for the live pilot
+
+- Health: `curl /api/healthz`
+- Basic monitoring: watch contract events on Basescan or use a simple script polling `/api/contracts` + `/api/discover`.
+- Public shareable demo: use `cloudflared tunnel --url http://localhost:4000` (see Run the pilot section).
+- Rate limiting enabled in backend. For higher load, add external reverse proxy.
 
 ## Out of scope (see TRD.md Part 6)
 

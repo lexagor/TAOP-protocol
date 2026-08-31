@@ -8,7 +8,7 @@ import {
   LORA_CAPABILITY_TYPE,
   type Deployment,
 } from "@taopp/sdk";
-import { isCapabilityRegistered, recordCapability, getMeta, setMeta } from "./db.js";
+import { isCapabilityRegistered, recordCapability, getMeta, setMeta, db } from "./db.js";
 import { pinJSON, buildModelCard } from "./ipfs.js";
 
 const HARDHAT_MNEMONIC = "test test test test test test test test test test test junk";
@@ -29,6 +29,9 @@ export interface BackendState {
   capabilityId: bigint;
   capabilityMetadataCID: string;
   taskCounter: number;
+  // Runners exposed for nonce reset (public RPCs often cause "nonce too low" desync)
+  oracleRunner: ethers.NonceManager;
+  agentARunner: ethers.NonceManager;
 }
 
 export interface TimelockResult {
@@ -45,22 +48,43 @@ function deriveWallet(mnemonic: string, index: number, provider: ethers.JsonRpcP
   return ethers.HDNodeWallet.fromMnemonic(mn, `m/44'/60'/0'/0/${index}`).connect(provider);
 }
 
-/** Build a NonceManager-wrapped signer so back-to-back txs get sequential nonces. */
+/** Build a NonceManager-wrapped signer so back-to-back txs get sequential nonces.
+ *  Override getNonce to always query fresh max(latest, pending) to avoid
+ *  stale nonce issues common with public L2 RPCs.
+ */
 function makeRunner(pk: string | undefined, mnemonicIndex: number, provider: ethers.JsonRpcProvider): ethers.NonceManager {
   const wallet: ethers.Signer = pk ? new ethers.Wallet(pk, provider) : deriveWallet(HARDHAT_MNEMONIC, mnemonicIndex, provider);
-  return new ethers.NonceManager(wallet);
+  const manager = new ethers.NonceManager(wallet);
+  const origGetNonce = manager.getNonce.bind(manager);
+  // Patch to force fresh query every time
+  (manager as any).getNonce = async (blockTag?: string) => {
+    if (blockTag === "pending" || !blockTag) {
+      const addr = await wallet.getAddress();
+      const [latest, pending] = await Promise.all([
+        provider.getTransactionCount(addr, "latest"),
+        provider.getTransactionCount(addr, "pending"),
+      ]);
+      return Math.max(latest, pending);
+    }
+    return origGetNonce(blockTag);
+  };
+  return manager;
 }
 
 export async function initState(): Promise<BackendState> {
   if (_state) return _state;
-  const rpcUrl = process.env.RPC_URL || "http://127.0.0.1:8545";
+  const rpcUrl = process.env.RPC_URL || process.env.BASE_SEPOLIA_RPC_URL || "http://127.0.0.1:8545";
   const deploymentsPath = process.env.DEPLOYMENTS_PATH || path.resolve(process.cwd(), "deployments.json");
   const deployment = await loadDeployment(deploymentsPath);
 
   const provider = new ethers.JsonRpcProvider(rpcUrl, deployment.chainId);
 
   const oracleRunner = makeRunner(process.env.ORACLE_PK || process.env.DEPLOYER_PK, 0, provider);
-  const agentARunner = makeRunner(process.env.AGENT_A_PK, 1, provider);
+  const agentAPk = (deployment as any).agentAPk || process.env.AGENT_A_PK;
+  if ((deployment as any).agentAPk && process.env.AGENT_A_PK && (deployment as any).agentAPk !== process.env.AGENT_A_PK) {
+    console.warn("[backend] WARNING: Using AGENT_A_PK from deployments.json because it differs from .env (you should update .env after `npm run deploy:sepolia`)");
+  }
+  const agentARunner = makeRunner(agentAPk, 1, provider);
   const oracleAddress = await oracleRunner.getAddress();
   const agentAAddress = await agentARunner.getAddress();
 
@@ -75,7 +99,10 @@ export async function initState(): Promise<BackendState> {
     const timelockAbi = [
       "function schedule(address target, uint256 value, bytes calldata data, bytes32 predecessor, bytes32 salt, uint256 delay) external",
       "function execute(address target, uint256 value, bytes calldata data, bytes32 predecessor, bytes32 salt) external payable",
-      "function getMinDelay() view returns (uint256)"
+      "function getMinDelay() view returns (uint256)",
+      "function hashOperation(address target, uint256 value, bytes calldata data, bytes32 predecessor, bytes32 salt) view returns (bytes32)",
+      "function isOperationReady(bytes32 id) view returns (bool)",
+      "function getOperationState(bytes32 id) view returns (uint8)"
     ];
     timelock = new ethers.Contract(deployment.timelock, timelockAbi, oracleRunner);
   }
@@ -96,6 +123,9 @@ export async function initState(): Promise<BackendState> {
     if (!timelock) {
       throw new Error("No timelock configured");
     }
+    // Always reset before admin actions (public RPC nonce/lag issues)
+    (oracleRunner as any)?.reset?.();
+
     const salt = ethers.id(`taop-${Date.now()}-${Math.random()}`);
     const predecessor = ethers.ZeroHash;
     const delay = await timelock.getMinDelay();
@@ -114,6 +144,29 @@ export async function initState(): Promise<BackendState> {
         scheduled: true,
         delay,
       };
+    }
+
+    // For delay=0: after schedule.wait(), poll until the operation is Ready.
+    // This is required because on public L2 RPCs (e.g. Base), a just-mined schedule
+    // may not be immediately visible to the next eth_estimateGas / send for execute.
+    // Without this, execute can revert with TimelockUnexpectedOperationState (expected Ready).
+    const id = await timelock.hashOperation(target, value, data, predecessor, salt);
+    let ready = false;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        ready = await timelock.isOperationReady(id);
+      } catch {}
+      if (ready) break;
+      if (attempt > 0) {
+        console.log(`[Timelock] waiting for 0-delay operation to become Ready (attempt ${attempt + 1})...`);
+      }
+      await new Promise((r) => setTimeout(r, 700));
+      // also reset in case of any transient signer state
+      (oracleRunner as any)?.reset?.();
+    }
+    if (!ready) {
+      // As a last resort, try execute anyway (it may still work or surface a clearer error)
+      console.warn(`[Timelock] operation ${id} not yet Ready after polling; attempting execute anyway`);
     }
 
     const execTx = await timelock.execute(target, value, data, predecessor, salt);
@@ -141,6 +194,8 @@ export async function initState(): Promise<BackendState> {
     capabilityId: 0n,
     capabilityMetadataCID: "ipfs://taop-demo-lora-summarization-v1",
     taskCounter: 0,
+    oracleRunner,
+    agentARunner,
   };
   _state = state;
   await ensureCapability(state);
@@ -151,24 +206,60 @@ export async function initState(): Promise<BackendState> {
  *  Checks DB first; only registers on-chain if not present. Pins a real model
  *  card to IPFS at registration time. */
 export async function ensureCapability(state: BackendState): Promise<void> {
-  const { registryOracle, registryAgentA, agentAAddress } = state;
+  const { registryOracle, registryAgentA, agentAAddress, oracleRunner, agentARunner, deployment } = state;
+  // Reset nonces before any potential writes to avoid nonce-too-low errors
+  // from public RPCs, previous processes, or failed txs.
+  agentARunner?.reset?.();
+  oracleRunner?.reset?.();
   const loraHash = ethers.id(LORA_CAPABILITY_TYPE).toLowerCase();
 
+  // Invalidate capability cache if the registry address has changed (e.g. after redeploy).
+  // Old capability IDs are meaningless on a new registry.
+  const currentRegistry = deployment.registry.toLowerCase();
+  const lastRegistry = getMeta("last_registry")?.toLowerCase();
+  if (lastRegistry && lastRegistry !== currentRegistry) {
+    console.log("[ensureCapability] Registry changed (old:", lastRegistry, "new:", currentRegistry, ") — clearing stale capability and completion caches");
+    db().prepare("DELETE FROM capabilities").run();
+    db().prepare("DELETE FROM completions").run();
+    setMeta("last_registry", currentRegistry);
+  } else if (!lastRegistry) {
+    setMeta("last_registry", currentRegistry);
+  }
+
   // 1. Check DB cache — if we've already registered, just restore the id.
+  // Validate against current registry to handle redeploys (old ids won't exist on new registry).
   const dbId = isCapabilityRegistered(agentAAddress, LORA_CAPABILITY_TYPE);
   if (dbId) {
-    state.capabilityId = dbId;
-    // Ensure it's certified on-chain (idempotent).
-    const cap = await registryOracle.getCapability(dbId);
-    if (!cap.certified) await registryOracle.certifyCapability(dbId);
-    return;
+    let useCached = false;
+    try {
+      const cap = await registryOracle.getCapability(dbId);
+      if (cap.creator.toLowerCase() === agentAAddress.toLowerCase()) {
+        useCached = true;
+        state.capabilityId = dbId;
+        if (!cap.certified) await registryOracle.certifyCapability(dbId);
+      }
+    } catch (e) {
+      // NoSuchCapability or other — cache is stale (common after `npm run deploy:sepolia`)
+      console.warn(`[ensureCapability] Cached capabilityId ${dbId} invalid on current registry (likely after redeploy), will scan/register fresh.`);
+    }
+    if (useCached) return;
   }
 
   // 2. Check on-chain (in case DB was wiped but chain wasn't).
   const total = await registryOracle.totalSupply();
   for (let i = 0n; i < total; i++) {
     const id = await registryOracle.tokenByIndex(i);
-    const cap = await registryOracle.getCapability(id);
+    if (id === 0n) {
+      console.warn("[ensureCapability] tokenByIndex returned 0, skipping (should not happen)");
+      continue;
+    }
+    let cap;
+    try {
+      cap = await registryOracle.getCapability(id);
+    } catch (e) {
+      console.warn(`[ensureCapability] getCapability(${id}) failed on current registry, skipping:`, (e as Error).shortMessage || e);
+      continue;
+    }
     if (
       cap.creator.toLowerCase() === agentAAddress.toLowerCase() &&
       cap.capabilityType.toLowerCase() === loraHash

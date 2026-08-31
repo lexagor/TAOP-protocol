@@ -47,6 +47,20 @@ export class ReputationOracleNetworkClient {
   challengeBond(): Promise<bigint> {
     return this.c.CHALLENGE_BOND() as Promise<bigint>;
   }
+
+  // Basic agent identity (Step 7)
+  lastActivity(agent: string): Promise<bigint> {
+    return this.c.lastActivity(agent) as Promise<bigint>;
+  }
+  agentMetadataCID(agent: string): Promise<string> {
+    return this.c.agentMetadataCID(agent) as Promise<string>;
+  }
+  async registerAgent(metadataCID: string): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.registerAgent(metadataCID)).wait()) ?? null;
+  }
+  getAgentMetadata(agent: string): Promise<string> {
+    return this.c.getAgentMetadata(agent) as Promise<string>;
+  }
 }
 
 export class CapabilityRegistryClient {

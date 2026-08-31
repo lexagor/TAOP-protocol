@@ -25,7 +25,7 @@ const config = {
       chainId: 31337,
     },
     localhost: {
-      url: process.env.RPC_URL || "http://127.0.0.1:8545",
+      url: process.env.RPC_URL || process.env.BASE_SEPOLIA_RPC_URL || "http://127.0.0.1:8545",
       chainId: 31337,
       accounts: process.env.DEPLOYER_PK && process.env.DEPLOYER_PK.length === 66 ? [process.env.DEPLOYER_PK] : undefined,
     },
@@ -41,7 +41,8 @@ const config = {
       chainId: 8453,
       accounts: process.env.DEPLOYER_PK && process.env.DEPLOYER_PK.length === 66 ? [process.env.DEPLOYER_PK] : undefined,
     },
-    // For mainnet: use real delay via TIMELOCK_DELAY + multisig in deploy script
+    // Mainnet prep (Step 5): "base" network. Keep 0 delay for pilot (see deploy script + README).
+    // Use multisig + non-zero TIMELOCK_DELAY only post-audit.
   },
   etherscan: {
     apiKey: { 

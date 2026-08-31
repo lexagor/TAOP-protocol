@@ -12,7 +12,7 @@
     "contracts:test": "hardhat test",
     "deploy:local": "hardhat run scripts/deploy-local.ts --network localhost",
     "deploy:sepolia": "hardhat run scripts/deploy-base-sepolia.ts --network baseSepolia",
-    "# deploy:mainnet": "hardhat run scripts/deploy-base-sepolia.ts --network base   # (update network in hardhat.config + use real delay + multisig)",
+    "deploy:mainnet": "hardhat run scripts/deploy-base-sepolia.ts --network base",
     "sdk:build": "npm run build -w @taopp/sdk",
     "mcp:build": "npm run build -w @taopp/mcp-server",
     "mcp:dev": "npm run dev -w @taopp/mcp-server",

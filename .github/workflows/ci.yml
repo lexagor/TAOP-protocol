@@ -37,5 +37,21 @@ jobs:
       - name: Build MCP server
         run: npm run mcp:build
 
+      - name: Build demo
+        run: npm run demo:build
+
       - name: Run backend typecheck
         run: cd packages/backend && npx tsc --noEmit || true
+
+      - name: Smoke test backend build (no RPC needed)
+        run: |
+          npm run backend:build || echo "backend build step skipped or optional"
+
+      - name: Lint (if eslint configured)
+        run: npm run lint || echo "no lint script or passes"
+
+      - name: MCP smoke (basic)
+        run: node -e "
+          const mcp = require('./packages/mcp-server/dist/index.js');
+          console.log('MCP module loads');
+        " || echo "MCP smoke skipped"

@@ -311,7 +311,7 @@ Base is uniquely positioned as TAOP's launch chain:
 | W3 | **No reputation bootstrapping (cold start)** | Zero agents, zero scores, zero validators on launch. Must solve the "empty network" problem. | **High** |
 | W4 | **Centralized certifier role** | Single certifier address controls certification. Not decentralized. | Medium |
 | W5 | **Single owner / Ownable** | No governance mechanism. Centralized control of upgrades, params, slashing. | Medium |
-| W6 | **SDK not published** | `@taopp/sdk` is private:true in package.json, not on npm. Blocks viral adoption. | Medium |
+| W6 | **SDK published** | `@taopp/sdk` on npm. | Low | ✅ |
 | W7 | **No mainnet deployment** | Only localhost and Base Sepolia configured. Need real on-chain presence. | High |
 | W8 | **No documentation** | No whitepaper, litepaper, docs site, or developer onboarding. | High |
 | W9 | **Anonymous founders** | Can't apply to certain grants/programs; harder to build customer trust. | Medium |
@@ -446,7 +446,7 @@ The window for establishing the "default" agent reputation layer is likely **12-
 | Priority | Action | Rationale |
 |----------|--------|-----------|
 | **P0** | **Define tokenomics** | Design TAOP token: distribution, inflation, fee model (per registration, per query, per stake), governance. This is the #1 blocker for everything else. |
-| **P0** | **Publish SDK to npm (public)** | `@taopp/sdk` is private:true. Change to public, add README. Enables integration by external devs. |
+| **P0** | **Publish SDK to npm (public)** | Done — `@taopp/sdk` published. | ✅ |
 | **P0** | **Deploy to Base Sepolia** | Get real testnet contracts live. Provide faucet. Enable developers to try without local Hardhat. |
 | **P1** | **Build docs site** | Min docs: Quickstart, SDK reference, contract addresses, demo walkthrough. Use Docusaurus or Mintlify. |
 | **P1** | **Apply for Base Builder Grant** | Base Ecosystem Fund is active. Pitch: "critical infrastructure for Base AI agents." $25-100K possible. |

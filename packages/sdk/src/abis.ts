@@ -15,10 +15,21 @@ export const RON_ABI: string[] = [
   "function withdrawEthPool(address payable to, uint256 amount) returns ()",
   "function getSelfAttestScore(address agent) view returns (uint64 completionCount_, uint64 disputeCount_, uint64 score)",
   "function getCompletion(uint256 completionId) view returns ((address agent, bytes32 taskType, string resultCID, uint64 timestamp, bool challenged, bool disputed))",
+  "function lastActivity(address) view returns (uint64)",
+  "function agentMetadataCID(address) view returns (string)",
+  "function registerAgent(string metadataCID) returns ()",
+  "function getAgentMetadata(address agent) view returns (string)",
   "event SelfAttested(uint256 completionId, address agent, bytes32 taskType)",
   "event ChallengeSubmitted(uint256 completionId, address challenger)",
   "event ChallengeResolved(uint256 completionId, bool upheld)",
   "event EthPoolWithdrawn(address to, uint256 amount)",
+  "event AgentRegistered(address indexed agent, string metadataCID)",
+  "error NoSuchCompletion()",
+  "error AlreadyChallenged()",
+  "error WrongChallengeBond(uint256 sent, uint256 required)",
+  "error ChallengeNotPending()",
+  "error NothingToWithdraw()",
+  "error ReentrancyGuardReentrantCall()",
 ];
 
 export const CAPABILITY_REGISTRY_ABI: string[] = [

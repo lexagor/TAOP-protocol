@@ -1,22 +1,86 @@
 @import "tailwindcss";
 
-:root {
+/* ============================================
+   DESIGN TOKENS - DARK (Linear-inspired, default)
+   From design-like-linear.md
+   ============================================ */
+:root, .theme-dark {
   color-scheme: dark;
+
+  /* Colors - Dark */
+  --color-canvas: #08090a;
+  --color-nav: #0f1011;
+  --color-card: #161718;
+  --color-surface: #161718;
+  --color-surface-alt: #0f1011;
+  --color-input: #383b3f;
+  --color-border: #23252a;
+  --color-border-strong: #383b3f;
+  --color-text-primary: #f7f8f8;
+  --color-text-secondary: #8a8f98;
+  --color-text-muted: #62666d;
+  --color-accent-primary: #e4f222; /* Acid Lime */
+  --color-text-on-primary: #08090a;
+  --color-accent-secondary: #5e6ad2; /* Indigo */
+  --color-accent-destructive: #eb5757; /* Crimson */
+  --color-accent-success: #27a644; /* Emerald */
+  --color-accent-info: #02b8cc; /* Cyan */
+  --color-grid-line: #23252a;
+
+  /* Typography */
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'Berkeley Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Shadows - Dark */
+  --shadow-sm: rgba(0, 0, 0, 0.4) 0px 2px 4px 0px;
+  --shadow-card: 0px 2px 4px 0px rgba(0, 0, 0, 0.4);
+  --shadow-card-inset: inset 0px 0px 0px 1px #23252a;
 }
 
-html,
-body,
-#root {
+/* ============================================
+   DESIGN TOKENS - LIGHT (shadcn/ui-inspired)
+   From design-ui.md
+   ============================================ */
+.theme-light {
+  color-scheme: light;
+
+  /* Colors - Light */
+  --color-canvas: #f5f5f5;
+  --color-nav: #fafafa;
+  --color-card: #ffffff;
+  --color-surface: #fafafa;
+  --color-surface-alt: #f5f5f5;
+  --color-input: #f5f5f5;
+  --color-border: #e5e5e5;
+  --color-border-strong: #e5e5e5;
+  --color-text-primary: #0a0a0a;
+  --color-text-secondary: #171717;
+  --color-text-muted: #737373;
+  --color-accent-primary: #0a0a0a; /* Ink for primary action fill */
+  --color-text-on-primary: #fafafa;
+  --color-accent-secondary: #171717;
+  --color-accent-destructive: #e7000b; /* Ember */
+  --color-accent-success: #27a644;
+  --color-accent-info: #02b8cc;
+  --color-grid-line: #e5e5e5;
+
+  /* Shadows - Light */
+  --shadow-sm: rgba(0, 0, 0, 0.1) 0px 1px 2px 0px;
+  --shadow-card: 0 0 0 1px rgba(23,23,23,0.05), 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1);
+  --shadow-card-inset: none;
+}
+
+/* Base */
+html, body, #root {
   min-height: 100%;
-}
-
-body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 .mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Cascadia Code", monospace;
+  font-family: var(--font-mono);
 }
 
 @keyframes taop-fade-up {
@@ -46,4 +110,87 @@ body {
 
 .pulse-ring {
   animation: taop-pulse-ring 1.8s ease-in-out infinite;
+}
+
+/* Linear-style components (theme-aware via CSS vars) */
+.btn-lime, .btn-primary {
+  background-color: var(--color-accent-primary);
+  color: var(--color-text-on-primary);
+  font-weight: 510;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.1s ease;
+  box-shadow: 0px 5px 2px 0px rgba(0, 0, 0, 0.01), 0px 3px 2px 0px rgba(0, 0, 0, 0.04), 0px 1px 1px 0px rgba(0, 0, 0, 0.07), 0px 0px 1px 0px rgba(0, 0, 0, 0.08);
+}
+
+.btn-lime:hover, .btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-ghost {
+  color: var(--color-text-secondary);
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 400;
+  transition: color 0.1s;
+}
+
+.btn-ghost:hover {
+  color: var(--color-text-primary);
+}
+
+.card {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+
+.input {
+  background-color: var(--color-input);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  box-shadow: 0px 0px 0px 1px rgba(0, 0, 0, 0.2) inset;
+}
+
+.input:focus {
+  outline: none;
+  box-shadow: 0px 0px 0px 1px var(--color-accent-secondary) inset;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 510;
+  border-radius: 2px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.nav {
+  background-color: var(--color-nav);
+  height: 56px;
+  padding: 0 24px;
+}
+
+.card-inset {
+  box-shadow: var(--shadow-card-inset);
+}
+
+/* Grid overlay uses theme var for line color */
+.bg-grid {
+  background-image: linear-gradient(to right, var(--color-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-grid-line) 1px, transparent 1px);
+  background-size: 44px 44px;
 }

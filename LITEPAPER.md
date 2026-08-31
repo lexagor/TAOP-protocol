@@ -131,13 +131,13 @@ GET /api/discover?capabilityType=LoRA&minScore=2
 | Smart contracts | **2** (ReputationOracleNetwork, CapabilityRegistry) — no protocol token in v0.1 |
 | Total code | 279 lines of Solidity |
 | Test coverage | **22 tests** (14 self-attest + 8 capability) |
-| TypeScript SDK | `@taopp/sdk` (ethers.js v6), working (private, not yet on npm) |
+| TypeScript SDK | `@taopp/sdk` (ethers.js v6), published on npm |
 | Python SDK | `taop` (web3.py), 6 passing tests against Base Sepolia |
 | REST API | Express.js + OpenAPI/Swagger docs + IPFS pinning |
 | Demo UI | React + Vite + Tailwind, live |
 | Deployment | **Base Sepolia (chainId 84532), live** — real IPFS evidence, public demo |
 | External agent | Agent B discovers + uses Agent A via the Python SDK |
-| Mainnet | ❌ Not yet — pending audit |
+| Mainnet | ❌ Not yet (pilot on Sepolia; governance hardening (multisig + delay) deferred; focus on pilot polish & adoption) |
 
 ---
 
@@ -305,8 +305,8 @@ Anonymous founders with deep experience in:
 
 ## Get Involved
 
-- **GitHub:** [github.com/TAOP-protocol](https://github.com/TAOP-protocol) *(coming soon)*
-- **SDK:** `npm install @taopp/sdk` *(coming soon)*  
+- **GitHub:** [github.com/TAOP-protocol](https://github.com/TAOP-protocol) (public)
+- **SDK:** `npm install @taopp/sdk` (published) 
 - **Contracts:** Deploying to Base mainnet June-July 2026
 
 ---

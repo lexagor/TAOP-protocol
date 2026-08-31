@@ -70,6 +70,10 @@ export function recordCapability(c: {
   metadataCID: string;
   certified: boolean;
 }): void {
+  if (c.capabilityId === 0n) {
+    console.warn("[recordCapability] refusing to record id=0");
+    return;
+  }
   db()
     .prepare(
       `INSERT OR REPLACE INTO capabilities
@@ -171,6 +175,18 @@ export function listCompletions(): Array<{
     disputed: r.disputed === 1,
     txHash: r.tx_hash,
   }));
+}
+
+export function markCompletionChallenged(completionId: bigint): void {
+  db()
+    .prepare("UPDATE completions SET challenged = 1 WHERE completion_id = ?")
+    .run(Number(completionId));
+}
+
+export function markCompletionResolved(completionId: bigint, disputed: boolean): void {
+  db()
+    .prepare("UPDATE completions SET disputed = ? WHERE completion_id = ?")
+    .run(disputed ? 1 : 0, Number(completionId));
 }
 
 /** Refresh the on-chain score for an agent and return completions/disputes/score. */
