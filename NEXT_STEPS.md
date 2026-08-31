@@ -8,8 +8,8 @@
 - Core features shipped: Timelock (0-delay pilot), score decay (on-chain in getSelfAttestScore), indexed discovery (capabilitiesByType + getCapabilitiesByType)
 - Hardhat v2 stable, 23/23 tests passing
 - Recent: Sepolia redeploy (2026-07-11), challenge error fixes + balance guards, UI polish (decay/raw, Timelock status), PRE_MAINNET_CHECKLIST and TEST_RESULTS updated, CI expanded, docs polished for pilot
-- Demo polished, CI enhanced, governance (multisig/delay) deferred per request, focus on testnet pilot polish/adoption/docs
-- All plan steps executed: doc sync, UI polish, full verification, adoption examples, ops notes. Pre-mainnet prep advanced excluding gov.
+- Demo polished (build fixed), CI enhanced, governance frozen at 0-delay per 2026-07-15 decision (hardened test intentionally skipped), fee-switch dormant, no budget audit
+- All plan steps executed: doc sync, UI polish, full verification (typecheck + 23 tests + demo/backend/sdk/mcp builds green), adoption examples, ops notes. Pre-mainnet prep frozen at 0-delay by choice.
 
 **Goal:** Move from "shipped on testnet" to "credible mainnet project with real users and adoption".
 
