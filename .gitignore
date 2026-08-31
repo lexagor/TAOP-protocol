@@ -28,6 +28,16 @@ deployments.json
 # Keep example
 !deployments.json.example
 
+# SDK tsc build artifacts inside src (generated)
+packages/sdk/src/*.js
+packages/sdk/src/*.js.map
+packages/sdk/src/*.d.ts
+packages/sdk/src/*.d.ts.map
+
+# SQLite local cache
+taop.db-shm
+taop.db-wal
+
 # Misc
 *.tgz
 coverage/
