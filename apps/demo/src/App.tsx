@@ -385,13 +385,13 @@ function Hero({ contracts, onRun, running, isZeroDelay }: { contracts: Contracts
         {contracts && (
           <div className="mt-2 text-xs text-[var(--color-text-secondary)]">
             Timelock: {contracts.timelock ? trunc(contracts.timelock) : 'N/A'} • Delay: {contracts.timelockDelay}s
-            {isZeroDelay && ' (demo-friendly, set TIMELOCK_DELAY for real delay)'}
+            {isZeroDelay && ' (demo-friendly, 0-delay pilot)'}
           </div>
-          {contracts && (
-            <div className="mt-1 text-[10px] text-[var(--color-text-secondary)]">
-              Status: {isZeroDelay ? '0-delay (instant resolve for pilot)' : 'Hardened (actions scheduled, execute after delay)'}
-            </div>
-          )}
+        )}
+        {contracts && (
+          <div className="mt-1 text-[10px] text-[var(--color-text-secondary)]">
+            Status: {isZeroDelay ? '0-delay (instant resolve for pilot)' : 'Hardened (actions scheduled, execute after delay)'}
+          </div>
         )}
       </div>
     </header>
@@ -599,7 +599,7 @@ function PanelB({
             <div className="mono mt-1 text-[10px] text-[var(--color-text-secondary)]">
               Raw (no decay): {beforeCompletions - beforeDisputes} → {demo.after.completions - demo.after.disputes} (decays with inactivity via lastActivity on RON)
             </div>
-            <div className="mt-1 text-[10px] text-[var(--color-text-secondary)]">Note: displayed scores from getSelfAttestScore already apply decay for >30d inactivity.</div>
+            <div className="mt-1 text-[10px] text-[var(--color-text-secondary)]">Note: displayed scores from getSelfAttestScore already apply decay for &gt;30d inactivity.</div>
           </div>
         </div>
       )}
