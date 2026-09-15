@@ -1,5 +1,14 @@
 const BASE = "/api";
 
+/**
+ * Optional API key for write routes. The backend requires `X-TAOP-Key` on all
+ * non-GET /api routes whenever TAOP_API_KEY is set on the server (mandatory for
+ * any non-loopback deployment). Build the demo with the same value:
+ *   VITE_TAOP_API_KEY=<same value> npm run demo:build
+ * Local development (HOST=127.0.0.1, no key) needs nothing.
+ */
+const API_KEY = (import.meta.env.VITE_TAOP_API_KEY ?? "").trim();
+
 export interface Contracts {
   chainId: number;
   ron: string;
@@ -56,7 +65,9 @@ export interface DemoResult {
 }
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(url, init);
+  const headers: Record<string, string> = { ...((init?.headers as Record<string, string> | undefined) ?? {}) };
+  if (API_KEY) headers["X-TAOP-Key"] = API_KEY;
+  const r = await fetch(url, { ...init, headers });
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
   return (await r.json()) as T;
 }

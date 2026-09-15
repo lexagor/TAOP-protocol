@@ -83,17 +83,23 @@ cd packages/agent-b && . ../python-sdk/.venv/bin/activate
 python -m taop_agent_b.run
 ```
 
-Open the Cloudflare tunnel URL in your browser to see the demo page.
+> ⚠️ **Do not tunnel the write-enabled backend.** It holds keys and can spend
+> bonds and execute owner-only Timelock actions. Tunnels are for read-only
+> instances: start the server with `DEMO_READ_ONLY=true`, or set
+> `TAOP_API_KEY` and build the UI with the same `VITE_TAOP_API_KEY`. See
+> [`SECURITY.md`](SECURITY.md) §4.
+
+Open the tunnel URL in your browser to see the demo page (read-only instance).
 Click **Run the live demo** to self-attest a completion on Base Sepolia.
 
-To share a public demo without deploying:
+To share a public read-only demo without deploying:
 ```bash
-# In one terminal: backend on 4000
-npx tsx packages/backend/src/server.ts
+# In one terminal: backend on 4000, writes disabled
+DEMO_READ_ONLY=true npx tsx packages/backend/src/server.ts
 # In another:
 cloudflared tunnel --url http://localhost:4000
 ```
-Share the https URL from cloudflared.
+Share the https URL from cloudflared. Write routes intentionally return `503`.
 
 ### Verified Pilot Flow (curls)
 
@@ -337,6 +343,14 @@ slither . --filter "high,medium"
 
 ## Security
 
+- **Secrets:** keys live only in `.env` (gitignored, `chmod 600`).
+  `deployments.json` is publishable and holds **addresses only**. Never put a
+  private key in a tracked file. See [`SECURITY.md`](SECURITY.md) — including the
+  disclosure of three published testnet agent keys (2026-09) and their retirement.
+- **Write routes are gated:** all non-`GET` `/api` routes require
+  `X-TAOP-Key: <TAOP_API_KEY>` whenever `TAOP_API_KEY` is set, and the server
+  **refuses to start** on a non-loopback `HOST` without one.
+- **Rate limiting:** 240 req/min overall, 20 writes / 5 min (`express-rate-limit`).
 - **Slither:** no high or medium findings in our contracts.
 - **Challenge resolver:** owner-only (centralized trust boundary, documented in
   TRD.md Appendix). Upgradeable to DAO/optimistic in v2.
@@ -345,10 +359,17 @@ slither . --filter "high,medium"
 
 ## Operations for the live pilot
 
-- Health: `curl /api/healthz`
-- Basic monitoring: watch contract events on Basescan or use a simple script polling `/api/contracts` + `/api/discover`.
-- Public shareable demo: use `cloudflared tunnel --url http://localhost:4000` (see Run the pilot section).
-- Rate limiting enabled in backend. For higher load, add external reverse proxy.
+- Health: `curl /api/healthz` → `{"ok":true}`
+- Security banner: the startup log prints `bind=… | writes=… | write auth=…` —
+  check it before sharing any URL.
+- Basic monitoring: watch contract events on Basescan or poll `/api/contracts` + `/api/discover`.
+- **Sharing a demo publicly: read-only only.** Run a second instance with
+  `DEMO_READ_ONLY=true` and share that URL; write routes return `503`.
+  If you must expose writes, set `TAOP_API_KEY=$(openssl rand -hex 32)`, build the
+  UI with `VITE_TAOP_API_KEY=<same>`, and set `TRUST_PROXY=1` when behind a tunnel
+  or reverse proxy. Never expose the write-enabled server without a key — it can
+  spend bonds and execute owner-only Timelock actions.
+- Rate limiting is built in; for higher load add an external reverse proxy.
 
 ## Out of scope (see TRD.md Part 6)
 

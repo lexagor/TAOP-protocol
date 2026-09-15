@@ -1,5 +1,0 @@
-taop
-requests>=2.28
-
-[dev]
-pytest>=7.0

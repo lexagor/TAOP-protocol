@@ -80,9 +80,23 @@ export async function initState(): Promise<BackendState> {
   const provider = new ethers.JsonRpcProvider(rpcUrl, deployment.chainId);
 
   const oracleRunner = makeRunner(process.env.ORACLE_PK || process.env.DEPLOYER_PK, 0, provider);
-  const agentAPk = (deployment as any).agentAPk || process.env.AGENT_A_PK;
-  if ((deployment as any).agentAPk && process.env.AGENT_A_PK && (deployment as any).agentAPk !== process.env.AGENT_A_PK) {
-    console.warn("[backend] WARNING: Using AGENT_A_PK from deployments.json because it differs from .env (you should update .env after `npm run deploy:sepolia`)");
+
+  // SECURITY (Phase 0): key material comes from the environment (.env, gitignored).
+  // `deployments.json` is a publishable artifact and must never hold keys — a
+  // legacy file that still does is accepted with a loud warning so operators can
+  // migrate, but the environment always wins.
+  const legacyFilePk = (deployment as { agentAPk?: string }).agentAPk;
+  if (legacyFilePk) {
+    console.warn(
+      "[backend] SECURITY WARNING: deployments.json still contains 'agentAPk' — remove it and set AGENT_A_PK in .env " +
+        "(deployments.json is publishable, see SECURITY.md).",
+    );
+  }
+  const agentAPk = process.env.AGENT_A_PK || legacyFilePk;
+  if (!agentAPk) {
+    throw new Error(
+      "No Agent A key found: set AGENT_A_PK in .env (running `npm run deploy:sepolia` generates and persists one).",
+    );
   }
   const agentARunner = makeRunner(agentAPk, 1, provider);
   const oracleAddress = await oracleRunner.getAddress();

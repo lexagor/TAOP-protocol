@@ -30,6 +30,12 @@ export interface Deployment {
   timelock?: string;   // P0: owner is now the TimelockController
   validator: string;
   agentA: string;
+  /**
+   * @deprecated Private keys must never live in `deployments.json` (it is a
+   * publishable artifact — see SECURITY.md). Kept optional only for reading
+   * legacy files. New deploys write the agent key to the gitignored `.env`
+   * and consumers must read `process.env.AGENT_A_PK` instead.
+   */
   agentAPk?: string;
   deployedAt?: string;
 }

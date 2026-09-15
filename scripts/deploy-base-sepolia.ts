@@ -4,7 +4,11 @@ import * as path from "node:path";
 
 /**
  * Deploy the TAOP MVP contracts (works for Sepolia or mainnet).
- * Writes deployments.json. ETH-only mode.
+ * Writes deployments.json (addresses only). ETH-only mode.
+ *
+ * SECURITY: private keys are NEVER written to deployments.json or printed to
+ * stdout. The generated Agent A key is written to the gitignored `.env` only
+ * (chmod 600). See `SECURITY.md` / `NEXT_BEST_STEPS_2026-09.md` (F1).
  *
  * For mainnet prep (Step 5): `npm run deploy:mainnet`
  * - Keep 0 delay for pilot usability (see minDelay below and README).
@@ -13,6 +17,21 @@ import * as path from "node:path";
  *
  * Sepolia: npm run deploy:sepolia
  */
+/** Idempotently set `KEY=value` in a dotenv file (creates it if missing).
+ *  Never logs the value; restricts the file to the current user (chmod 600). */
+function upsertEnvVar(file: string, key: string, value: string): void {
+  const lines = fs.existsSync(file) ? fs.readFileSync(file, "utf8").split("\n") : [];
+  const idx = lines.findIndex((l) => l.trim().startsWith(`${key}=`));
+  const line = `${key}=${value}`;
+  if (idx >= 0) lines[idx] = line;
+  else {
+    if (lines.length && lines[lines.length - 1].trim() !== "") lines.push("");
+    lines.push(line);
+  }
+  fs.writeFileSync(file, lines.join("\n"), { mode: 0o600 });
+  fs.chmodSync(file, 0o600);
+}
+
 async function main() {
   const [deployer] = await ethers.getSigners();
   if (!deployer) {
@@ -99,6 +118,12 @@ async function main() {
   await fundTx.wait();
   console.log("Funded Agent A in tx:", fundTx.hash);
 
+  // SECURITY: key material never goes into deployments.json (it is a publishable
+  // artifact) and is never printed to logs/CI. It is written only to the
+  // gitignored .env, which we lock down to the current user.
+  const envPath = path.resolve(__dirname, "..", ".env");
+  upsertEnvVar(envPath, "AGENT_A_PK", agentAPk);
+
   const deployment = {
     chainId: 84532,
     network: "base-sepolia",
@@ -107,7 +132,6 @@ async function main() {
     timelock: timelockAddr,
     validator: deployerAddr,
     agentA: agentAAddr,
-    agentAPk: agentAPk,
     deployedAt: new Date().toISOString(),
   };
   const outPath = path.resolve(__dirname, "..", "deployments.json");
@@ -117,10 +141,10 @@ async function main() {
   console.log("RON:       ", ronAddr);
   console.log("Registry:  ", registryAddr);
   console.log("Agent A:   ", agentAAddr);
-  console.log("Agent A PK:", agentAPk);
   console.log("Basescan:  https://sepolia.basescan.org/address/" + ronAddr);
-  console.log("\nWrote", outPath);
-  console.log("\nNext: set AGENT_A_PK=" + agentAPk + " in .env");
+  console.log("\nWrote", outPath, "(addresses only — no keys)");
+  console.log("Wrote AGENT_A_PK to", envPath, "(chmod 600, gitignored)");
+  console.log("\nNext: restart the backend so it picks up the new agent key.");
 
   // Mainnet prep (Step 5): For Base mainnet use `npm run deploy:mainnet`
   // (requires BASE_MAINNET_RPC_URL + real ETH in DEPLOYER_PK).

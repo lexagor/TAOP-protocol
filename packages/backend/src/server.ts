@@ -2,6 +2,8 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import crypto from "node:crypto";
 import { ethers } from "ethers";
 import path from "node:path";
 import fs from "node:fs";
@@ -12,11 +14,81 @@ import { listCapabilities, listCompletions, markCompletionChallenged, markComple
 import { openApiSpec } from "./openapi.js";
 
 const app = express();
-app.use(express.json());
-app.use(cors());
+app.use(express.json({ limit: "256kb" }));
 app.use(helmet({ contentSecurityPolicy: false }));
 
+// --- Phase 0 hardening: safe binding + write authorization + rate limits ---
+// Threat model: this process holds wallet keys; several routes spend ETH, pin to
+// IPFS, and (via /completions/:id/resolve) execute an *owner-only* action through
+// the Timelock. It must therefore never be exposed to the public internet
+// without an API key.
+const HOST = process.env.HOST ?? "127.0.0.1";
+const PORT = Number(process.env.PORT ?? 4000);
+const API_KEY = (process.env.TAOP_API_KEY ?? "").trim() || null;
+const WRITES_DISABLED = process.env.DEMO_READ_ONLY === "true";
+
+function isLoopbackHost(host: string): boolean {
+  return host === "127.0.0.1" || host === "localhost" || host === "::1" || host === "0:0:0:0:0:0:0:1";
+}
+
+if (!isLoopbackHost(HOST) && !API_KEY) {
+  console.error(
+    `\n❌ REFUSING TO START: HOST=${HOST} exposes the API beyond localhost but TAOP_API_KEY is not set.\n` +
+      `   This backend can spend bonds and execute owner-only Timelock actions.\n` +
+      `   Fix: export TAOP_API_KEY=$(openssl rand -hex 32)   (or set HOST=127.0.0.1)\n`,
+  );
+  process.exit(1);
+}
+
+if (process.env.TRUST_PROXY) {
+  app.set("trust proxy", Number(process.env.TRUST_PROXY));
+}
+
+const corsOrigin = (process.env.CORS_ORIGIN ?? "").trim();
+app.use(corsOrigin ? cors({ origin: corsOrigin.split(",").map((s) => s.trim()) }) : cors());
+
+const isWriteRequest = (req: { method: string }) => !["GET", "HEAD", "OPTIONS"].includes(req.method);
+
+const readLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 240,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many requests — slow down." },
+});
+
+const writeLimiter = rateLimit({
+  windowMs: 5 * 60_000,
+  limit: 20,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip: (req) => !isWriteRequest(req),
+  message: { error: "Too many write requests — this endpoint spends ETH; slow down." },
+});
+
+/** Gate for state-changing requests: read-only kill-switch + constant-time API key. */
+function requireApiKey(req: express.Request, res: express.Response, next: express.NextFunction) {
+  // Reads are always allowed (including on a read-only public instance).
+  if (!isWriteRequest(req)) return next();
+  // Monitoring/docs endpoints stay reachable even for non-GET probes.
+  if (req.path === "/healthz" || req.path.startsWith("/docs") || req.path === "/openapi.json") return next();
+  if (WRITES_DISABLED) {
+    return res.status(503).json({ error: "Writes are disabled on this instance (DEMO_READ_ONLY=true)." });
+  }
+  if (!API_KEY) return next(); // loopback-only (enforced at startup)
+
+  const provided = String(req.header("x-taop-key") ?? "");
+  const a = Buffer.from(provided);
+  const b = Buffer.from(API_KEY);
+  const ok = a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!ok) return res.status(401).json({ error: "Unauthorized: missing or invalid X-TAOP-Key header." });
+  return next();
+}
+
 const api = express.Router();
+api.use(readLimiter);
+api.use(writeLimiter);
+api.use(requireApiKey);
 let state: BackendState;
 
 function explorerBase(): string {
@@ -354,12 +426,16 @@ if (fs.existsSync(demoDist)) {
   });
 }
 
-const PORT = Number(process.env.PORT ?? 4000);
-
 async function main() {
   state = await initState();
-  const server = app.listen(PORT, () => {
-    console.log(`TAOP backend on http://127.0.0.1:${PORT}/api`);
+  const server = app.listen(PORT, HOST, () => {
+    const origin = isLoopbackHost(HOST) ? `http://127.0.0.1:${PORT}` : `http://${HOST}:${PORT}`;
+    console.log(`TAOP backend listening on ${origin}/api`);
+    console.log(
+      `Security: bind=${isLoopbackHost(HOST) ? "loopback" : "PUBLIC"} | ` +
+        `writes=${WRITES_DISABLED ? "DISABLED (read-only)" : "enabled"} | ` +
+        `write auth=${API_KEY ? "X-TAOP-Key required" : "open (loopback only)"}`,
+    );
     console.log(
       `Contracts: ron=${state.deployment.ron} registry=${state.deployment.registry} capabilityId=${state.capabilityId}`,
     );

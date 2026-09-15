@@ -7,10 +7,11 @@ artifacts/
 cache/
 typechain-types/
 
-# Environment
+# Environment / secrets — NEVER commit
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # Logs
 *.log
@@ -34,14 +35,24 @@ packages/sdk/src/*.js.map
 packages/sdk/src/*.d.ts
 packages/sdk/src/*.d.ts.map
 
-# SQLite local cache
+# SQLite local cache (runtime state, never source)
+taop.db
 taop.db-shm
 taop.db-wal
+*.db
+*.db-shm
+*.db-wal
 
-# Python cache
+# Python cache + build artifacts
 __pycache__/
 *.pyc
 *.pyo
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+build/
+*.whl
 
 # Misc
 *.tgz
