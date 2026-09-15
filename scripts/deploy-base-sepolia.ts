@@ -69,6 +69,8 @@ async function main() {
   }
 
   // --- Deploy RON (v1, ETH-only) ---
+  // Capture the block so the F10 indexer can backfill from the deployment point.
+  const deployStartBlock = await ethers.provider.getBlockNumber();
   const RON = await ethers.getContractFactory("ReputationOracleNetwork");
   const ron = await RON.deploy();
   await ron.waitForDeployment();
@@ -166,6 +168,7 @@ async function main() {
     validator: deployerAddr,
     agentA: agentAAddr,
     deployedAt: new Date().toISOString(),
+    deployedBlock: deployStartBlock,
   };
   const outPath = path.resolve(__dirname, "..", "deployments.json");
   fs.writeFileSync(outPath, JSON.stringify(deployment, null, 2) + "\n");

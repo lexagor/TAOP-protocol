@@ -189,13 +189,36 @@ export const openApiSpec = {
     },
     "/discover": {
       get: {
-        summary: "Discover agents by capability proof + score",
+        summary: "Discover agents by capability proof + score (paginated; served from the F10 index when warm)",
         parameters: [
           { name: "capabilityType", in: "query", schema: { type: "string", default: "LoRA" } },
           { name: "minScore", in: "query", schema: { type: "integer", default: 0 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 50, maximum: 200 } },
+          { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
         ],
         responses: {
-          "200": { description: "Ranked list of agents", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/DiscoveryItem" } } } } },
+          "200": {
+            description: "Ranked page of agents",
+            headers: {
+              "X-Total-Count": { schema: { type: "integer" }, description: "Total matching agents before paging" },
+              "X-Indexer": { schema: { type: "string", enum: ["on", "off"] } },
+              ETag: { schema: { type: "string" } },
+            },
+            content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/DiscoveryItem" } } } },
+          },
+          "304": { description: "Not modified (If-None-Match)" },
+        },
+      },
+    },
+    "/indexer": {
+      get: {
+        summary: "Off-chain indexer status (F10)",
+        responses: {
+          "200": { description: "Indexer status", content: { "application/json": { schema: { type: "object", properties: {
+            enabled: { type: "boolean" }, ready: { type: "boolean" }, useTwoSided: { type: "boolean" },
+            lastBlock: { type: "integer" }, headBlock: { type: "integer" }, lag: { type: "integer" },
+            lastError: { type: "string", nullable: true },
+          } } } } },
         },
       },
     },

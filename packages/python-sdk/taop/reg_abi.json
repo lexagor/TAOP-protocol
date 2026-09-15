@@ -517,6 +517,25 @@
   {
     "inputs": [
       {
+        "internalType": "bytes32",
+        "name": "capabilityType",
+        "type": "bytes32"
+      }
+    ],
+    "name": "countCapabilitiesByType",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"
@@ -546,6 +565,35 @@
       {
         "internalType": "uint256[]",
         "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "capabilityType",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "offset",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "limit",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCapabilitiesByTypePaged",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "page",
         "type": "uint256[]"
       }
     ],

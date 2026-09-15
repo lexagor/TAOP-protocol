@@ -278,6 +278,16 @@ class CapabilityRegistryClient:
         """v0.1.2: indexed lookup (O(1) per type) instead of a full scan."""
         return list(self.contract.functions.getCapabilitiesByType(_keccak(capability_type)).call())
 
+    def count_capabilities_by_type(self, capability_type: str) -> int:
+        """F10: number of live capabilities of a type."""
+        return self.contract.functions.countCapabilitiesByType(_keccak(capability_type)).call()
+
+    def get_capabilities_by_type_paged(self, capability_type: str, offset: int, limit: int) -> list[int]:
+        """F10: paginated discovery view (v0.2 contracts)."""
+        return list(
+            self.contract.functions.getCapabilitiesByTypePaged(_keccak(capability_type), offset, limit).call()
+        )
+
     def _send_tx(self, tx):
         if self.account is None:
             raise ValueError("No account set — cannot send transactions")

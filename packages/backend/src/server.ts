@@ -11,6 +11,7 @@ import { initState, type BackendState } from "./contracts.js";
 import { runDemo } from "./demo.js";
 import { LORA_CAPABILITY_TYPE } from "@taopp/sdk";
 import { listCapabilities, listCompletions, markCompletionChallenged, markCompletionResolved } from "./db.js";
+import { startIndexer, queryIndexedDiscovery, isIndexerReady, indexedCount, indexerStatus } from "./indexer.js";
 import { openApiSpec } from "./openapi.js";
 
 const app = express();
@@ -95,6 +96,72 @@ function explorerBase(): string {
   return state.deployment.chainId === 84532
     ? "https://sepolia.basescan.org"
     : "https://basescan.org";
+}
+
+/** v0.2/F10: JSON + ETag helper for cacheable read endpoints. */
+function sendJsonWithEtag(
+  req: express.Request,
+  res: express.Response,
+  body: unknown,
+  headers: Record<string, string>,
+): void {
+  const json = JSON.stringify(body);
+  const etag = `"${crypto.createHash("sha1").update(json).digest("hex")}"`;
+  for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
+  res.setHeader("ETag", etag);
+  res.setHeader("Cache-Control", "public, max-age=5");
+  if (req.header("if-none-match") === etag) {
+    res.status(304).end();
+    return;
+  }
+  res.type("application/json").send(json);
+}
+
+/** Discovery via direct contract reads. Used as a fallback until the index is warm. */
+async function onChainDiscover(typeLabel: string, minScore: number) {
+  const ids = await state.registryOracle.getCapabilitiesByType(typeLabel);
+  const out: Array<Record<string, unknown>> = [];
+  for (const id of ids) {
+    // v0.1.2: one stale id (pre-fix index pollution, or burned elsewhere) must
+    // never break the whole discovery response.
+    let cap;
+    try {
+      cap = await state.registryOracle.getCapability(id);
+    } catch {
+      continue;
+    }
+    if (!cap.certified || cap.slashed) continue;
+    const score = await state.ron.getRankingScore(cap.creator);
+    const scoreNum = Number(score.score);
+    if (scoreNum < minScore) continue;
+    let identityCID = "";
+    try {
+      identityCID = await state.ron.getAgentMetadata(cap.creator);
+    } catch (e) {
+      const msg = String((e as Error).message ?? e);
+      if (msg.includes("missing revert data") || msg.includes("CALL_EXCEPTION") || msg.includes("revert")) {
+        identityCID = ""; // old contract
+      } else {
+        throw e;
+      }
+    }
+    out.push({
+      agentAddress: cap.creator,
+      capabilityId: id.toString(),
+      capabilityType: typeLabel,
+      certified: cap.certified,
+      slashed: cap.slashed,
+      bond: ethers.formatEther(cap.bond),
+      metadataCID: cap.metadataCID,
+      identityCID,
+      completions: Number(score.completions),
+      disputes: Number(score.disputes),
+      score: scoreNum,
+      scoreType: score.scoreType,
+    });
+  }
+  out.sort((a, b) => Number(b.score) - Number(a.score));
+  return out;
 }
 
 api.get("/healthz", (_req, res) => res.json({ ok: true }));
@@ -462,50 +529,34 @@ api.post("/agents/register", async (req, res) => {
 api.get("/discover", async (req, res) => {
   const typeLabel = String(req.query.capabilityType ?? LORA_CAPABILITY_TYPE);
   const minScore = Number(req.query.minScore ?? 0);
-  const ids = await state.registryOracle.getCapabilitiesByType(typeLabel);
-  const out: unknown[] = [];
-  for (const id of ids) {
-    // v0.1.2: one stale id (pre-fix index pollution, or burned elsewhere) must
-    // never break the whole discovery response.
-    let cap;
-    try {
-      cap = await state.registryOracle.getCapability(id);
-    } catch {
-      continue;
-    }
-    if (!cap.certified || cap.slashed) continue;
-    const score = await state.ron.getRankingScore(cap.creator);
-    const scoreNum = Number(score.score);
-    if (scoreNum < minScore) continue;
-    let identityCID = "";
-    try {
-      identityCID = await state.ron.getAgentMetadata(cap.creator);
-    } catch (e) {
-      const msg = String((e as Error).message ?? e);
-      if (msg.includes("missing revert data") || msg.includes("CALL_EXCEPTION") || msg.includes("revert")) {
-        identityCID = ""; // old contract
-      } else {
-        throw e;
-      }
-    }
-    out.push({
-      agentAddress: cap.creator,
-      capabilityId: id.toString(),
-      capabilityType: typeLabel,
-      certified: cap.certified,
-      slashed: cap.slashed,
-      bond: ethers.formatEther(cap.bond),
-      metadataCID: cap.metadataCID,
-      identityCID,
-      completions: Number(score.completions),
-      disputes: Number(score.disputes),
-      score: scoreNum,
-      // v0.2: which signal the score is based on.
-      scoreType: score.scoreType,
+  const limit = Math.min(Math.max(Number(req.query.limit ?? 50), 1), 200);
+  const offset = Math.max(Number(req.query.offset ?? 0), 0);
+
+  // F10: serve from the off-chain index when it already has this capability type.
+  if (isIndexerReady() && indexedCount(typeLabel) > 0) {
+    const { items, total } = queryIndexedDiscovery({ capabilityType: typeLabel, minScore, offset, limit });
+    sendJsonWithEtag(req, res, items, {
+      "X-Total-Count": String(total),
+      "X-Indexer": "on",
+      "X-Page-Offset": String(offset),
+      "X-Page-Limit": String(limit),
     });
+    return;
   }
-  (out as { score: number }[]).sort((a, b) => b.score - a.score);
-  res.json(out);
+
+  // Fallback: direct on-chain scan (before the index is warm, or none configured).
+  const all = await onChainDiscover(typeLabel, minScore);
+  sendJsonWithEtag(req, res, all.slice(offset, offset + limit), {
+    "X-Total-Count": String(all.length),
+    "X-Indexer": "off",
+    "X-Page-Offset": String(offset),
+    "X-Page-Limit": String(limit),
+  });
+});
+
+/** F10: indexer health/observability for operators. */
+api.get("/indexer", (_req, res) => {
+  res.json(indexerStatus());
 });
 
 // --- Demo orchestrator ---
@@ -544,6 +595,14 @@ if (fs.existsSync(demoDist)) {
 
 async function main() {
   state = await initState();
+
+  // F10: start the off-chain indexer (non-fatal if the RPC can't serve logs).
+  try {
+    await startIndexer(state);
+  } catch (e) {
+    console.warn("[indexer] failed to start:", String((e as Error).message ?? e));
+  }
+
   const server = app.listen(PORT, HOST, () => {
     const origin = isLoopbackHost(HOST) ? `http://127.0.0.1:${PORT}` : `http://${HOST}:${PORT}`;
     console.log(`TAOP backend listening on ${origin}/api`);
@@ -554,6 +613,10 @@ async function main() {
     );
     console.log(
       `Contracts: ron=${state.deployment.ron} registry=${state.deployment.registry} capabilityId=${state.capabilityId}`,
+    );
+    const ix = indexerStatus();
+    console.log(
+      `Indexer: ${ix.enabled ? `on (last=${ix.lastBlock} head=${ix.headBlock} lag=${ix.lag} twoSided=${ix.useTwoSided})` : "off"}`,
     );
   });
   process.on("SIGINT", () => server.close(() => process.exit(0)));

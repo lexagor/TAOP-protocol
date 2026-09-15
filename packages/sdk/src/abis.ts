@@ -67,6 +67,8 @@ export const CAPABILITY_REGISTRY_ABI: string[] = [
   "function getCapability(uint256 capabilityId) view returns ((address creator, uint256 bond, bytes32 capabilityType, string metadataCID, bool certified, bool slashed))",
   "function capabilityTypeOf(uint256 capabilityId) view returns (bytes32)",
   "function getCapabilitiesByType(bytes32 capabilityType) view returns (uint256[])",
+  "function countCapabilitiesByType(bytes32 capabilityType) view returns (uint256)",
+  "function getCapabilitiesByTypePaged(bytes32 capabilityType, uint256 offset, uint256 limit) view returns (uint256[])",
   "event CapabilityRegistered(uint256 capabilityId, address creator)",
   "event CapabilityCertified(uint256 capabilityId, address certifier)",
   "event CapabilitySlashed(uint256 capabilityId, uint256 penalty)",

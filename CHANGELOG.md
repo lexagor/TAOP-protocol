@@ -5,7 +5,7 @@ All notable changes to TAOP will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — v0.2 two-sided trust (Phase 3)
+## [Unreleased] — v0.2 two-sided trust + discovery index (Phase 3)
 
 ### Added
 - **Two-sided attestation (F11).** `attestReceipt(completionId, receiptCID)` lets an
@@ -19,12 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   back to the owner (`resolveChallenge`, via Timelock).
 - Two-sided flow wired through both SDKs, the MCP server, the backend API
   (`POST /completions/:id/{receipt,revoke-receipt,contest,finalize}`) and the demo UI.
-- 20 new contract tests (32 → 52).
+- **Paginated discovery views (F10).** `countCapabilitiesByType` /
+  `getCapabilitiesByTypePaged` on the registry; exposed in both SDKs.
+- **Off-chain indexer (F10).** A SQLite-backed `eth_getLogs` poller
+  (`packages/backend/src/indexer.ts`) denormalises capabilities, receipts,
+  disputes and identity; `/api/discover` is served from the index with
+  `limit`/`offset` pagination, `X-Total-Count`, `ETag`/`304`, and falls back to a
+  direct on-chain scan until the index is warm. New `GET /api/indexer` status.
+  Config: `INDEXER_ENABLED`, `INDEXER_POLL_MS`, `INDEXER_CHUNK_SIZE`,
+  `INDEXER_START_BLOCK`, `INDEXER_LOOKBACK_BLOCKS`.
+- 24 new contract tests (32 → 56).
 
 ### Changed
 - Discovery now ranks on the two-sided score where the contract supports it and
   falls back to the self-attest score on older deployments (`scoreType` in payloads).
 - An upheld dispute invalidates the completion's receipt (and decrements the count).
+- The deploy script records `deployedBlock` so the indexer backfills from launch.
 - Demo UI: "Requester confirms completion" action; real repository links.
 
 ### Notes

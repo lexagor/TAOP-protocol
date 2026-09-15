@@ -196,6 +196,20 @@ export class CapabilityRegistryClient {
     const ids = (await this.c.getCapabilitiesByType(ethers.id(capabilityType))) as bigint[];
     return ids;
   }
+
+  /** F10: number of live capabilities of a type (page without loading the array). */
+  countCapabilitiesByType(capabilityType: string): Promise<bigint> {
+    return this.c.countCapabilitiesByType(ethers.id(capabilityType)) as Promise<bigint>;
+  }
+
+  /** F10: paginated discovery view (v0.2 contracts). */
+  async getCapabilitiesByTypePaged(
+    capabilityType: string,
+    offset: number | bigint,
+    limit: number | bigint,
+  ): Promise<bigint[]> {
+    return (await this.c.getCapabilitiesByTypePaged(ethers.id(capabilityType), offset, limit)) as bigint[];
+  }
 }
 
 export type DiscoveryItem = {

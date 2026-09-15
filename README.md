@@ -374,6 +374,11 @@ slither . --filter "high,medium"
 - Security banner: the startup log prints `bind=… | writes=… | write auth=…` —
   check it before sharing any URL.
 - Basic monitoring: watch contract events on Basescan or poll `/api/contracts` + `/api/discover`.
+- **Discovery index (F10):** `/api/discover` is served from a SQLite `eth_getLogs`
+  indexer with `?limit=`/`?offset=` paging, an `X-Total-Count` header and `ETag`/`304`
+  caching (falls back to a direct on-chain scan until the index is warm). Check
+  `GET /api/indexer` for lag. Tune with `INDEXER_ENABLED`, `INDEXER_POLL_MS`,
+  `INDEXER_CHUNK_SIZE`, `INDEXER_START_BLOCK`, `INDEXER_LOOKBACK_BLOCKS`.
 - **Sharing a demo publicly: read-only only.** Run a second instance with
   `DEMO_READ_ONLY=true` and share that URL; write routes return `503`.
   If you must expose writes, set `TAOP_API_KEY=$(openssl rand -hex 32)`, build the

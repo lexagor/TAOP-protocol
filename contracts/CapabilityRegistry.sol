@@ -158,4 +158,29 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     function getCapabilitiesByType(bytes32 capabilityType) external view returns (uint256[] memory) {
         return capabilitiesByType[capabilityType];
     }
+
+    /// @notice v0.2 / F10: number of live capabilities of a type, so indexers and
+    ///         UIs can page without loading the whole array.
+    function countCapabilitiesByType(bytes32 capabilityType) external view returns (uint256) {
+        return capabilitiesByType[capabilityType].length;
+    }
+
+    /// @notice v0.2 / F10: paginated view over `getCapabilitiesByType`. Returns an
+    ///         empty array when `offset` is past the end or `limit` is zero, and
+    ///         clamps the page to the end of the list.
+    function getCapabilitiesByTypePaged(bytes32 capabilityType, uint256 offset, uint256 limit)
+        external
+        view
+        returns (uint256[] memory page)
+    {
+        uint256[] storage list = capabilitiesByType[capabilityType];
+        uint256 len = list.length;
+        if (limit == 0 || offset >= len) return new uint256[](0);
+        uint256 end = offset + limit;
+        if (end > len) end = len;
+        page = new uint256[](end - offset);
+        for (uint256 i = offset; i < end; i++) {
+            page[i - offset] = list[i];
+        }
+    }
 }

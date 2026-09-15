@@ -318,7 +318,12 @@ still v0.1.2 and consumers fall back to the self-attest score there. See
 - [ ] Multisig (Safe on Base) + non-zero Timelock delay, rehearsed on Sepolia;
       explicitly document the decision to **unfreeze the 0-delay policy** (frozen
       by choice in `PRE_MAINNET_CHECKLIST.md`).
-- [ ] Off-chain indexer + paginated discovery (F10); serve `/api/discover` from the index.
+- [x] Off-chain indexer + paginated discovery (F10): `getCapabilitiesByTypePaged` /
+      `countCapabilitiesByType` on the registry; a SQLite `eth_getLogs` poller
+      (`packages/backend/src/indexer.ts`) serves `/api/discover` with
+      `limit`/`offset`, `X-Total-Count` and `ETag`, falling back to an on-chain
+      scan until warm. Verified against live Base Sepolia (indexed the pilot
+      capability, `lag=0`).
 - [ ] Observability + operations runbook (F12).
 - [ ] Redeploy to Base Sepolia with the v0.2 contracts + update addresses/README.
 - [ ] Audit (Slither + manual + external if funded) → mainnet deploy → verification → monitoring.
