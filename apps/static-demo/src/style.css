@@ -1,0 +1,44 @@
+:root {
+  --bg: #0b0d12;
+  --card: #14171f;
+  --border: #262b38;
+  --text: #e6e8ee;
+  --muted: #9aa3b2;
+  --accent: #7c9cff;
+  --ok: #4ade80;
+  --bad: #f87171;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+#app { max-width: 980px; margin: 0 auto; padding: 40px 20px 80px; }
+h1 { font-size: 26px; margin: 0 0 8px; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 12px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button {
+  margin-left: auto; background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+.status {
+  margin: 24px 0 12px; padding: 10px 14px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--card); color: var(--muted); font-size: 13px;
+}
+table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: #101319; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.score { font-size: 20px; color: var(--ok); }
+.chip { font-size: 11px; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--border); }
+.chip.ok { color: var(--ok); border-color: var(--ok); }
+.chip.bad { color: var(--bad); border-color: var(--bad); }
+.error { color: var(--bad); white-space: pre-wrap; background: var(--card); padding: 12px; border-radius: 8px; }
+code { background: var(--card); padding: 1px 5px; border-radius: 5px; }
+footer { margin-top: 32px; font-size: 13px; border-top: 1px solid var(--border); padding-top: 16px; }

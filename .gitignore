@@ -59,3 +59,4 @@ build/
 coverage/
 coverage.json
 .gas-report.txt
+apps/static-demo/dist/
