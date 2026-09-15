@@ -1,10 +1,52 @@
 import { useEffect, useState } from "react";
 import type { Contracts, DemoResult, DiscoveryItem } from "./api.js";
-import { getContracts, getDiscover, runDemo, challengeCompletion, resolveChallenge, getIdentity, registerIdentity } from "./api.js";
+import { getContracts, getDiscover, runDemo, challengeCompletion, resolveChallenge, getIdentity, registerIdentity, getApiKey, setApiKey } from "./api.js";
 
 const trunc = (a: string, n = 6) => (a.length <= n + 4 ? a : `${a.slice(0, n)}…${a.slice(-4)}`);
 const chainLabel = (id: number) =>
   id === 84532 ? "Base Sepolia" : id === 8453 ? "Base" : id === 31337 ? "Local Hardhat" : `Chain ${id}`;
+
+function ApiKeyGate({ onChange }: { onChange: () => void }) {
+  const [draft, setDraft] = useState(() => getApiKey());
+  const active = !!getApiKey();
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3">
+      <span className="mono text-xs text-[var(--color-text-secondary)]">Backend API key</span>
+      <input
+        type="password"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="optional — required for writes when the server sets one"
+        className="mono min-w-[220px] flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-primary)]"
+      />
+      <button
+        onClick={() => {
+          setApiKey(draft);
+          setDraft(getApiKey());
+          onChange();
+        }}
+        className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-alt)] transition"
+      >
+        {active ? "Update" : "Save"}
+      </button>
+      {active && (
+        <button
+          onClick={() => {
+            setApiKey("");
+            setDraft("");
+            onChange();
+          }}
+          className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-alt)] transition"
+        >
+          Clear
+        </button>
+      )}
+      <span className="mono text-[10px] text-[var(--color-text-secondary)]">
+        {active ? "stored in this browser only" : "not set — writes fail with 401 on a keyed server"}
+      </span>
+    </div>
+  );
+}
 
 function Chip({ children, tone = "slate" }: { children: React.ReactNode; tone?: "slate" | "green" | "amber" | "blue" | "rose" }) {
   const tones: Record<string, string> = {
@@ -197,6 +239,7 @@ export default function App() {
               }
             }}
           />
+          <ApiKeyGate onChange={() => {}} />
           <PanelB
             demo={demo}
             contracts={contracts}

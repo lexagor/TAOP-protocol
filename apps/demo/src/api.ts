@@ -7,7 +7,30 @@ const BASE = "/api";
  *   VITE_TAOP_API_KEY=<same value> npm run demo:build
  * Local development (HOST=127.0.0.1, no key) needs nothing.
  */
-const API_KEY = (import.meta.env.VITE_TAOP_API_KEY ?? "").trim();
+const API_BASE_KEY = "taop-api-key";
+
+let apiKey = (import.meta.env.VITE_TAOP_API_KEY ?? "").trim();
+try {
+  apiKey = localStorage.getItem(API_BASE_KEY) ?? apiKey;
+} catch {
+  /* private mode — fall back to the build-time value */
+}
+
+/** Persist the backend API key for write routes (stored in this browser only). */
+export function setApiKey(key: string): void {
+  apiKey = key.trim();
+  try {
+    if (apiKey) localStorage.setItem(API_BASE_KEY, apiKey);
+    else localStorage.removeItem(API_BASE_KEY);
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+/** Currently configured API key ("" = none). */
+export function getApiKey(): string {
+  return apiKey;
+}
 
 export interface Contracts {
   chainId: number;
@@ -66,7 +89,7 @@ export interface DemoResult {
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { ...((init?.headers as Record<string, string> | undefined) ?? {}) };
-  if (API_KEY) headers["X-TAOP-Key"] = API_KEY;
+  if (getApiKey()) headers["X-TAOP-Key"] = getApiKey();
   const r = await fetch(url, { ...init, headers });
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
   return (await r.json()) as T;
