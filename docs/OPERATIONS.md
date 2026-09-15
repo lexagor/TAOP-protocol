@@ -58,9 +58,14 @@ contracts into SQLite and serves `/api/discover` from that index.
 - Status: `GET /api/indexer` → `{ enabled, ready, lag, lastBlock, headBlock, twoSided, lastError }`.
 - Config: `INDEXER_ENABLED` (`true`), `INDEXER_POLL_MS` (`15000`),
   `INDEXER_CHUNK_SIZE` (`2000` — public RPCs cap `eth_getLogs` near 10k blocks),
+  `INDEXER_CONFIRMATIONS` (`5` — only index up to `head - N`),
   `INDEXER_MAX_CHUNKS_PER_TICK` (`20`), `INDEXER_START_BLOCK` (defaults to
   `deployments.json` `deployedBlock`, else `head - INDEXER_LOOKBACK_BLOCKS`),
   `INDEXER_LOOKBACK_BLOCKS` (`50000`).
+- **Reorg safety:** the indexer only advances to `head - INDEXER_CONFIRMATIONS`,
+  and stores the hash of the last indexed block. If that hash changes (a reorg
+  deeper than the confirmation depth), it logs a warning, rebuilds the derived
+  state from logs, and increments `indexer.reorgsDetected` in `/api/healthz`.
 - **Failure mode:** a public RPC that rejects `eth_getLogs` leaves `lastError`
   set and `lag` growing; `/api/discover` still works via the direct on-chain
   fallback (`X-Indexer: off`). Fix by pointing at a log-capable RPC or setting

@@ -221,8 +221,8 @@ export const openApiSpec = {
         responses: {
           "200": { description: "Indexer status", content: { "application/json": { schema: { type: "object", properties: {
             enabled: { type: "boolean" }, ready: { type: "boolean" }, useTwoSided: { type: "boolean" },
-            lastBlock: { type: "integer" }, headBlock: { type: "integer" }, lag: { type: "integer" },
-            lastError: { type: "string", nullable: true },
+            lastBlock: { type: "integer" }, headBlock: { type: "integer" }, safeHead: { type: "integer" },
+            lag: { type: "integer" }, reorgsDetected: { type: "integer" }, lastError: { type: "string", nullable: true },
           } } } } },
         },
       },

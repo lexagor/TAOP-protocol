@@ -200,6 +200,8 @@ api.get("/healthz", async (_req, res) => {
       lag: ix.lag,
       lastBlock: ix.lastBlock,
       headBlock: ix.headBlock,
+      safeHead: ix.safeHead,
+      reorgsDetected: ix.reorgsDetected,
       twoSided: ix.useTwoSided,
       lastError: ix.lastError,
     },

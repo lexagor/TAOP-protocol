@@ -5,6 +5,9 @@ import {
   initIndexSchema,
   getIndexerLastBlock,
   setIndexerLastBlock,
+  getIndexerLastHash,
+  setIndexerLastHash,
+  resetIndexerDerived,
   alreadyIndexed,
   markIndexed,
   upsertIndexedCapability,
@@ -61,7 +64,11 @@ export interface IndexerStatus {
   useTwoSided: boolean;
   lastBlock: number;
   headBlock: number;
+  /** Highest block safe to index (head - confirmations). */
+  safeHead: number;
   lag: number;
+  /** Number of chain reorganizations detected and rebuilt from logs. */
+  reorgsDetected: number;
   lastError: string | null;
 }
 
@@ -71,7 +78,9 @@ const status: IndexerStatus = {
   useTwoSided: false,
   lastBlock: 0,
   headBlock: 0,
+  safeHead: 0,
   lag: 0,
+  reorgsDetected: 0,
   lastError: null,
 };
 
@@ -325,6 +334,69 @@ async function applyRonEvent(
 
 let pollTimer: NodeJS.Timeout | null = null;
 
+export interface PollOptions {
+  startBlock: number;
+  chunkSize: number;
+  /** Only index up to `head - confirmations` so shallow reorgs are never indexed. */
+  confirmations: number;
+  maxChunks: number;
+}
+
+/**
+ * One indexing pass (exported for tests). Indexes only up to
+ * `head - confirmations`; if the last-indexed block's hash no longer matches the
+ * chain (a reorg deeper than the confirmation depth), the derived state is
+ * rebuilt from logs.
+ */
+export async function pollOnce(state: BackendState, opts: PollOptions): Promise<void> {
+  const head = await state.provider.getBlockNumber();
+  status.headBlock = head;
+  const safeHead = head - opts.confirmations;
+  status.safeHead = Math.max(0, safeHead);
+
+  // Reorg detection: the block we last indexed must still have the same hash.
+  let cursor = getIndexerLastBlock();
+  if (cursor !== null && cursor > 0) {
+    const stored = getIndexerLastHash();
+    let chainHash: string | null = null;
+    try {
+      const b = await state.provider.getBlock(cursor);
+      chainHash = b?.hash ?? null;
+    } catch {
+      chainHash = null;
+    }
+    if (stored && chainHash && stored !== chainHash) {
+      status.reorgsDetected += 1;
+      logger.warn(
+        { block: cursor, stored, chainHash },
+        "[indexer] reorg detected — rebuilding index from logs",
+      );
+      resetIndexerDerived();
+      cursor = null;
+    }
+  }
+
+  let from = cursor === null ? opts.startBlock - 1 : cursor;
+  let chunks = 0;
+  while (from < safeHead && chunks < opts.maxChunks) {
+    const to = Math.min(safeHead, from + opts.chunkSize);
+    await indexRange(state, from + 1, to);
+    setIndexerLastBlock(to);
+    try {
+      const b = await state.provider.getBlock(to);
+      setIndexerLastHash(b?.hash ?? "");
+    } catch {
+      setIndexerLastHash("");
+    }
+    from = to;
+    chunks++;
+  }
+  status.lastBlock = getIndexerLastBlock() ?? opts.startBlock;
+  status.lag = Math.max(0, head - status.lastBlock);
+  status.lastError = null;
+  status.ready = true;
+}
+
 export async function startIndexer(state: BackendState): Promise<void> {
   if ((process.env.INDEXER_ENABLED ?? "true").toLowerCase() === "false") {
     status.enabled = false;
@@ -336,7 +408,9 @@ export async function startIndexer(state: BackendState): Promise<void> {
 
   const pollMs = Number(process.env.INDEXER_POLL_MS ?? 15000);
   const chunkSize = Number(process.env.INDEXER_CHUNK_SIZE ?? 2000);
+  const confirmations = Number(process.env.INDEXER_CONFIRMATIONS ?? 5);
   const lookback = Number(process.env.INDEXER_LOOKBACK_BLOCKS ?? 50000);
+  const maxChunks = Number(process.env.INDEXER_MAX_CHUNKS_PER_TICK ?? 20);
 
   await loadDecayConstants(state);
   status.useTwoSided = await detectTwoSided(state);
@@ -346,25 +420,11 @@ export async function startIndexer(state: BackendState): Promise<void> {
   const deployedBlock = (state.deployment as { deployedBlock?: number }).deployedBlock;
   const startBlock = explicitStart ?? deployedBlock ?? Math.max(0, head - lookback);
 
+  const opts: PollOptions = { startBlock, chunkSize, confirmations, maxChunks };
+
   const poll = async (): Promise<void> => {
     try {
-      const headNow = await state.provider.getBlockNumber();
-      status.headBlock = headNow;
-      let cursor = getIndexerLastBlock();
-      let from = cursor === null ? startBlock - 1 : cursor;
-      let chunks = 0;
-      const maxChunks = Number(process.env.INDEXER_MAX_CHUNKS_PER_TICK ?? 20);
-      while (from < headNow && chunks < maxChunks) {
-        const to = Math.min(headNow, from + chunkSize);
-        await indexRange(state, from + 1, to);
-        setIndexerLastBlock(to);
-        from = to;
-        chunks++;
-      }
-      status.lastBlock = getIndexerLastBlock() ?? startBlock;
-      status.lag = Math.max(0, headNow - status.lastBlock);
-      status.lastError = null;
-      status.ready = true;
+      await pollOnce(state, opts);
     } catch (e) {
       status.lastError = String((e as Error).message ?? e);
       logger.warn({ err: status.lastError }, "[indexer] poll failed");
@@ -375,7 +435,8 @@ export async function startIndexer(state: BackendState): Promise<void> {
   pollTimer = setInterval(poll, pollMs);
   if (typeof pollTimer.unref === "function") pollTimer.unref();
   logger.info(
-    `[indexer] started (poll=${pollMs}ms chunk=${chunkSize} start=${startBlock} twoSided=${status.useTwoSided})`,
+    { pollMs, chunkSize, startBlock, confirmations, twoSided: status.useTwoSided },
+    "[indexer] started",
   );
 }
 

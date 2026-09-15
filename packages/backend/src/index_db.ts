@@ -107,6 +107,33 @@ export function setIndexerLastBlock(block: number): void {
     .run(String(block));
 }
 
+export function getIndexerLastHash(): string | null {
+  const row = db().prepare("SELECT value FROM meta WHERE key = 'indexer_last_hash'").get() as
+    | { value: string }
+    | undefined;
+  return row?.value ?? null;
+}
+
+export function setIndexerLastHash(hash: string): void {
+  db()
+    .prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('indexer_last_hash', ?)")
+    .run(hash);
+}
+
+/**
+ * Drop the indexer's derived state so it can be rebuilt from logs after a reorg.
+ * Only indexer-owned tables are cleared: `capabilities` (shared with the demo
+ * cache) and `completions` are re-upserted as logs are replayed.
+ */
+export function resetIndexerDerived(): void {
+  db().exec(`
+    DELETE FROM agent_scores;
+    DELETE FROM completion_receipts;
+    DELETE FROM agent_identity;
+    DELETE FROM indexed_logs;
+  `);
+}
+
 // --- idempotency ---
 
 export function alreadyIndexed(txHash: string, logIndex: number): boolean {
