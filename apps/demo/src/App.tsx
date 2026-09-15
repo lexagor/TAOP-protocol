@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Contracts, DemoResult, DiscoveryItem } from "./api.js";
-import { getContracts, getDiscover, runDemo, challengeCompletion, resolveChallenge, getIdentity, registerIdentity, getApiKey, setApiKey } from "./api.js";
+import { getContracts, getDiscover, runDemo, challengeCompletion, resolveChallenge, getIdentity, registerIdentity, getApiKey, setApiKey, confirmReceipt } from "./api.js";
 
 const trunc = (a: string, n = 6) => (a.length <= n + 4 ? a : `${a.slice(0, n)}…${a.slice(-4)}`);
 const chainLabel = (id: number) =>
@@ -73,6 +73,8 @@ export default function App() {
   const [expanded, setExpanded] = useState(false);
   const [challenging, setChallenging] = useState(false);
   const [lastResolve, setLastResolve] = useState<any>(null);
+  const [receipting, setReceipting] = useState(false);
+  const [receiptDone, setReceiptDone] = useState(false);
   const [identity, setIdentity] = useState<string>("");
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
@@ -122,6 +124,7 @@ export default function App() {
       const res = await runDemo();
       setDemo(res);
       setLastResolve(null);  // allow challenge on the new demo
+      setReceiptDone(false);
       setStatus("done");
       await refresh();
     } catch (e) {
@@ -152,6 +155,21 @@ export default function App() {
       setError(String((e as Error).message ?? e));
     } finally {
       setChallenging(false);
+    }
+  }
+
+  async function handleConfirmReceipt() {
+    if (!demo) return;
+    setReceipting(true);
+    setError(null);
+    try {
+      await confirmReceipt(demo.completionId);
+      setReceiptDone(true);
+      await refresh();
+    } catch (e) {
+      setError(String((e as Error).message ?? e));
+    } finally {
+      setReceipting(false);
     }
   }
 
@@ -189,7 +207,7 @@ export default function App() {
           <a href="#features" className="hover:text-[var(--color-text-primary)]">Features</a>
         </div>
         <div>
-          <a href="https://github.com" className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs hover:bg-[var(--color-surface-alt)]">GitHub</a>
+          <a href="https://github.com/lexagor/TAOP-protocol" className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs hover:bg-[var(--color-surface-alt)]">GitHub</a>
         </div>
       </nav>
 
@@ -222,6 +240,9 @@ export default function App() {
             hasDemo={!!demo}
             identity={identity}
             lastResolve={lastResolve}
+            onConfirmReceipt={handleConfirmReceipt}
+            receipting={receipting}
+            receiptDone={receiptDone}
             onRegisterIdentity={async (cid: string) => {
               // Always update the local display immediately for demo purposes.
               setIdentity(cid);
@@ -361,7 +382,7 @@ function InvestorSection({ contracts }: { contracts: Contracts | null }) {
           <div className="md:col-span-2 flex flex-wrap items-center gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-4 text-xs">
             <span className="text-[var(--color-text-secondary)]">Deep dive:</span>
             <a className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-secondary)]" href="/api/docs/" target="_blank" rel="noreferrer">API docs</a>
-            <a className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-secondary)]" href="https://github.com" target="_blank" rel="noreferrer">GitHub</a>
+            <a className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-secondary)]" href="https://github.com/lexagor/TAOP-protocol" target="_blank" rel="noreferrer">GitHub</a>
             <span className="text-[var(--color-text-secondary)]">·</span>
             <span className="text-[var(--color-text-secondary)]">One-pager PDF:</span>
             <a className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-secondary)]" href="/one-pager.html" target="_blank" rel="noreferrer">Open ↗</a>
@@ -388,7 +409,7 @@ function Hero({ contracts, onRun, running, isZeroDelay }: { contracts: Contracts
           <span className="bg-gradient-to-r from-indigo to-cyan bg-clip-text text-transparent">On Base.</span>
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-[var(--color-text-secondary)]">
-          Self-attest completions · public challenge with ETH bonds · score = completions − disputes (with decay). Indexed discovery by capability. Timelock for admin. No platform in the middle.
+          Self-attest completions · requester countersigns (two-sided receipts) · public challenge with ETH bonds &amp; optimistic resolution · score = confirmed − disputes (with decay). Indexed discovery by capability. Timelock for admin. No platform in the middle.
         </p>
         <div className="mt-2 flex flex-wrap gap-2 text-xs">
           <span className="rounded bg-[var(--color-accent-success)]/20 px-2 py-0.5 text-[var(--color-accent-success)]">Score Decay</span>
@@ -454,6 +475,9 @@ function PanelA({
   identity = "",
   lastResolve = null,
   onRegisterIdentity,
+  onConfirmReceipt,
+  receipting = false,
+  receiptDone = false,
 }: {
   agentA?: DiscoveryItem;
   contracts: Contracts | null;
@@ -467,6 +491,9 @@ function PanelA({
   identity?: string;
   lastResolve?: any;
   onRegisterIdentity: (cid: string) => void | Promise<void>;
+  onConfirmReceipt: () => void;
+  receipting?: boolean;
+  receiptDone?: boolean;
 }) {
   return (
     <section className="fade-up card p-6">
@@ -512,6 +539,20 @@ function PanelA({
           className="mt-3 w-full rounded-xl border border-[var(--color-accent-destructive)]/60 bg-[var(--color-accent-destructive)]/10 px-4 py-2.5 text-sm font-medium text-[var(--color-accent-destructive)] transition hover:bg-[var(--color-accent-destructive)]/20 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {challenging ? "Challenging + resolving (demo, may take 15-60s on public RPC)…" : "Challenge this completion (fraud simulation)"}
+        </button>
+      )}
+
+      {hasDemo && (
+        <button
+          onClick={onConfirmReceipt}
+          disabled={receipting || running || receiptDone}
+          className="mt-3 w-full rounded-xl border border-[var(--color-accent-success)]/60 bg-[var(--color-accent-success)]/10 px-4 py-2.5 text-sm font-medium text-[var(--color-accent-success)] transition hover:bg-[var(--color-accent-success)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {receiptDone
+            ? "✓ Requester confirmed this completion (two-sided receipt)"
+            : receipting
+              ? "Requester countersigning…"
+              : "Requester confirms completion (two-sided receipt)"}
         </button>
       )}
 
@@ -790,7 +831,7 @@ function Footer({ contracts }: { contracts: Contracts | null }) {
           </a>
         )}
         <a className="hover:text-[var(--color-text-primary)]" href="/api/docs/" target="_blank" rel="noreferrer">API docs</a>
-        <a className="hover:text-[var(--color-text-primary)]" href="https://github.com" target="_blank" rel="noreferrer">GitHub</a>
+        <a className="hover:text-[var(--color-text-primary)]" href="https://github.com/lexagor/TAOP-protocol" target="_blank" rel="noreferrer">GitHub</a>
       </div>
     </footer>
   );

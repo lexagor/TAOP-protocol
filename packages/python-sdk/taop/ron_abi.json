@@ -11,12 +11,42 @@
   },
   {
     "inputs": [],
+    "name": "AlreadyReceipted",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ChallengeAlreadyContested",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "ChallengeNotPending",
     "type": "error"
   },
   {
     "inputs": [],
+    "name": "ChallengeWindowClosed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ChallengeWindowOpen",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NoSuchCompletion",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotAgent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotCounterparty",
     "type": "error"
   },
   {
@@ -44,6 +74,11 @@
       }
     ],
     "name": "OwnableUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ReceiptNotAllowed",
     "type": "error"
   },
   {
@@ -84,6 +119,31 @@
       }
     ],
     "name": "AgentRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "completionId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "agent",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "rebuttalCID",
+        "type": "string"
+      }
+    ],
+    "name": "ChallengeContested",
     "type": "event"
   },
   {
@@ -172,6 +232,50 @@
         "type": "uint256"
       },
       {
+        "indexed": true,
+        "internalType": "address",
+        "name": "agent",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "counterparty",
+        "type": "address"
+      }
+    ],
+    "name": "ReceiptAttested",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "completionId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "counterparty",
+        "type": "address"
+      }
+    ],
+    "name": "ReceiptRevoked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "completionId",
+        "type": "uint256"
+      },
+      {
         "indexed": false,
         "internalType": "address",
         "name": "agent",
@@ -190,6 +294,19 @@
   {
     "inputs": [],
     "name": "CHALLENGE_BOND",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "CHALLENGE_WINDOW",
     "outputs": [
       {
         "internalType": "uint256",
@@ -254,7 +371,7 @@
       },
       {
         "internalType": "string",
-        "name": "resultCID",
+        "name": "resultCID_",
         "type": "string"
       }
     ],
@@ -266,6 +383,24 @@
         "type": "uint256"
       }
     ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "completionId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "receiptCID_",
+        "type": "string"
+      }
+    ],
+    "name": "attestReceipt",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -316,6 +451,21 @@
         "internalType": "bool",
         "name": "resolved",
         "type": "bool"
+      },
+      {
+        "internalType": "uint64",
+        "name": "deadline",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bool",
+        "name": "contested",
+        "type": "bool"
+      },
+      {
+        "internalType": "string",
+        "name": "rebuttalCID",
+        "type": "string"
       }
     ],
     "stateMutability": "view",
@@ -379,9 +529,56 @@
         "internalType": "bool",
         "name": "disputed",
         "type": "bool"
+      },
+      {
+        "internalType": "address",
+        "name": "counterparty",
+        "type": "address"
+      },
+      {
+        "internalType": "uint64",
+        "name": "receiptTimestamp",
+        "type": "uint64"
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "confirmedCount",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "completionId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "rebuttalCID_",
+        "type": "string"
+      }
+    ],
+    "name": "contestChallenge",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -401,6 +598,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "completionId",
+        "type": "uint256"
+      }
+    ],
+    "name": "finalizeChallenge",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -463,6 +673,16 @@
             "internalType": "bool",
             "name": "disputed",
             "type": "bool"
+          },
+          {
+            "internalType": "address",
+            "name": "counterparty",
+            "type": "address"
+          },
+          {
+            "internalType": "uint64",
+            "name": "receiptTimestamp",
+            "type": "uint64"
           }
         ],
         "internalType": "struct ReputationOracleNetwork.Completion",
@@ -545,6 +765,45 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "agent",
+        "type": "address"
+      }
+    ],
+    "name": "getTwoSidedScore",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "confirmedCount_",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "disputeCount_",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "score",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "lastActivity_",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint16",
+        "name": "decayBps",
+        "type": "uint16"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "",
         "type": "address"
       }
@@ -589,6 +848,25 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "receiptCID",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "string",
         "name": "metadataCID",
         "type": "string"
@@ -620,6 +898,19 @@
       }
     ],
     "name": "resolveChallenge",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "completionId",
+        "type": "uint256"
+      }
+    ],
+    "name": "revokeReceipt",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

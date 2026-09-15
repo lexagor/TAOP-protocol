@@ -14,12 +14,27 @@ export interface Completion {
   timestamp: bigint;
   challenged: boolean;
   disputed: boolean;
+  /** v0.2: independent requester who countersigned, or the zero address. */
+  counterparty: string;
+  /** v0.2: unix seconds when the receipt was given (0 if none). */
+  receiptTimestamp: bigint;
 }
 
 export interface SelfAttestScore {
   completions: bigint;
   disputes: bigint;
   score: bigint;
+}
+
+/** v0.2: two-sided score = receipt-confirmed completions - disputes. */
+export interface TwoSidedScore {
+  confirmed: bigint;
+  disputes: bigint;
+  score: bigint;
+  /** Unix seconds of the agent's last positive activity. */
+  lastActivity: bigint;
+  /** Remaining score weight in basis points (10000 = undecayed, 0 = fully decayed). */
+  decayBps: number;
 }
 
 /** v0.1.2: full score view including decay inputs. */

@@ -47,6 +47,8 @@ class Completion:
     timestamp: int
     challenged: bool
     disputed: bool
+    counterparty: str = "0x0000000000000000000000000000000000000000"
+    receipt_timestamp: int = 0
 
 
 @dataclass
@@ -54,6 +56,16 @@ class SelfAttestScore:
     completions: int
     disputes: int
     score: int
+
+
+@dataclass
+class TwoSidedScore:
+    """v0.2: score based on receipt-confirmed (two-sided) completions."""
+    confirmed: int
+    disputes: int
+    score: int
+    last_activity: int
+    decay_bps: int
 
 
 @dataclass

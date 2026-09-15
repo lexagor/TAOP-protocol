@@ -1,6 +1,6 @@
 import { ethers, type Contract, type ContractRunner, type ContractTransactionReceipt } from "ethers";
 import { RON_ABI, CAPABILITY_REGISTRY_ABI } from "./abis.js";
-import type { Capability, Completion, ScoreDetails, SelfAttestScore } from "./types.js";
+import type { Capability, Completion, ScoreDetails, SelfAttestScore, TwoSidedScore } from "./types.js";
 
 /** Extract an event argument from a receipt (v0.1.2): ids must come from the
  *  emitted event, never from supply counters (which diverge after burns). */
@@ -36,6 +36,10 @@ export class ReputationOracleNetworkClient {
   completionCount(agent: string): Promise<bigint> {
     return this.c.completionCount(agent) as Promise<bigint>;
   }
+  /** v0.2: number of receipt-confirmed (two-sided) completions. */
+  confirmedCount(agent: string): Promise<bigint> {
+    return this.c.confirmedCount(agent) as Promise<bigint>;
+  }
   disputeCount(agent: string): Promise<bigint> {
     return this.c.disputeCount(agent) as Promise<bigint>;
   }
@@ -49,8 +53,24 @@ export class ReputationOracleNetworkClient {
       parseEventId(receipt, this.c, "SelfAttested", "completionId") ?? (await this.c.nextCompletionId() as bigint);
     return { completionId, receipt };
   }
+  /** v0.2: countersign a completion as the independent requester (two-sided). */
+  async attestReceipt(completionId: number | bigint, receiptCID: string): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.attestReceipt(completionId, receiptCID)).wait()) ?? null;
+  }
+  /** v0.2: withdraw a previously-given receipt (counterparty only). */
+  async revokeReceipt(completionId: number | bigint): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.revokeReceipt(completionId)).wait()) ?? null;
+  }
   async challengeCompletion(completionId: number | bigint, evidenceCID: string, bond: bigint): Promise<ContractTransactionReceipt | null> {
     return (await (await this.c.challengeCompletion(completionId, evidenceCID, { value: bond })).wait()) ?? null;
+  }
+  /** v0.2: agent rebuts a challenge within the challenge window. */
+  async contestChallenge(completionId: number | bigint, rebuttalCID: string): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.contestChallenge(completionId, rebuttalCID)).wait()) ?? null;
+  }
+  /** v0.2: finalize an uncontested challenge after the window (uplheld optimistically). */
+  async finalizeChallenge(completionId: number | bigint): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.finalizeChallenge(completionId)).wait()) ?? null;
   }
   async resolveChallenge(completionId: number | bigint, upheld: boolean): Promise<ContractTransactionReceipt | null> {
     return (await (await this.c.resolveChallenge(completionId, upheld)).wait()) ?? null;
@@ -59,20 +79,53 @@ export class ReputationOracleNetworkClient {
     const r = (await this.c.getSelfAttestScore(agent)) as [bigint, bigint, bigint];
     return { completions: r[0], disputes: r[1], score: r[2] };
   }
-  /** v0.1.2: score with decay inputs (lastActivity, decayBps). */
+  /** v0.2: score based on receipt-confirmed completions. Prefer this over
+   *  `getSelfAttestScore` when ranking agents. */
+  async getTwoSidedScore(agent: string): Promise<TwoSidedScore> {
+    const r = (await this.c.getTwoSidedScore(agent)) as [bigint, bigint, bigint, bigint, number];
+    return { confirmed: r[0], disputes: r[1], score: r[2], lastActivity: r[3], decayBps: Number(r[4]) };
+  }
+  /** v0.2: returns the two-sided score when the contract supports it (v0.2+),
+   *  otherwise the legacy self-attest score. Lets one client talk to both. */
+  async getRankingScore(agent: string): Promise<{ score: bigint; completions: bigint; disputes: bigint; scoreType: "two-sided" | "self-attest" }> {
+    try {
+      const s = await this.getTwoSidedScore(agent);
+      return { score: s.score, completions: s.confirmed, disputes: s.disputes, scoreType: "two-sided" };
+    } catch {
+      const s = await this.getSelfAttestScore(agent);
+      return { score: s.score, completions: s.completions, disputes: s.disputes, scoreType: "self-attest" };
+    }
+  }
   async getScoreDetails(agent: string): Promise<ScoreDetails> {
     const r = (await this.c.getScoreDetails(agent)) as [bigint, bigint, bigint, bigint, number];
     return { completions: r[0], disputes: r[1], score: r[2], lastActivity: r[3], decayBps: Number(r[4]) };
   }
   async getCompletion(id: number | bigint): Promise<Completion> {
-    const r = (await this.c.getCompletion(id)) as [string, string, string, bigint, boolean, boolean];
-    return { agent: r[0], taskType: r[1], resultCID: r[2], timestamp: r[3], challenged: r[4], disputed: r[5] };
+    const r = (await this.c.getCompletion(id)) as [string, string, string, bigint, boolean, boolean, string, bigint];
+    return {
+      agent: r[0],
+      taskType: r[1],
+      resultCID: r[2],
+      timestamp: r[3],
+      challenged: r[4],
+      disputed: r[5],
+      counterparty: r[6] ?? ethers.ZeroAddress,
+      receiptTimestamp: r[7] ?? 0n,
+    };
+  }
+  /** v0.2: the receipt evidence CID for a completion (empty string if none). */
+  receiptCID(completionId: number | bigint): Promise<string> {
+    return this.c.receiptCID(completionId) as Promise<string>;
   }
   async withdrawEthPool(to: string, amount: bigint): Promise<ContractTransactionReceipt | null> {
     return (await (await this.c.withdrawEthPool(to, amount)).wait()) ?? null;
   }
   challengeBond(): Promise<bigint> {
     return this.c.CHALLENGE_BOND() as Promise<bigint>;
+  }
+  /** v0.2: seconds the agent has to contest a challenge. */
+  challengeWindow(): Promise<bigint> {
+    return this.c.CHALLENGE_WINDOW() as Promise<bigint>;
   }
 
   // Basic agent identity (Step 7)
@@ -156,6 +209,8 @@ export type DiscoveryItem = {
   completions: bigint;
   disputes: bigint;
   score: bigint;
+  /** v0.2: whether the ranking score is receipt-confirmed or self-attested. */
+  scoreType: "two-sided" | "self-attest";
 };
 
 export async function discover(
@@ -185,7 +240,9 @@ export async function discover(
     }
     if (cap.capabilityType.toLowerCase() !== ethers.id(capabilityType).toLowerCase()) continue;
     if (!cap.certified || cap.slashed) continue;
-    const s = await ron.getSelfAttestScore(cap.creator);
+    // v0.2: rank on the two-sided (receipt-confirmed) score where the contract
+    // supports it, falling back to the legacy self-attest score otherwise.
+    const s = await ron.getRankingScore(cap.creator);
     if (s.score < min) continue;
     out.push({
       agentAddress: cap.creator,
@@ -198,6 +255,7 @@ export async function discover(
       completions: s.completions,
       disputes: s.disputes,
       score: s.score,
+      scoreType: s.scoreType,
     });
   }
   out.sort((a, b) => (b.score > a.score ? 1 : b.score < a.score ? -1 : 0));

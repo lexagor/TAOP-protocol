@@ -147,6 +147,47 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: "attest_receipt",
+        description: "Two-sided trust (v0.2): countersign a completion as the independent requester (requires PRIVATE_KEY).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            completionId: {
+              type: "number",
+              description: "ID of the completion to countersign",
+            },
+            receiptCID: {
+              type: "string",
+              description: "IPFS CID of the requester's own receipt/evidence",
+            },
+          },
+          required: ["completionId", "receiptCID"],
+        },
+      },
+      {
+        name: "contest_challenge",
+        description: "Two-sided trust (v0.2): the agent rebuts a challenge within the challenge window (requires the agent's PRIVATE_KEY).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            completionId: { type: "number", description: "ID of the challenged completion" },
+            rebuttalCID: { type: "string", description: "IPFS CID of the agent's counter-evidence" },
+          },
+          required: ["completionId", "rebuttalCID"],
+        },
+      },
+      {
+        name: "finalize_challenge",
+        description: "Two-sided trust (v0.2): finalize an uncontested challenge after the challenge window (upheld optimistically).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            completionId: { type: "number", description: "ID of the challenged completion" },
+          },
+          required: ["completionId"],
+        },
+      },
+      {
         name: "attest_completion",
         description: "Self-attest a task completion (requires PRIVATE_KEY in env). Returns completionId and tx hash.",
         inputSchema: {
@@ -301,7 +342,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
           if (!cap.certified || cap.slashed) continue;
 
-          const score = await ronRead.getSelfAttestScore(cap.creator);
+          // v0.2: rank on receipt-confirmed (two-sided) score where supported.
+          const score = await ronRead.getRankingScore(cap.creator);
           const scoreNum = Number(score.score);
           if (scoreNum < minScore) continue;
 
@@ -315,6 +357,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             completions: score.completions.toString(),
             disputes: score.disputes.toString(),
             score: scoreNum,
+            scoreType: score.scoreType,
           });
         }
 
@@ -372,6 +415,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   timestamp: comp.timestamp.toString(),
                   challenged: comp.challenged,
                   disputed: comp.disputed,
+                  counterparty: comp.counterparty,
+                  receiptTimestamp: comp.receiptTimestamp.toString(),
                 },
                 null,
                 2
@@ -498,6 +543,71 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 null,
                 2
               ),
+            },
+          ],
+        };
+      }
+
+      case "attest_receipt": {
+        if (!signer) throw new Error("PRIVATE_KEY required for write operations");
+
+        const completionId = Number(toolArgs.completionId);
+        const receiptCID = toolArgs.receiptCID as string;
+
+        const ronWrite = new ReputationOracleNetworkClient(deployment.ron, signer);
+        const receipt = await ronWrite.attestReceipt(completionId, receiptCID);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  success: true,
+                  completionId,
+                  txHash: receipt?.hash,
+                  counterparty: await signer.getAddress(),
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case "contest_challenge": {
+        if (!signer) throw new Error("PRIVATE_KEY required for write operations");
+
+        const completionId = Number(toolArgs.completionId);
+        const rebuttalCID = toolArgs.rebuttalCID as string;
+
+        const ronWrite = new ReputationOracleNetworkClient(deployment.ron, signer);
+        const receipt = await ronWrite.contestChallenge(completionId, rebuttalCID);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ success: true, completionId, txHash: receipt?.hash }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "finalize_challenge": {
+        if (!signer) throw new Error("PRIVATE_KEY required to submit the finalize transaction");
+
+        const completionId = Number(toolArgs.completionId);
+
+        const ronWrite = new ReputationOracleNetworkClient(deployment.ron, signer);
+        const receipt = await ronWrite.finalizeChallenge(completionId);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ success: true, completionId, txHash: receipt?.hash, upheld: true }, null, 2),
             },
           ],
         };

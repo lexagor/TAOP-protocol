@@ -132,6 +132,52 @@ export const openApiSpec = {
         },
       },
     },
+    "/completions/{id}/receipt": {
+      post: {
+        summary: "Two-sided trust (v0.2): countersign a completion as the independent requester",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          content: { "application/json": { schema: { type: "object", properties: {
+            receiptCID: { type: "string", example: "ipfs://requester-receipt" },
+          } } } },
+        },
+        responses: {
+          "200": { description: "Receipt recorded", content: { "application/json": { schema: { type: "object", properties: { txHash: { type: "string" }, completionId: { type: "string" } } } } } },
+        },
+      },
+    },
+    "/completions/{id}/revoke-receipt": {
+      post: {
+        summary: "Two-sided trust (v0.2): the counterparty withdraws a receipt",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "Receipt revoked", content: { "application/json": { schema: { type: "object", properties: { txHash: { type: "string" }, completionId: { type: "string" } } } } } },
+        },
+      },
+    },
+    "/completions/{id}/contest": {
+      post: {
+        summary: "Two-sided trust (v0.2): the agent rebuts a challenge within the window",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          content: { "application/json": { schema: { type: "object", properties: {
+            rebuttalCID: { type: "string", example: "ipfs://agent-rebuttal" },
+          } } } },
+        },
+        responses: {
+          "200": { description: "Challenge contested", content: { "application/json": { schema: { type: "object", properties: { txHash: { type: "string" }, completionId: { type: "string" } } } } } },
+        },
+      },
+    },
+    "/completions/{id}/finalize": {
+      post: {
+        summary: "Two-sided trust (v0.2): finalize an uncontested challenge after the window (upheld optimistically)",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "Challenge finalized", content: { "application/json": { schema: { type: "object", properties: { txHash: { type: "string" }, completionId: { type: "string" }, upheld: { type: "boolean" } } } } } },
+        },
+      },
+    },
     "/agents/{address}/score": {
       get: {
         summary: "Get an agent's self-attest score",
@@ -202,6 +248,9 @@ export const openApiSpec = {
           timestamp: { type: "string" },
           challenged: { type: "boolean" },
           disputed: { type: "boolean" },
+          counterparty: { type: "string", nullable: true },
+          receiptTimestamp: { type: "string" },
+          receiptCID: { type: "string" },
           txHash: { type: "string", nullable: true },
         },
       },
@@ -211,6 +260,11 @@ export const openApiSpec = {
           completions: { type: "string" },
           disputes: { type: "string" },
           score: { type: "string" },
+          lastActivity: { type: "string" },
+          decayBps: { type: "integer" },
+          confirmed: { type: "string" },
+          twoSidedScore: { type: "string" },
+          rankingScoreType: { type: "string", enum: ["two-sided", "self-attest"] },
         },
       },
       DiscoveryItem: {
@@ -227,6 +281,7 @@ export const openApiSpec = {
           completions: { type: "integer" },
           disputes: { type: "integer" },
           score: { type: "integer" },
+          scoreType: { type: "string", enum: ["two-sided", "self-attest"] },
         },
       },
       DemoResult: {

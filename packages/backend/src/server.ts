@@ -284,6 +284,12 @@ api.get("/completions", (_req, res) => {
 api.get("/completions/:id", async (req, res) => {
   try {
     const c = await state.ron.getCompletion(BigInt(req.params.id));
+    let receiptCID = "";
+    try {
+      receiptCID = await state.ron.receiptCID(BigInt(req.params.id));
+    } catch {
+      receiptCID = ""; // pre-v0.2 contract without receipts
+    }
     res.json({
       completionId: req.params.id,
       agent: c.agent,
@@ -292,9 +298,85 @@ api.get("/completions/:id", async (req, res) => {
       timestamp: c.timestamp.toString(),
       challenged: c.challenged,
       disputed: c.disputed,
+      counterparty: c.counterparty ?? null,
+      receiptTimestamp: c.receiptTimestamp?.toString() ?? "0",
+      receiptCID,
     });
   } catch (e) {
     res.status(404).json({ error: String((e as Error).message ?? e) });
+  }
+});
+
+// --- v0.2 two-sided attestation + optimistic challenge window ---
+
+/** Counterparty countersigns a completion (demo: the independent oracle key). */
+api.post("/completions/:id/receipt", async (req, res) => {
+  try {
+    const completionId = BigInt(req.params.id);
+    state.oracleRunner?.reset?.();
+    const receipt = await state.ron.attestReceipt(
+      completionId,
+      String(req.body?.receiptCID ?? "ipfs://requester-receipt"),
+    );
+    res.json({ txHash: receipt?.hash ?? null, completionId: completionId.toString() });
+  } catch (e) {
+    const msg = String((e as Error).message ?? e);
+    if (msg.includes("missing revert data") || msg.includes("CALL_EXCEPTION") || msg.includes("revert") || msg.includes("nonce")) {
+      return res.status(400).json({ error: msg });
+    }
+    res.status(500).json({ error: msg });
+  }
+});
+
+/** Counterparty withdraws a receipt. */
+api.post("/completions/:id/revoke-receipt", async (req, res) => {
+  try {
+    const completionId = BigInt(req.params.id);
+    state.oracleRunner?.reset?.();
+    const receipt = await state.ron.revokeReceipt(completionId);
+    res.json({ txHash: receipt?.hash ?? null, completionId: completionId.toString() });
+  } catch (e) {
+    const msg = String((e as Error).message ?? e);
+    if (msg.includes("missing revert data") || msg.includes("CALL_EXCEPTION") || msg.includes("revert") || msg.includes("nonce")) {
+      return res.status(400).json({ error: msg });
+    }
+    res.status(500).json({ error: msg });
+  }
+});
+
+/** Agent rebuts a challenge within the challenge window. */
+api.post("/completions/:id/contest", async (req, res) => {
+  try {
+    const completionId = BigInt(req.params.id);
+    state.agentARunner?.reset?.();
+    const receipt = await state.ronAgentA.contestChallenge(
+      completionId,
+      String(req.body?.rebuttalCID ?? "ipfs://agent-rebuttal"),
+    );
+    res.json({ txHash: receipt?.hash ?? null, completionId: completionId.toString() });
+  } catch (e) {
+    const msg = String((e as Error).message ?? e);
+    if (msg.includes("missing revert data") || msg.includes("CALL_EXCEPTION") || msg.includes("revert") || msg.includes("nonce")) {
+      return res.status(400).json({ error: msg });
+    }
+    res.status(500).json({ error: msg });
+  }
+});
+
+/** Anyone finalizes an uncontested challenge after the window (optimistic uphold). */
+api.post("/completions/:id/finalize", async (req, res) => {
+  try {
+    const completionId = BigInt(req.params.id);
+    state.oracleRunner?.reset?.();
+    const receipt = await state.ron.finalizeChallenge(completionId);
+    markCompletionResolved(completionId, true);
+    res.json({ txHash: receipt?.hash ?? null, completionId: completionId.toString(), upheld: true });
+  } catch (e) {
+    const msg = String((e as Error).message ?? e);
+    if (msg.includes("missing revert data") || msg.includes("CALL_EXCEPTION") || msg.includes("revert") || msg.includes("nonce")) {
+      return res.status(400).json({ error: msg });
+    }
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -305,19 +387,31 @@ api.get("/agents/:address/score", async (req, res) => {
     // v0.1.2 contracts expose decay inputs; older deployments fall back to the
     // plain score view.
     const d = await state.ron.getScoreDetails(req.params.address);
-    res.json({
+    const payload: Record<string, unknown> = {
       completions: d.completions.toString(),
       disputes: d.disputes.toString(),
       score: d.score.toString(),
       lastActivity: d.lastActivity.toString(),
       decayBps: d.decayBps,
-    });
+      // v0.2: receipt-confirmed ranking score (absent on older contracts).
+      rankingScoreType: "self-attest",
+    };
+    try {
+      const two = await state.ron.getTwoSidedScore(req.params.address);
+      payload.confirmed = two.confirmed.toString();
+      payload.twoSidedScore = two.score.toString();
+      payload.rankingScoreType = "two-sided";
+    } catch {
+      // pre-v0.2 contract — leave defaults
+    }
+    res.json(payload);
   } catch {
     const s = await state.ron.getSelfAttestScore(req.params.address);
     res.json({
       completions: s.completions.toString(),
       disputes: s.disputes.toString(),
       score: s.score.toString(),
+      rankingScoreType: "self-attest",
     });
   }
 });
@@ -380,7 +474,7 @@ api.get("/discover", async (req, res) => {
       continue;
     }
     if (!cap.certified || cap.slashed) continue;
-    const score = await state.ron.getSelfAttestScore(cap.creator);
+    const score = await state.ron.getRankingScore(cap.creator);
     const scoreNum = Number(score.score);
     if (scoreNum < minScore) continue;
     let identityCID = "";
@@ -406,6 +500,8 @@ api.get("/discover", async (req, res) => {
       completions: Number(score.completions),
       disputes: Number(score.disputes),
       score: scoreNum,
+      // v0.2: which signal the score is based on.
+      scoreType: score.scoreType,
     });
   }
   (out as { score: number }[]).sort((a, b) => b.score - a.score);

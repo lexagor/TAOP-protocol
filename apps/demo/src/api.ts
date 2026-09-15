@@ -56,12 +56,17 @@ export interface DiscoveryItem {
   completions: number;
   disputes: number;
   score: number;
+  /** v0.2: whether the ranking score is receipt-confirmed or self-attested. */
+  scoreType?: "two-sided" | "self-attest";
 }
 
 export interface Score {
   completions: string;
   disputes: string;
   score: string;
+  confirmed?: string;
+  twoSidedScore?: string;
+  rankingScoreType?: "two-sided" | "self-attest";
 }
 
 export interface DemoResult {
@@ -112,6 +117,30 @@ export const resolveChallenge = (id: string, upheld: boolean) =>
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ upheld }),
+  });
+
+// v0.2: two-sided attestation + optimistic challenge window
+export const confirmReceipt = (id: string) =>
+  json<{ txHash: string | null; completionId: string }>(`${BASE}/completions/${id}/receipt`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ receiptCID: "ipfs://requester-receipt" }),
+  });
+export const revokeReceipt = (id: string) =>
+  json<{ txHash: string | null; completionId: string }>(`${BASE}/completions/${id}/revoke-receipt`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+export const contestChallenge = (id: string) =>
+  json<{ txHash: string | null; completionId: string }>(`${BASE}/completions/${id}/contest`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rebuttalCID: "ipfs://agent-rebuttal" }),
+  });
+export const finalizeChallenge = (id: string) =>
+  json<{ txHash: string | null; completionId: string; upheld: boolean }>(`${BASE}/completions/${id}/finalize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
   });
 
 export const getIdentity = (address: string) => json<{ metadataCID: string }>(`${BASE}/agents/${address}/identity`);

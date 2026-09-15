@@ -19,6 +19,7 @@ from .types import (
     Completion,
     Deployment,
     SelfAttestScore,
+    TwoSidedScore,
     LORA_CAPABILITY_TYPE,
 )
 
@@ -86,18 +87,47 @@ class ReputationOracleNetworkClient:
         r = self.contract.functions.getSelfAttestScore(agent).call()
         return SelfAttestScore(completions=r[0], disputes=r[1], score=r[2])
 
+    def get_two_sided_score(self, agent: str) -> TwoSidedScore:
+        """v0.2: score based on receipt-confirmed completions (prefer for ranking)."""
+        r = self.contract.functions.getTwoSidedScore(agent).call()
+        return TwoSidedScore(confirmed=r[0], disputes=r[1], score=r[2], last_activity=r[3], decay_bps=r[4])
+
+    def get_ranking_score(self, agent: str) -> tuple[int, int, int, str]:
+        """v0.2: two-sided score where the contract supports it, else self-attest.
+        Returns (score, count, disputes, score_type)."""
+        try:
+            s = self.get_two_sided_score(agent)
+            return s.score, s.confirmed, s.disputes, "two-sided"
+        except Exception:
+            s = self.get_self_attest_score(agent)
+            return s.score, s.completions, s.disputes, "self-attest"
+
     def get_completion(self, completion_id: int) -> Completion:
         r = self.contract.functions.getCompletion(completion_id).call()
         return Completion(
             agent=r[0], task_type=r[1], result_cid=r[2], timestamp=r[3],
             challenged=r[4], disputed=r[5],
+            counterparty=r[6] if len(r) > 6 else "0x0000000000000000000000000000000000000000",
+            receipt_timestamp=r[7] if len(r) > 7 else 0,
         )
 
     def completion_count(self, agent: str) -> int:
         return self.contract.functions.completionCount(agent).call()
 
+    def confirmed_count(self, agent: str) -> int:
+        """v0.2: number of receipt-confirmed completions."""
+        return self.contract.functions.confirmedCount(agent).call()
+
+    def receipt_cid(self, completion_id: int) -> str:
+        """v0.2: the requester's receipt evidence CID (empty if none)."""
+        return self.contract.functions.receiptCID(completion_id).call()
+
     def challenge_bond(self) -> int:
         return self.contract.functions.CHALLENGE_BOND().call()
+
+    def challenge_window(self) -> int:
+        """v0.2: seconds the agent has to contest a challenge."""
+        return self.contract.functions.CHALLENGE_WINDOW().call()
 
     def _send_tx(self, tx):
         if self.account is None:
@@ -159,6 +189,56 @@ class ReputationOracleNetworkClient:
 
     def resolve_challenge(self, completion_id: int, upheld: bool) -> dict:
         fn = self.contract.functions.resolveChallenge(completion_id, upheld)
+        tx = fn.build_transaction({
+            "from": self.account.address,
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
+            "gas": 200_000,
+            "gasPrice": self.w3.eth.gas_price,
+            "chainId": self.w3.eth.chain_id,
+        })
+        return self._send_tx(tx)
+
+    # --- v0.2: two-sided attestation + optimistic challenge window ---
+
+    def attest_receipt(self, completion_id: int, receipt_cid: str) -> dict:
+        """Counterparty countersigns a completion (turns a self-report two-sided)."""
+        fn = self.contract.functions.attestReceipt(completion_id, receipt_cid)
+        tx = fn.build_transaction({
+            "from": self.account.address,
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
+            "gas": 200_000,
+            "gasPrice": self.w3.eth.gas_price,
+            "chainId": self.w3.eth.chain_id,
+        })
+        return self._send_tx(tx)
+
+    def revoke_receipt(self, completion_id: int) -> dict:
+        """Counterparty withdraws a receipt."""
+        fn = self.contract.functions.revokeReceipt(completion_id)
+        tx = fn.build_transaction({
+            "from": self.account.address,
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
+            "gas": 200_000,
+            "gasPrice": self.w3.eth.gas_price,
+            "chainId": self.w3.eth.chain_id,
+        })
+        return self._send_tx(tx)
+
+    def contest_challenge(self, completion_id: int, rebuttal_cid: str) -> dict:
+        """The agent rebuts a challenge within the challenge window."""
+        fn = self.contract.functions.contestChallenge(completion_id, rebuttal_cid)
+        tx = fn.build_transaction({
+            "from": self.account.address,
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
+            "gas": 200_000,
+            "gasPrice": self.w3.eth.gas_price,
+            "chainId": self.w3.eth.chain_id,
+        })
+        return self._send_tx(tx)
+
+    def finalize_challenge(self, completion_id: int) -> dict:
+        """Anyone finalizes an uncontested challenge after the window (upheld)."""
+        fn = self.contract.functions.finalizeChallenge(completion_id)
         tx = fn.build_transaction({
             "from": self.account.address,
             "nonce": self.w3.eth.get_transaction_count(self.account.address),
@@ -278,8 +358,9 @@ def discover(
             continue  # stale/unreadable id — skip, never fail the whole discovery
         if not cap.certified or cap.slashed:
             continue
-        score = ron.get_self_attest_score(cap.creator)
-        if score.score < min_score:
+        # v0.2: rank on the receipt-confirmed (two-sided) score where supported.
+        score, count, disputes, score_type = ron.get_ranking_score(cap.creator)
+        if score < min_score:
             continue
         results.append({
             "agentAddress": cap.creator,
@@ -289,9 +370,10 @@ def discover(
             "slashed": cap.slashed,
             "bond": cap.bond,
             "metadataCID": cap.metadata_cid,
-            "completions": score.completions,
-            "disputes": score.disputes,
-            "score": score.score,
+            "completions": count,
+            "disputes": disputes,
+            "score": score,
+            "scoreType": score_type,
         })
     results.sort(key=lambda x: x["score"], reverse=True)
     return results
