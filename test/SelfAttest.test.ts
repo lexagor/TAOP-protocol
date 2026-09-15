@@ -199,7 +199,7 @@ describe("ReputationOracleNetwork — self-attest + challenge (MVP)", () => {
   it("getSelfAttestScore applies inactivity decay (view function)", async () => {
     const { ron, agentA } = await deploy();
     await ron.connect(agentA).attestCompletion(SUMMARY, "ipfs://r");
-    const [c, d, s] = await ron.getSelfAttestScore(agentA.address);
+    const [c, , s] = await ron.getSelfAttestScore(agentA.address);
     expect(c).to.eq(1n);
     expect(s).to.be.lte(1n); // decay may apply based on block time in test
   });

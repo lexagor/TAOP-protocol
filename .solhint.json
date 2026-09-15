@@ -1,0 +1,18 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "compiler-version": ["error", "^0.8.28"],
+    "func-visibility": ["error", { "ignoreConstructors": true }],
+    "max-line-length": ["warn", 160],
+    "not-rely-on-time": "off",
+    "reason-string": "off",
+    "no-inline-assembly": "off",
+    "gas-custom-errors": "off",
+    "use-natspec": "off",
+    "gas-indexed-events": "off",
+    "gas-struct-packing": "off",
+    "gas-increment-by-one": "off",
+    "gas-strict-inequalities": "off",
+    "gas-length-in-loops": "off"
+  }
+}

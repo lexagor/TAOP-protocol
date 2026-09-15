@@ -8,7 +8,6 @@ import {
 import { ethers } from "ethers";
 import dotenv from "dotenv";
 import path from "node:path";
-import fs from "node:fs";
 import {
   ReputationOracleNetworkClient,
   CapabilityRegistryClient,

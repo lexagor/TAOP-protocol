@@ -5,6 +5,8 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+// Kept so Hardhat/Foundry emit the Timelock artifact used by tests/deploy.
+// solhint-disable-next-line no-unused-import
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol"; // ensure artifact for Timelock deploys/tests (P0)
 
 /**

@@ -3,6 +3,8 @@ pragma solidity ^0.8.28;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+// Kept so Hardhat/Foundry emit the Timelock artifact used by tests/deploy.
+// solhint-disable-next-line no-unused-import
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol"; // ensure artifact is available for deploys/tests
 
 /**

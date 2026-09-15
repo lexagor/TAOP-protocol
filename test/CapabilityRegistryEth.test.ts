@@ -91,7 +91,7 @@ describe("CapabilityRegistry — ETH bonds (MVP)", () => {
     const after = await ethers.provider.getBalance(creator.address);
     // after should be greater (bond returned minus gas)
     expect(after).to.be.gt(before);
-    expect(await registry.getCapability(1).catch(() => null)).to.be.null;
+    expect(await registry.getCapability(1).catch(() => null)).to.equal(null);
   });
 
   it("withdrawBond reverts when called by a non-creator", async () => {

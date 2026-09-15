@@ -63,8 +63,8 @@ jobs:
             echo "skipped: no deployments.json in CI (addresses-only example is committed instead)"
           fi
 
-      - name: Lint (if eslint configured)
-        run: npm run lint || echo "no lint script or passes"
+      - name: Lint (ESLint for TS, Solhint for Solidity)
+        run: npm run lint && npm run lint:sol
 
       - name: MCP smoke (dist parses as valid JS/ESM)
         run: node --check packages/mcp-server/dist/index.js

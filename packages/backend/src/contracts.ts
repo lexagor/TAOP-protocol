@@ -253,7 +253,7 @@ export async function ensureCapability(state: BackendState): Promise<void> {
         state.capabilityId = dbId;
         if (!cap.certified) await registryOracle.certifyCapability(dbId);
       }
-    } catch (e) {
+    } catch {
       // NoSuchCapability or other — cache is stale (common after `npm run deploy:sepolia`)
       logger.warn(`[ensureCapability] Cached capabilityId ${dbId} invalid on current registry (likely after redeploy), will scan/register fresh.`);
     }
