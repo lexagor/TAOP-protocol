@@ -20,6 +20,11 @@ dev = ["pytest>=7.0", "pytest-asyncio>=0.20"]
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["taop*"]
+
+# taop/abis.py loads these at import time — they MUST ship in the wheel.
+[tool.setuptools.package-data]
+taop = ["ron_abi.json", "reg_abi.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

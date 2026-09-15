@@ -44,6 +44,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `EXECUTORS`, `deployedBlock`, `deployedAt`, `DEPLOYMENTS_PATH`); both deploy
   scripts honor `DEPLOYMENTS_PATH` so a redeploy can be staged without clobbering
   the live pilot file.
+- **Publish readiness.** `@taopp/sdk` / `@taopp/mcp-server` build via `prepack`
+  (a tarball is always built from clean, without running during `npm ci`); the
+  Python wheel now ships `ron_abi.json` / `reg_abi.json` (previously omitted, which
+  would have broken `import taop`) and no longer bundles `tests/`; `__version__`
+  aligned to `0.1.0`.
+- New `test/TwoSidedE2E.test.ts` drives the full v0.2 flow through the SDK clients
+  (attest → receipt → challenge → contest → owner resolve → optimistic finalize →
+  paged discovery): **62 contract tests total**.
+- CI: `actions/checkout@v5` + `actions/setup-node@v5` on Node 22 (drops the
+  deprecated Node 20 runner); `deployments.json.example` records `deployedBlock`.
 
 ### Changed
 - Discovery now ranks on the two-sided score where the contract supports it and

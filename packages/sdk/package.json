@@ -49,7 +49,7 @@
     "clean": "rm -f src/*.js src/*.js.map src/*.d.ts src/*.d.ts.map",
     "build": "npm run clean && tsc && npx esbuild src/index.ts --bundle --platform=node --format=cjs --outfile=dist/index.cjs --external:ethers",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepack": "npm run build"
   },
   "dependencies": {
     "ethers": "^6.13.5"

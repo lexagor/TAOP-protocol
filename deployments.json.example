@@ -6,5 +6,6 @@
   "timelock": "0xA5d5eb6964568eD1157F985EE08ab42B56e1307B",
   "validator": "0x37374FD4f27c2b46Fd5d1a9BAFdc709315E51120",
   "agentA": "0xB924e022441596e6007fa5db1966B08066cCEBa4",
-  "deployedAt": "2026-09-15T14:52:39.551Z"
+  "deployedAt": "2026-09-15T14:52:39.551Z",
+  "deployedBlock": 46857866
 }
