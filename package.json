@@ -36,7 +36,8 @@
     "test": "hardhat test",
     "test:live": "vitest run --config vitest.live.config.ts",
     "docs:api": "typedoc",
-    "e2e:local": "bash scripts/e2e-local.sh"
+    "e2e:local": "bash scripts/e2e-local.sh",
+    "verify:deployment": "node scripts/verify-deployment.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",

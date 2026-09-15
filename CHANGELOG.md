@@ -5,7 +5,13 @@ All notable changes to TAOP will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — v0.2 two-sided trust + discovery index (Phase 3)
+## [0.2.0] - 2026-09-15
+
+**Live on Base Sepolia:**
+RON `0xA5b6E3933E4eEF3Ec9dd1F21282a137E7eb7310A`,
+Registry `0x766d619657d1a18088a9F9F96B3E411749B8481e`,
+Timelock `0xF8B23a91c951122F572Df15661e9Fc6b9D1D56D0` (0-delay pilot, policy frozen),
+Agent A `0x877963940a867aD40A389C295a6fA341d9849b87`.
 
 ### Added
 - **Two-sided attestation (F11).** `attestReceipt(completionId, receiptCID)` lets an
@@ -63,10 +69,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Demo UI: "Requester confirms completion" action; real repository links.
 
 ### Notes
-- The contract change requires a redeploy. The live Base Sepolia pilot is still
-  v0.1.2, so the SDKs/MCP/backend detect the old bytecode and fall back to
-  `getSelfAttestScore`. Package versions stay `@taopp/sdk@0.1.2` /
-  `@taopp/mcp-server@0.1.1` until the next redeploy + republish.
+- v0.2 is **deployed** (addresses above); `deployments.json.example` carries them
+  plus `deployedBlock`. The SDKs/MCP use `getTwoSidedScore`/paged views against it
+  and keep the `getSelfAttestScore` fallback for older deployments. Package
+  versions remain `@taopp/sdk@0.1.2` / `@taopp/mcp-server@0.1.1` until republished.
 
 ## [0.1.2] - 2026-09-15
 
