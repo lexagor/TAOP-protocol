@@ -2,7 +2,7 @@
 
 /* ============================================
    DESIGN TOKENS - DARK (Linear-inspired, default)
-   From design-like-linear.md
+   From archive/design-like-linear.md
    ============================================ */
 :root, .theme-dark {
   color-scheme: dark;
@@ -39,7 +39,7 @@
 
 /* ============================================
    DESIGN TOKENS - LIGHT (shadcn/ui-inspired)
-   From design-ui.md
+   From archive/design-ui.md
    ============================================ */
 .theme-light {
   color-scheme: light;

@@ -332,6 +332,9 @@ apps/demo/              @taop/demo — React + Vite + Tailwind demo page
 packages/mcp-server/    @taopp/mcp-server — MCP server for AI agents (Claude etc.) (published)
 ```
 
+See [`docs/README.md`](docs/README.md) for the full documentation index
+(architecture, operations, security, roadmap).
+
 ## Verify
 
 ```bash
