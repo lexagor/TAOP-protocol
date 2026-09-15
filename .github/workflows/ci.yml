@@ -49,6 +49,9 @@ jobs:
       - name: Build MCP server
         run: npm run mcp:build
 
+      - name: MCP integration test (stdio JSON-RPC)
+        run: npm run mcp:test
+
       - name: Build demo
         run: npm run demo:build
 
