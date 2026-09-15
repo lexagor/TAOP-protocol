@@ -15,7 +15,7 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "@taopp/sdk": "^0.1.1",
     "dotenv": "^16.6.1",
     "ethers": "^6.17.0"
