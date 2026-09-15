@@ -60,3 +60,6 @@ coverage/
 coverage.json
 .gas-report.txt
 apps/static-demo/dist/
+# Foundry
+out/
+cache_forge/

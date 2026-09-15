@@ -11,6 +11,7 @@
     "contracts:build": "hardhat compile",
     "contracts:test": "hardhat test",
     "contracts:test:gas": "REPORT_GAS=true hardhat test",
+    "contracts:test:foundry": "forge test -vv",
     "contracts:coverage": "hardhat coverage",
     "slither": "slither . --config-file slither.config.json --fail-medium",
     "deploy:local": "hardhat run scripts/deploy-local.ts --network localhost",
