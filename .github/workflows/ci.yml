@@ -63,8 +63,5 @@ jobs:
       - name: Lint (if eslint configured)
         run: npm run lint || echo "no lint script or passes"
 
-      - name: MCP smoke (basic)
-        run: node -e "
-          const mcp = require('./packages/mcp-server/dist/index.js');
-          console.log('MCP module loads');
-        " || echo "MCP smoke skipped"
+      - name: MCP smoke (dist parses as valid JS/ESM)
+        run: node --check packages/mcp-server/dist/index.js
