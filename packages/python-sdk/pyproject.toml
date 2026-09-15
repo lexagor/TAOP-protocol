@@ -28,3 +28,6 @@ taop = ["ron_abi.json", "reg_abi.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "network: hits a live RPC / deployment (deselect with -m 'not network')",
+]

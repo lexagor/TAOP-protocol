@@ -14,6 +14,8 @@ from taop import (
     LORA_CAPABILITY_TYPE,
 )
 
+# These tests hit a live RPC + deployment; CI runs only the offline suite.
+pytestmark = pytest.mark.network
 
 # Load deployment + credentials from .env / deployments.json
 ROOT = Path(__file__).resolve().parents[3]

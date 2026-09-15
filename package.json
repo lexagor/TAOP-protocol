@@ -35,7 +35,8 @@
     "typecheck": "npm run typecheck -ws --if-present && tsc -p packages/backend --noEmit && tsc -p packages/mcp-server --noEmit",
     "test": "hardhat test",
     "test:live": "vitest run --config vitest.live.config.ts",
-    "docs:api": "typedoc"
+    "docs:api": "typedoc",
+    "e2e:local": "bash scripts/e2e-local.sh"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",

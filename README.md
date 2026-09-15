@@ -355,6 +355,16 @@ open http://localhost:4000/api/docs/
 
 # Slither static analysis (no high/medium findings in our contracts)
 slither . --filter "high,medium"
+
+# Foundry fuzz + invariants (needs `forge` + the forge-std submodule)
+npm run contracts:test:foundry
+
+# Full local E2E: boots a Hardhat node + backend and drives the v0.2 HTTP flow
+# (no keys/funds needed — IPFS/inference fall back to mock/local)
+npm run e2e:local
+
+# Read-only checks against the live Base Sepolia deployment
+npm run test:live
 ```
 
 ## Security

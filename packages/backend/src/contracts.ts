@@ -57,15 +57,17 @@ function makeRunner(pk: string | undefined, mnemonicIndex: number, provider: eth
   const wallet: ethers.Signer = pk ? new ethers.Wallet(pk, provider) : deriveWallet(HARDHAT_MNEMONIC, mnemonicIndex, provider);
   const manager = new ethers.NonceManager(wallet);
   const origGetNonce = manager.getNonce.bind(manager);
-  // Patch to force fresh query every time
+  // Patch to force a fresh query every time. Use raw `eth_getTransactionCount`
+  // rather than `provider.getTransactionCount`, which ethers caches — that cache
+  // is the usual cause of "nonce too low" on public RPCs and fast local nodes.
   (manager as any).getNonce = async (blockTag?: string) => {
     if (blockTag === "pending" || !blockTag) {
       const addr = await wallet.getAddress();
-      const [latest, pending] = await Promise.all([
-        provider.getTransactionCount(addr, "latest"),
-        provider.getTransactionCount(addr, "pending"),
-      ]);
-      return Math.max(latest, pending);
+      const [latest, pending] = (await Promise.all([
+        provider.send("eth_getTransactionCount", [addr, "latest"]),
+        provider.send("eth_getTransactionCount", [addr, "pending"]),
+      ])) as [string, string];
+      return Math.max(Number(latest), Number(pending));
     }
     return origGetNonce(blockTag);
   };
