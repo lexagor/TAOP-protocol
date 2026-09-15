@@ -212,7 +212,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     ///         upheld = true -> the completion was fraudulent: disputeCount[agent]++,
     ///         any receipt is invalidated, challenger refunded. upheld = false ->
     ///         challenger loses the bond to the protocol pool.
-    function resolveChallenge(uint256 completionId, bool upheld) external onlyOwner nonReentrant {
+    function resolveChallenge(uint256 completionId, bool upheld) external nonReentrant onlyOwner {
         Completion storage c = completions[completionId];
         Challenge storage ch = challenges[completionId];
         if (c.agent == address(0)) revert NoSuchCompletion();
@@ -245,7 +245,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     }
 
     /// @notice Owner withdraws forfeited challenger bonds.
-    function withdrawEthPool(address payable to, uint256 amount) external onlyOwner nonReentrant {
+    function withdrawEthPool(address payable to, uint256 amount) external nonReentrant onlyOwner {
         if (to == address(0)) revert ZeroAddress();
         if (amount == 0 || amount > slashedEthPool) revert NothingToWithdraw();
         slashedEthPool -= amount;
@@ -260,6 +260,8 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     uint256 public constant DECAY_GRACE = 30 days;
     /// @notice After the grace period the score decays linearly to zero over this window.
     uint256 public constant DECAY_HORIZON = 150 days;
+    /// @notice Basis-point denominator (100% = 10_000).
+    uint16 public constant BPS_DENOMINATOR = 10_000;
 
     /// @dev Single source of truth for the decay curve (shared by both scores).
     function _decayedScore(uint64 count, uint64 disputes, uint64 lastAct)
@@ -267,7 +269,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
         view
         returns (uint64 score, uint16 decayBps)
     {
-        decayBps = 10000;
+        decayBps = BPS_DENOMINATOR;
         uint256 net = count > disputes ? uint256(count - disputes) : 0;
         if (lastAct > 0 && net > 0) {
             uint256 elapsed = block.timestamp - lastAct;
@@ -276,10 +278,10 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
                 if (decayed >= DECAY_HORIZON) {
                     decayBps = 0;
                 } else {
-                    decayBps = uint16(((DECAY_HORIZON - decayed) * 10000) / DECAY_HORIZON);
+                    decayBps = uint16(((DECAY_HORIZON - decayed) * BPS_DENOMINATOR) / DECAY_HORIZON);
                 }
             }
-            net = (net * decayBps) / 10000;
+            net = (net * decayBps) / BPS_DENOMINATOR;
         }
         score = uint64(net);
     }

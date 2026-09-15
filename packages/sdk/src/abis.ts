@@ -25,6 +25,7 @@ export const RON_ABI: string[] = [
   "function getScoreDetails(address agent) view returns (uint64 completionCount_, uint64 disputeCount_, uint64 score, uint64 lastActivity_, uint16 decayBps)",
   "function DECAY_GRACE() view returns (uint256)",
   "function DECAY_HORIZON() view returns (uint256)",
+  "function BPS_DENOMINATOR() view returns (uint16)",
   "function getCompletion(uint256 completionId) view returns ((address agent, bytes32 taskType, string resultCID, uint64 timestamp, bool challenged, bool disputed, address counterparty, uint64 receiptTimestamp))",
   "function lastActivity(address) view returns (uint64)",
   "function agentMetadataCID(address) view returns (string)",
@@ -74,4 +75,5 @@ export const CAPABILITY_REGISTRY_ABI: string[] = [
   "event CapabilitySlashed(uint256 capabilityId, uint256 penalty)",
   "event BondWithdrawn(uint256 capabilityId, address indexed to, uint256 amount)",
   "event EthPoolWithdrawn(address indexed to, uint256 amount)",
+  "event CertifierChanged(address indexed previousCertifier, address indexed newCertifier)",
 ];

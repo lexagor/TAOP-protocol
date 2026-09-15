@@ -27,6 +27,16 @@ describe("security hardening — Slither triage", () => {
     );
   });
 
+  it("setCertifier emits CertifierChanged", async () => {
+    const [owner, newCertifier] = await ethers.getSigners();
+    const Registry = await ethers.getContractFactory("CapabilityRegistry");
+    const registry = await Registry.deploy(owner.address);
+    await expect(registry.connect(owner).setCertifier(newCertifier.address))
+      .to.emit(registry, "CertifierChanged")
+      .withArgs(owner.address, newCertifier.address);
+    expect(await registry.certifier()).to.eq(newCertifier.address);
+  });
+
   it("withdrawEthPool rejects a zero recipient on both contracts", async () => {
     const [owner, creator] = await ethers.getSigners();
     const Registry = await ethers.getContractFactory("CapabilityRegistry");

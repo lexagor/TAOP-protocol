@@ -1,82 +1,66 @@
 # TAOP Pre-Mainnet Readiness Checklist
 
-**Goal:** Move from Sepolia pilot (0-delay, single key) to credible mainnet deployment.
+**Goal:** move from the Sepolia pilot (0-delay, single key) to a credible mainnet
+deployment. Run this before `npm run deploy:mainnet`.
 
-Use this before running `npm run deploy:mainnet`.
+Companion docs: [`redeploy-v0.2.md`](redeploy-v0.2.md),
+[`hardened-timelock.md`](hardened-timelock.md),
+[`SECURITY-REVIEW.md`](SECURITY-REVIEW.md), [`OPERATIONS.md`](OPERATIONS.md),
+[`EMERGENCY.md`](EMERGENCY.md).
 
-## 1. Governance & Timelock — Intentionally 0-Delay for Pilot (Frozen)
-- [x] Decision (2026-07-15): **Keep `TIMELOCK_DELAY=0`** for Sepolia pilot and planned mainnet pilot. No hardened Sepolia test. Rationale: pilot value ~0 (testnet ETH only), demo must stay instant; non-zero delay adds schedule/execute UX without security benefit at this stage. Revisit only when real mainnet value justifies (e.g. `300`–`600` if needed, not `3600`/`86400`).
-- [x] Deploy script supports `MULTISIG_ADDRESS` / `PROPOSERS` / `EXECUTORS` / `TIMELOCK_DELAY` if ever needed — but **frozen at 0** per user decision.
-- [ ] Hardened deploy on Sepolia — **INTENTIONALLY SKIPPED** (not debt):
-  ```bash
-  # Skipped by decision — pilot frozen at 0-delay
-  # export TIMELOCK_DELAY=3600 && npm run deploy:sepolia
-  ```
-- [ ] Verify Timelock schedule/execute flow — **SKIPPED** (only relevant with non-zero delay).
+## 1. Governance (must unfreeze 0-delay)
 
-## 2. Security & Audit
-- [x] Slither run: low severity only (OZ "too-many-digits", unindexed events, mulDiv in libs). No critical/high in our contracts (latest run confirmed).
-- [x] Run Slither locally: `npx hardhat compile && slither . --compile-force-framework hardhat`
-- [x] Review findings (focus on medium+): only low/info; no action needed for pilot.
-- [x] Threat model: documented — `onlyOwner` (resolve, withdraw, setCertifier) via Timelock `0-delay` is intentional centralization for pilot; upgradeable to multisig/DAO later (see TRD Appendix).
-- [x] Run `npm audit fix` (non-force; dev deps have moderate issues).
-- [x] Decision: **No budget audit** — free-only: Slither low/info, manual `onlyOwner` review, `npm audit`. Professional audit deferred until traction/revenue.
-- [x] Review all `onlyOwner` / privileged functions (resolve, withdraw, setCertifier) — documented as centralization point.
-- [x] Added decay test in SelfAttest.test.ts; now 23 tests total.
-- [x] npm audit fix attempted and documented (moderate issues in dev deps).
+- [x] Deploy scripts support `MULTISIG_ADDRESS` / `PROPOSERS` / `EXECUTORS` / `TIMELOCK_DELAY`.
+- [x] `test/TimelockDelay.test.ts` proves schedule → wait → execute, the non-proposer guard, and the 0-delay contrast.
+- [ ] **Decision: unfreeze the 0-delay freeze** for mainnet (the pilot freeze was deliberate and is *not* the mainnet plan).
+- [ ] Create a Safe (or multisig) on Base; set it as proposer/executor.
+- [ ] Rehearse on Sepolia: `MULTISIG_ADDRESS=0xSafe TIMELOCK_DELAY=86400 npm run deploy:sepolia`, then schedule + execute an admin action.
+- [ ] Set `certifier` to the multisig (or a dedicated operator), not an EOA you keep hot.
 
-## 3. Infrastructure & Funding
-- [ ] Obtain production Base mainnet RPC (Alchemy, Infura, or dedicated node). Set `BASE_MAINNET_RPC_URL`.
-- [ ] Fund deployer wallet with **real** Base ETH (at least 0.05–0.1 ETH recommended for deploy + buffer).
-- [ ] Set `BASESCAN_API_KEY` for verification.
-- [ ] Update `.env` (never commit secrets).
-- [ ] Test `npm run deploy:mainnet` in dry-run if possible (or on a fork).
+## 2. Security & audit
 
-## 4. Deployment & Verification (Mainnet deferred)
-- [x] Latest Sepolia deploy (2026-07-11): addresses in deployments.json + README synced.
-- [ ] Perform mainnet deploy: `npm run deploy:mainnet` (deferred)
-- [ ] Verify all 3 contracts on Basescan. (deferred)
-- [ ] Update `README.md` contract table with mainnet addresses. (deferred)
-- [ ] Update any examples in `packages/sdk/README.md`. (deferred)
-- [ ] Test full pilot flow on mainnet with small real value: (deferred)
-  - Capability registration + bond
-  - Attest + discover
-  - Challenge + resolve (via Timelock)
-- [ ] Confirm `deployments.json` and backend pick up new addresses. (deferred)
+- [x] Slither triage: **0 High/Medium** in our contracts; gated in CI (`--fail-medium`).
+- [x] Aderyn second opinion: 0 High, low/style only (see `SECURITY-REVIEW.md`).
+- [x] Foundry fuzz + invariants: ETH conservation, receipt/dispute consistency, score bounds, index integrity (CI).
+- [x] Zero-address guards; indexed address events.
+- [x] Reorg-safe indexer (confirmation depth + rebuild).
+- [x] Manual review of every privileged path (`SECURITY-REVIEW.md`).
+- [ ] Decide paid audit vs. free-only for mainnet value; fund if chosen.
+- [ ] Decide the **anti-sybil policy** (minimum attest bond, per-address rate limits, identity anchors). This is the credibility gap, not a code bug.
+- [ ] Decide whether to add a **pause / circuit breaker** (there is none today).
 
-## 5. Documentation & Communication (Testnet focus)
-- [x] Updated LITEPAPER.md, WHITEPAPER.md, README to reflect current Sepolia pilot (decay, indexed, Timelock 0-delay, published packages).
-- [x] Updated "Current status" in README.
-- [x] Improved "Getting Started", examples, public demo instructions.
-- [ ] Prepare pilot announcement / shareable demo. (mainnet announcement deferred)
-- [x] Created/updated TEST_RESULTS.md with full verified flows (incl. latest demo id=2, 2->3).
-- [x] Added Python SDK examples, public demo tunnel instructions.
+## 3. Infrastructure & funding
 
-## 6. Operations & Hardening (for current pilot — 0-delay)
-- [x] Added monitoring notes + public tunnel instructions in README.
-- [x] Decision: **Fee-switch stays dormant** — no collector contract; `slashedEthPool` owner-withdrawable only. No wiring needed.
-- [ ] Plan for key rotation / multisig changes. (deferred — only if unfreezing)
-- [ ] Decide on bug bounty or responsible disclosure.
-- [ ] Test backend under load if expecting usage.
-- [x] Rate limiting, logging, error handling (pre-checks) already in production backend; CI expanded.
-- [x] Added basic monitoring instructions.
+- [ ] Production Base RPC (dedicated provider, not the public endpoint); set `BASE_MAINNET_RPC_URL`.
+- [ ] Fund the deployer with real Base ETH (≥ 0.05–0.1 ETH for deploy + bonds + gas).
+- [ ] `BASESCAN_API_KEY` for verification.
+- [ ] Test the deploy path on a fork / dry-run before broadcasting.
+- [ ] Key management per [`EMERGENCY.md`](EMERGENCY.md): owner/deployer in a hardware wallet or KMS; mainnet keys never hot; no key sharing with tooling.
 
-## 7. Nice-to-haves
-- [x] Python SDK prepared for PyPI (pyproject updated, examples in README); publish when ready.
-- [x] More examples added (Python SDK, public tunnel, MCP in README).
-- [x] Public demo URL (e.g. via cloudflared or Vercel) — instructions added.
-- [x] CI enhanced (includes demo build, backend smoke; tests/typecheck/contracts; lint/MCP smoke).
-- [ ] Expand CI with mainnet-fork tests.
-- [x] Added test for decay (now 23 passing).
+## 4. Deployment & verification
 
-**Governance (1) frozen at 0-delay per 2026-07-15 decision — intentionally skipped hardened test, not deferred debt. Mainnet items (3-4) remain deferred.**
+- [ ] Redeploy **v0.2** (two-sided receipts, paged discovery) — addresses + `deployedBlock` land in `deployments.json`.
+- [ ] Verify all 3 contracts on Basescan.
+- [ ] Update `deployments.json.example`, README contract table, `CHANGELOG.md`, SDK examples.
+- [ ] Point the read-only demo (`apps/static-demo`) and the SDK/MCP at mainnet addresses.
+- [ ] Record a full mainnet E2E with small real value: register capability → attest → receipt → challenge → contest → resolve/finalize → discover (tx hashes as evidence).
 
-**Do not move to hardened (non-zero delay) without explicit decision to unfreeze.**
+## 5. Operations & monitoring
 
-All other steps (2,5,6,7 + pilot polish/test/adoption/security/docs/ops) completed fully in this session. Plan executed: docs, UI, verification (23 tests, Slither, demo build fixed), adoption (examples, PyPI prep), ops/CI.
+- [x] Structured logs (pino), `/api/healthz` (RPC latency, indexer lag), `/api/alerts`.
+- [x] `docs/OPERATIONS.md` runbook + `docs/EMERGENCY.md`.
+- [ ] Wire `/api/healthz` + `/api/alerts` into alerting; alert on any `EthPoolWithdrawn` / `CertifierChanged`.
+- [ ] Backups: `deployments.json` + `.env` (offline); SQLite index is rebuildable.
+- [ ] Confirm the public instance is **read-only** (`DEMO_READ_ONLY=true`); write path stays private.
 
-See also:
-- `README.md` → Mainnet preparation section
-- `IMPROVEMENTS_PLAN.md`
-- `NEXT_STEPS.md`
-- `scripts/deploy-base-sepolia.ts` (multisig support added)
+## 6. Distribution
+
+- [ ] Publish `@taopp/sdk`, `@taopp/mcp-server`, and `taop` (PyPI) with mainnet addresses.
+- [ ] Announcement / demo URL ready.
+- [ ] `twine check` green (already verified locally).
+
+## Notes
+
+- Fee switch stays **dormant** (`FEE_MODEL.md`); `slashedEthPool` is owner-withdrawable only. Revisit only with real usage.
+- No protocol token exists in the bytecode (v2 token design is comments only) — no token/security surface to unwind today.
+- The 0-delay freeze no longer applies to mainnet: unfreeze deliberately (section 1).

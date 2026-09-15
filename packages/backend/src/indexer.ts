@@ -43,6 +43,7 @@ const REGISTRY_EVENTS = [
   "event CapabilitySlashed(uint256 capabilityId, uint256 penalty)",
   "event BondWithdrawn(uint256 capabilityId, address indexed to, uint256 amount)",
   "event EthPoolWithdrawn(address indexed to, uint256 amount)",
+  "event CertifierChanged(address indexed previousCertifier, address indexed newCertifier)",
 ];
 
 const RON_EVENTS = [
@@ -239,6 +240,12 @@ async function applyRegistryEvent(
         contract: "CapabilityRegistry",
         to: parsed.args[0] as string,
         amount: (parsed.args[1] as bigint).toString(),
+      });
+      break;
+    case "CertifierChanged":
+      recordAlert("CertifierChanged", log.blockNumber, log.transactionHash, {
+        previousCertifier: parsed.args[0] as string,
+        newCertifier: parsed.args[1] as string,
       });
       break;
     default:

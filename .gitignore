@@ -62,4 +62,6 @@ coverage.json
 apps/static-demo/dist/
 # Foundry
 out/
+# Static analysis reports
+report.md
 cache_forge/

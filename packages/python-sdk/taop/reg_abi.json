@@ -350,6 +350,25 @@
       {
         "indexed": true,
         "internalType": "address",
+        "name": "previousCertifier",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newCertifier",
+        "type": "address"
+      }
+    ],
+    "name": "CertifierChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
         "name": "to",
         "type": "address"
       },

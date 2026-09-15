@@ -40,6 +40,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     event CapabilitySlashed(uint256 capabilityId, uint256 penalty);
     event BondWithdrawn(uint256 capabilityId, address indexed to, uint256 amount);
     event EthPoolWithdrawn(address indexed to, uint256 amount);
+    event CertifierChanged(address indexed previousCertifier, address indexed newCertifier);
 
     error NotCertifier();
     error ZeroBond();
@@ -57,6 +58,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     function setCertifier(address c) external onlyOwner {
         if (c == address(0)) revert ZeroAddress();
+        emit CertifierChanged(certifier, c);
         certifier = c;
     }
 
@@ -140,7 +142,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
 
     /// @notice Owner withdraws slashed ETH bonds from the protocol pool.
-    function withdrawEthPool(address payable to, uint256 amount) external onlyOwner nonReentrant {
+    function withdrawEthPool(address payable to, uint256 amount) external nonReentrant onlyOwner {
         if (to == address(0)) revert ZeroAddress();
         if (amount == 0 || amount > slashedEthPool) revert NothingToWithdraw();
         slashedEthPool -= amount;

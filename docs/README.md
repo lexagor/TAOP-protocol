@@ -14,6 +14,8 @@ Index of the project's docs. Start with the root [`README.md`](../README.md).
 
 ## Security
 - [`../SECURITY.md`](../SECURITY.md) — disclosure policy, secrets policy, incident history.
+- [`SECURITY-REVIEW.md`](SECURITY-REVIEW.md) — Slither + Aderyn results and manual review of privileged paths.
+- [`EMERGENCY.md`](EMERGENCY.md) — key management + emergency playbooks (no pause).
 - [`../PHASE0_OWNER_ACTIONS.md`](../PHASE0_OWNER_ACTIONS.md) — Phase 0 incident runbook (closed).
 
 ## Operations & deploy
