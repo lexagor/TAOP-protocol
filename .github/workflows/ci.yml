@@ -31,17 +31,17 @@ jobs:
             exit 1
           fi
 
-      - name: TypeScript typecheck (sdk, demo, backend, mcp — real, fails on error)
-        run: npm run typecheck
-
       - name: Build contracts
         run: npm run contracts:build
 
+      - name: Build SDK (must precede typecheck — backend + mcp import @taopp/sdk)
+        run: npm run sdk:build
+
+      - name: TypeScript typecheck (sdk, demo, backend, mcp — real, fails on error)
+        run: npm run typecheck
+
       - name: Run contract tests
         run: npm run contracts:test
-
-      - name: Build SDK
-        run: npm run sdk:build
 
       - name: Build MCP server
         run: npm run mcp:build
