@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Contracts, DemoResult, DiscoveryItem } from "./api.js";
-import { getContracts, getDiscover, runDemo, challengeCompletion, resolveChallenge, getIdentity, registerIdentity, getApiKey, setApiKey, confirmReceipt } from "./api.js";
+import { getContracts, getDiscover, runDemo, challengeCompletion, resolveChallenge, getIdentity, registerIdentity, getApiKey, setApiKey, confirmReceipt, contestChallenge, finalizeChallenge } from "./api.js";
 
 const trunc = (a: string, n = 6) => (a.length <= n + 4 ? a : `${a.slice(0, n)}…${a.slice(-4)}`);
 const chainLabel = (id: number) =>
@@ -75,6 +75,9 @@ export default function App() {
   const [lastResolve, setLastResolve] = useState<any>(null);
   const [receipting, setReceipting] = useState(false);
   const [receiptDone, setReceiptDone] = useState(false);
+  const [contesting, setContesting] = useState(false);
+  const [contested, setContested] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const [identity, setIdentity] = useState<string>("");
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
@@ -125,6 +128,7 @@ export default function App() {
       setDemo(res);
       setLastResolve(null);  // allow challenge on the new demo
       setReceiptDone(false);
+      setContested(false);
       setStatus("done");
       await refresh();
     } catch (e) {
@@ -170,6 +174,37 @@ export default function App() {
       setError(String((e as Error).message ?? e));
     } finally {
       setReceipting(false);
+    }
+  }
+
+  // v0.2: the agent rebuts a pending challenge (needs a challenge left pending).
+  async function handleContest() {
+    if (!demo) return;
+    setContesting(true);
+    setError(null);
+    try {
+      await contestChallenge(demo.completionId);
+      setContested(true);
+      await refresh();
+    } catch (e) {
+      setError(String((e as Error).message ?? e));
+    } finally {
+      setContesting(false);
+    }
+  }
+
+  // v0.2: finalize an uncontested challenge after the challenge window.
+  async function handleFinalizeChallenge() {
+    if (!demo) return;
+    setFinalizing(true);
+    setError(null);
+    try {
+      await finalizeChallenge(demo.completionId);
+      await refresh();
+    } catch (e) {
+      setError(String((e as Error).message ?? e));
+    } finally {
+      setFinalizing(false);
     }
   }
 
@@ -243,6 +278,11 @@ export default function App() {
             onConfirmReceipt={handleConfirmReceipt}
             receipting={receipting}
             receiptDone={receiptDone}
+            onContest={handleContest}
+            contesting={contesting}
+            contested={contested}
+            onFinalize={handleFinalizeChallenge}
+            finalizing={finalizing}
             onRegisterIdentity={async (cid: string) => {
               // Always update the local display immediately for demo purposes.
               setIdentity(cid);
@@ -478,6 +518,11 @@ function PanelA({
   onConfirmReceipt,
   receipting = false,
   receiptDone = false,
+  onContest,
+  contesting = false,
+  contested = false,
+  onFinalize,
+  finalizing = false,
 }: {
   agentA?: DiscoveryItem;
   contracts: Contracts | null;
@@ -494,6 +539,11 @@ function PanelA({
   onConfirmReceipt: () => void;
   receipting?: boolean;
   receiptDone?: boolean;
+  onContest: () => void;
+  contesting?: boolean;
+  contested?: boolean;
+  onFinalize: () => void;
+  finalizing?: boolean;
 }) {
   return (
     <section className="fade-up card p-6">
@@ -554,6 +604,27 @@ function PanelA({
               ? "Requester countersigning…"
               : "Requester confirms completion (two-sided receipt)"}
         </button>
+      )}
+
+      {hasDemo && (
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <button
+            onClick={onContest}
+            disabled={contesting || running || contested}
+            title="v0.2: the agent rebuts a pending challenge (needs a challenge left pending)"
+            className="rounded-xl border border-purple-800/60 bg-purple-900/10 px-4 py-2.5 text-sm font-medium text-purple-300 transition hover:bg-purple-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {contested ? "✓ Agent contested (rebuttal)" : contesting ? "Contesting…" : "Agent contests challenge (v0.2)"}
+          </button>
+          <button
+            onClick={onFinalize}
+            disabled={finalizing || running}
+            title="v0.2: finalize an uncontested challenge after the 3-day window (upheld optimistically)"
+            className="rounded-xl border border-amber-800/60 bg-amber-900/10 px-4 py-2.5 text-sm font-medium text-amber-300 transition hover:bg-amber-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {finalizing ? "Finalizing…" : "Finalize challenge (v0.2)"}
+          </button>
+        </div>
       )}
 
       {hasDemo && (

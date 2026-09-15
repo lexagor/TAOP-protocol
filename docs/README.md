@@ -4,6 +4,7 @@ Index of the project's docs. Start with the root [`README.md`](../README.md).
 
 ## Orientation
 - [`README.md`](../README.md) — what TAOP is, live addresses, quickstart.
+- [`architecture.md`](architecture.md) — system, lifecycle, and state-machine diagrams.
 - [`LITEPAPER.md`](../LITEPAPER.md) — short-form overview.
 - [`WHITEPAPER.md`](../WHITEPAPER.md) — long-form design.
 - [`CHANGELOG.md`](../CHANGELOG.md) — release history.
@@ -36,6 +37,7 @@ Index of the project's docs. Start with the root [`README.md`](../README.md).
 - [`../packages/sdk/README.md`](../packages/sdk/README.md) — `@taopp/sdk` (TypeScript).
 - [`../packages/mcp-server/README.md`](../packages/mcp-server/README.md) — `@taopp/mcp-server`.
 - [`../packages/python-sdk/README.md`](../packages/python-sdk/README.md) — `taop` (Python).
+- Generated API reference: `npm run docs:api` → `docs/api/` (TypeDoc).
 
 ## Live demo
 - Read-only, backend-free: https://lexagor.github.io/TAOP-protocol/ (source: `apps/static-demo/`).

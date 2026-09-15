@@ -18,6 +18,7 @@ export default tseslint.config(
       "**/cache_forge/**",
       "lib/**",
       "packages/python-sdk/**",
+      "docs/api/**",
     ],
   },
   ...tseslint.configs.recommended,

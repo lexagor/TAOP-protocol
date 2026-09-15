@@ -65,4 +65,6 @@ out/
 # Static analysis reports
 report.md
 mutation_campaign/
+# Generated API docs
+docs/api/
 cache_forge/

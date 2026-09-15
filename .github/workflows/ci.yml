@@ -58,6 +58,9 @@ jobs:
       - name: Build backend
         run: npm run backend:build
 
+      - name: Build API docs (TypeDoc)
+        run: npm run docs:api
+
       - name: Python SDK tests (only when a local deployments.json exists)
         run: |
           if [ -f deployments.json ]; then
@@ -180,3 +183,26 @@ jobs:
 
       - name: Mutation spot-check (deliberately break critical lines; tests must catch each)
         run: npm run mutation:spotcheck
+
+  # Read-only against the live Base Sepolia deployment. Non-blocking: depends on
+  # a public RPC that may rate-limit, but surfaces real-bytecode drift.
+  live:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build SDK
+        run: npm run sdk:build
+
+      - name: Live read-only checks (Base Sepolia)
+        run: npm run test:live

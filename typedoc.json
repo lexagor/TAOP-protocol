@@ -1,0 +1,12 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["packages/sdk/src/index.ts"],
+  "tsconfig": "packages/sdk/tsconfig.json",
+  "out": "docs/api",
+  "readme": "packages/sdk/README.md",
+  "name": "@taopp/sdk API reference",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "hideGenerator": true,
+  "githubPages": false
+}
