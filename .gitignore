@@ -64,4 +64,5 @@ apps/static-demo/dist/
 out/
 # Static analysis reports
 report.md
+mutation_campaign/
 cache_forge/

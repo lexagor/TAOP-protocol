@@ -16,6 +16,7 @@
     "slither": "slither . --config-file slither.config.json --fail-medium",
     "lint": "eslint .",
     "lint:sol": "solhint 'contracts/**/*.sol' --max-warnings 0",
+    "mutation:spotcheck": "node scripts/mutation-spotcheck.mjs",
     "deploy:local": "hardhat run scripts/deploy-local.ts --network localhost",
     "deploy:sepolia": "hardhat run scripts/deploy-base-sepolia.ts --network baseSepolia",
     "deploy:mainnet": "hardhat run scripts/deploy-base-sepolia.ts --network base",

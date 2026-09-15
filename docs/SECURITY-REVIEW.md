@@ -14,7 +14,8 @@ and [`redeploy-v0.2.md`](redeploy-v0.2.md).
 |---|---|
 | Contracts | `ReputationOracleNetwork`, `CapabilityRegistry` (391 nSLOC, Solidity 0.8.28, optimizer 200, evm `cancun`) |
 | Tools | Slither `0.11.5`, Cyfrin Aderyn `0.6.8` |
-| Dynamic tests | 68 Hardhat tests, 11 Foundry fuzz/invariant tests, 19 backend tests |
+| Dynamic tests | 70 Hardhat tests, 11 Foundry fuzz/invariant tests, 19 backend tests |
+| Mutation check | 12/12 deliberately-broken lines caught (`npm run mutation:spotcheck`, CI) |
 | Commit | `af3a661` (no High/Medium findings at time of writing) |
 
 ## Automated results

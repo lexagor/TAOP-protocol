@@ -100,6 +100,19 @@ describe("ReputationOracleNetwork v0.2 — two-sided attestation (F11)", () => {
       );
     });
 
+    it("rejects a receipt for an already-disputed completion (found by mutation testing)", async () => {
+      const { ron, agent, requester, challenger } = await deploy();
+      await ron.connect(agent).attestCompletion(SUMMARY, "ipfs://r");
+      await ron.connect(challenger).challengeCompletion(1, "ipfs://ev", { value: BOND });
+      await time.increase(WINDOW + 1);
+      await ron.connect(challenger).finalizeChallenge(1); // upheld -> disputed
+      expect((await ron.getCompletion(1)).disputed).to.eq(true);
+      await expect(ron.connect(requester).attestReceipt(1, "ipfs://x")).to.be.revertedWithCustomError(
+        ron,
+        "ReceiptNotAllowed",
+      );
+    });
+
     it("lets the requester revoke an endorsement", async () => {
       const { ron, agent, requester } = await deploy();
       await ron.connect(agent).attestCompletion(SUMMARY, "ipfs://r");
