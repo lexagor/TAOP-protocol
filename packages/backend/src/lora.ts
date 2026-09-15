@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { logger } from "./logger.js";
 
 /**
  * LoRA summarization inference via Replicate. For the pilot we use
@@ -90,7 +91,7 @@ export async function summarize(inputText: string): Promise<SummarizationResult>
       latencyMs: Date.now() - start,
     };
   } catch (e) {
-    console.warn("Replicate inference failed, falling back to local summarizer:", (e as Error).message);
+    logger.warn(`Replicate inference failed, falling back to local summarizer: ${(e as Error).message}`);
     return fallbackSummarize(inputText, (e as Error).message);
   }
 }

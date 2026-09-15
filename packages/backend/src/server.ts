@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { logger } from "./logger.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -12,6 +13,7 @@ import { runDemo } from "./demo.js";
 import { LORA_CAPABILITY_TYPE } from "@taopp/sdk";
 import { listCapabilities, listCompletions, markCompletionChallenged, markCompletionResolved } from "./db.js";
 import { startIndexer, queryIndexedDiscovery, isIndexerReady, indexedCount, indexerStatus } from "./indexer.js";
+import { listAlerts } from "./index_db.js";
 import { openApiSpec } from "./openapi.js";
 
 const app = express();
@@ -33,7 +35,7 @@ function isLoopbackHost(host: string): boolean {
 }
 
 if (!isLoopbackHost(HOST) && !API_KEY) {
-  console.error(
+  logger.error(
     `\n❌ REFUSING TO START: HOST=${HOST} exposes the API beyond localhost but TAOP_API_KEY is not set.\n` +
       `   This backend can spend bonds and execute owner-only Timelock actions.\n` +
       `   Fix: export TAOP_API_KEY=$(openssl rand -hex 32)   (or set HOST=127.0.0.1)\n`,
@@ -164,7 +166,40 @@ async function onChainDiscover(typeLabel: string, minScore: number) {
   return out;
 }
 
-api.get("/healthz", (_req, res) => res.json({ ok: true }));
+api.get("/healthz", async (_req, res) => {
+  // F12: liveness (`ok`) plus readiness detail operators can alert on.
+  const startedAt = Date.now();
+  let rpcOk = true;
+  let blockNumber: number | null = null;
+  let rpcError: string | null = null;
+  try {
+    blockNumber = await Promise.race([
+      state.provider.getBlockNumber(),
+      new Promise<number>((_, reject) => setTimeout(() => reject(new Error("rpc timeout")), 2500)),
+    ]);
+  } catch (e) {
+    rpcOk = false;
+    rpcError = String((e as Error).message ?? e);
+  }
+  const ix = indexerStatus();
+  res.json({
+    ok: true,
+    service: "taop-backend",
+    chainId: state.deployment.chainId,
+    uptimeSec: Math.round(process.uptime()),
+    writes: WRITES_DISABLED ? "disabled" : API_KEY ? "keyed" : "open-loopback",
+    rpc: { ok: rpcOk, latencyMs: Date.now() - startedAt, blockNumber, error: rpcError },
+    indexer: {
+      enabled: ix.enabled,
+      ready: ix.ready,
+      lag: ix.lag,
+      lastBlock: ix.lastBlock,
+      headBlock: ix.headBlock,
+      twoSided: ix.useTwoSided,
+      lastError: ix.lastError,
+    },
+  });
+});
 
 api.get("/contracts", (_req, res) => {
   res.json({
@@ -559,6 +594,11 @@ api.get("/indexer", (_req, res) => {
   res.json(indexerStatus());
 });
 
+/** F12: recent protocol alerts (challenges, slashing, pool withdrawals). */
+api.get("/alerts", (req, res) => {
+  res.json(listAlerts(Number(req.query.limit ?? 50)));
+});
+
 // --- Demo orchestrator ---
 
 api.post("/demo/run", async (_req, res) => {
@@ -600,22 +640,22 @@ async function main() {
   try {
     await startIndexer(state);
   } catch (e) {
-    console.warn("[indexer] failed to start:", String((e as Error).message ?? e));
+    logger.warn(`[indexer] failed to start: ${String((e as Error).message ?? e)}`);
   }
 
   const server = app.listen(PORT, HOST, () => {
     const origin = isLoopbackHost(HOST) ? `http://127.0.0.1:${PORT}` : `http://${HOST}:${PORT}`;
-    console.log(`TAOP backend listening on ${origin}/api`);
-    console.log(
+    logger.info(`TAOP backend listening on ${origin}/api`);
+    logger.info(
       `Security: bind=${isLoopbackHost(HOST) ? "loopback" : "PUBLIC"} | ` +
         `writes=${WRITES_DISABLED ? "DISABLED (read-only)" : "enabled"} | ` +
         `write auth=${API_KEY ? "X-TAOP-Key required" : "open (loopback only)"}`,
     );
-    console.log(
+    logger.info(
       `Contracts: ron=${state.deployment.ron} registry=${state.deployment.registry} capabilityId=${state.capabilityId}`,
     );
     const ix = indexerStatus();
-    console.log(
+    logger.info(
       `Indexer: ${ix.enabled ? `on (last=${ix.lastBlock} head=${ix.headBlock} lag=${ix.lag} twoSided=${ix.useTwoSided})` : "off"}`,
     );
   });
@@ -624,6 +664,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error("fatal:", e);
+  logger.error({ err: e }, "fatal");
   process.exit(1);
 });

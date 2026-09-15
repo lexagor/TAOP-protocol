@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { logger } from "./logger.js";
 import type { BackendState } from "./contracts.js";
 import {
   initIndexSchema,
@@ -20,6 +21,7 @@ import {
   getAgentIdentity,
   countIndexedCapabilities,
   queryIndexedCapabilities,
+  recordAlert,
 } from "./index_db.js";
 
 /**
@@ -37,13 +39,16 @@ const REGISTRY_EVENTS = [
   "event CapabilityCertified(uint256 capabilityId, address certifier)",
   "event CapabilitySlashed(uint256 capabilityId, uint256 penalty)",
   "event BondWithdrawn(uint256 capabilityId, address to, uint256 amount)",
+  "event EthPoolWithdrawn(address to, uint256 amount)",
 ];
 
 const RON_EVENTS = [
   "event SelfAttested(uint256 completionId, address agent, bytes32 taskType)",
   "event ReceiptAttested(uint256 completionId, address indexed agent, address indexed counterparty)",
   "event ReceiptRevoked(uint256 completionId, address indexed counterparty)",
+  "event ChallengeSubmitted(uint256 completionId, address challenger)",
   "event ChallengeResolved(uint256 completionId, bool upheld)",
+  "event EthPoolWithdrawn(address to, uint256 amount)",
   "event AgentRegistered(address indexed agent, string metadataCID)",
 ];
 
@@ -174,7 +179,7 @@ export async function indexRange(state: BackendState, fromBlock: number, toBlock
       }
     } catch (e) {
       // Don't wedge the whole range on one bad enrichment call; retry on next poll.
-      console.warn(`[indexer] failed to apply ${parsed.name} at ${log.blockNumber}:`, String((e as Error).message ?? e));
+      logger.warn(`[indexer] failed to apply ${parsed.name} at ${log.blockNumber}: ${String((e as Error).message ?? e)}`);
       continue;
     }
     markIndexed(log.transactionHash, log.index, log.blockNumber);
@@ -207,9 +212,25 @@ async function applyRegistryEvent(
       break;
     case "CapabilitySlashed":
       slashIndexedCapability(capabilityId);
+      recordAlert("CapabilitySlashed", log.blockNumber, log.transactionHash, {
+        capabilityId: capabilityId.toString(),
+        penalty: (parsed.args[1] as bigint).toString(),
+      });
       break;
     case "BondWithdrawn":
       deleteIndexedCapability(capabilityId);
+      recordAlert("BondWithdrawn", log.blockNumber, log.transactionHash, {
+        capabilityId: capabilityId.toString(),
+        to: parsed.args[1] as string,
+        amount: (parsed.args[2] as bigint).toString(),
+      });
+      break;
+    case "EthPoolWithdrawn":
+      recordAlert("EthPoolWithdrawn", log.blockNumber, log.transactionHash, {
+        contract: "CapabilityRegistry",
+        to: parsed.args[0] as string,
+        amount: (parsed.args[1] as bigint).toString(),
+      });
       break;
     default:
       break;
@@ -254,9 +275,22 @@ async function applyRonEvent(
       deleteReceiptIndex(completionId);
       break;
     }
+    case "ChallengeSubmitted": {
+      const completionId = parsed.args[0] as bigint;
+      const challenger = (parsed.args[1] as string).toLowerCase();
+      recordAlert("ChallengeSubmitted", log.blockNumber, log.transactionHash, {
+        completionId: completionId.toString(),
+        challenger,
+      });
+      break;
+    }
     case "ChallengeResolved": {
       const completionId = parsed.args[0] as bigint;
       const upheld = parsed.args[1] as boolean;
+      recordAlert("ChallengeResolved", log.blockNumber, log.transactionHash, {
+        completionId: completionId.toString(),
+        upheld,
+      });
       if (upheld) {
         const agent = getCompletionAgent(completionId);
         if (agent) {
@@ -269,6 +303,13 @@ async function applyRonEvent(
       }
       break;
     }
+    case "EthPoolWithdrawn":
+      recordAlert("EthPoolWithdrawn", log.blockNumber, log.transactionHash, {
+        contract: "ReputationOracleNetwork",
+        to: parsed.args[0] as string,
+        amount: (parsed.args[1] as bigint).toString(),
+      });
+      break;
     case "AgentRegistered": {
       const agent = (parsed.args[0] as string).toLowerCase();
       const metadataCID = parsed.args[1] as string;
@@ -287,7 +328,7 @@ let pollTimer: NodeJS.Timeout | null = null;
 export async function startIndexer(state: BackendState): Promise<void> {
   if ((process.env.INDEXER_ENABLED ?? "true").toLowerCase() === "false") {
     status.enabled = false;
-    console.log("[indexer] disabled (INDEXER_ENABLED=false)");
+    logger.info("[indexer] disabled (INDEXER_ENABLED=false)");
     return;
   }
   status.enabled = true;
@@ -326,14 +367,14 @@ export async function startIndexer(state: BackendState): Promise<void> {
       status.ready = true;
     } catch (e) {
       status.lastError = String((e as Error).message ?? e);
-      console.warn("[indexer] poll failed:", status.lastError);
+      logger.warn({ err: status.lastError }, "[indexer] poll failed");
     }
   };
 
   await poll();
   pollTimer = setInterval(poll, pollMs);
   if (typeof pollTimer.unref === "function") pollTimer.unref();
-  console.log(
+  logger.info(
     `[indexer] started (poll=${pollMs}ms chunk=${chunkSize} start=${startBlock} twoSided=${status.useTwoSided})`,
   );
 }

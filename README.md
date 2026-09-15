@@ -379,6 +379,10 @@ slither . --filter "high,medium"
   caching (falls back to a direct on-chain scan until the index is warm). Check
   `GET /api/indexer` for lag. Tune with `INDEXER_ENABLED`, `INDEXER_POLL_MS`,
   `INDEXER_CHUNK_SIZE`, `INDEXER_START_BLOCK`, `INDEXER_LOOKBACK_BLOCKS`.
+- **Observability (F12):** structured JSON logs (`LOG_LEVEL`, secrets redacted),
+  an enriched `GET /api/healthz` (RPC latency, block, indexer lag, write mode)
+  and a `GET /api/alerts` stream (challenges, slashing, pool withdrawals). See
+  [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 - **Sharing a demo publicly: read-only only.** Run a second instance with
   `DEMO_READ_ONLY=true` and share that URL; write routes return `503`.
   If you must expose writes, set `TAOP_API_KEY=$(openssl rand -hex 32)`, build the

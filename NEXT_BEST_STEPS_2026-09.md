@@ -306,9 +306,10 @@ and click a public demo URL — with no leaked key and no admin exposure.
 
 ### Phase 3 — Credibility & differentiation (2–4 weeks)
 
-**Progress 2026-09-15:** F11 is implemented in the contract, both SDKs, the MCP
-server, the backend API and the demo UI, with a 20-test regression suite (52
-contract tests total). It is **not yet deployed** — the live Base Sepolia pilot is
+**Progress 2026-09-15:** F11 (two-sided trust), F10 (off-chain index + paginated
+discovery) and F12 (observability + runbook) are implemented across the contract,
+both SDKs, the MCP server, the backend and the demo UI, with a regression suite of
+56 contract tests. They are **not yet deployed** — the live Base Sepolia pilot is
 still v0.1.2 and consumers fall back to the self-attest score there. See
 `CHANGELOG.md` [Unreleased].
 
@@ -324,7 +325,9 @@ still v0.1.2 and consumers fall back to the self-attest score there. See
       `limit`/`offset`, `X-Total-Count` and `ETag`, falling back to an on-chain
       scan until warm. Verified against live Base Sepolia (indexed the pilot
       capability, `lag=0`).
-- [ ] Observability + operations runbook (F12).
+- [x] Observability + operations runbook (F12): pino structured logs with secret
+      redaction, enriched `/api/healthz` (RPC latency, block, indexer lag, write
+      mode), a `/api/alerts` event stream, and `docs/OPERATIONS.md`.
 - [ ] Redeploy to Base Sepolia with the v0.2 contracts + update addresses/README.
 - [ ] Audit (Slither + manual + external if funded) → mainnet deploy → verification → monitoring.
 

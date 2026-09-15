@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Config: `INDEXER_ENABLED`, `INDEXER_POLL_MS`, `INDEXER_CHUNK_SIZE`,
   `INDEXER_START_BLOCK`, `INDEXER_LOOKBACK_BLOCKS`.
 - 24 new contract tests (32 → 56).
+- **Observability (F12).** Structured JSON logging via pino
+  (`packages/backend/src/logger.ts`, `LOG_LEVEL`, secret redaction);
+  `/api/healthz` reports chain id, RPC latency/block, write mode, uptime and
+  indexer lag; `GET /api/alerts` streams `ChallengeSubmitted`,
+  `ChallengeResolved`, `CapabilitySlashed`, `BondWithdrawn` and
+  `EthPoolWithdrawn`; `docs/OPERATIONS.md` is the operator runbook.
 
 ### Changed
 - Discovery now ranks on the two-sided score where the contract supports it and

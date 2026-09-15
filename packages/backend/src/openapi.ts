@@ -15,8 +15,13 @@ export const openApiSpec = {
   paths: {
     "/healthz": {
       get: {
-        summary: "Health check",
-        responses: { "200": { description: "OK", content: { "application/json": { schema: { type: "object", properties: { ok: { type: "boolean" } } } } } } },
+        summary: "Health/readiness (chain, RPC latency, indexer lag)",
+        responses: { "200": { description: "OK", content: { "application/json": { schema: { type: "object", properties: {
+          ok: { type: "boolean" }, service: { type: "string" }, chainId: { type: "integer" },
+          uptimeSec: { type: "integer" }, writes: { type: "string", enum: ["disabled", "keyed", "open-loopback"] },
+          rpc: { type: "object", properties: { ok: { type: "boolean" }, latencyMs: { type: "integer" }, blockNumber: { type: "integer", nullable: true }, error: { type: "string", nullable: true } } },
+          indexer: { type: "object", properties: { enabled: { type: "boolean" }, ready: { type: "boolean" }, lag: { type: "integer" }, lastBlock: { type: "integer" }, headBlock: { type: "integer" }, twoSided: { type: "boolean" }, lastError: { type: "string", nullable: true } } },
+        } } } } } },
       },
     },
     "/contracts": {
@@ -219,6 +224,17 @@ export const openApiSpec = {
             lastBlock: { type: "integer" }, headBlock: { type: "integer" }, lag: { type: "integer" },
             lastError: { type: "string", nullable: true },
           } } } } },
+        },
+      },
+    },
+    "/alerts": {
+      get: {
+        summary: "Recent protocol alerts — challenges, slashing, pool withdrawals (F12)",
+        parameters: [{ name: "limit", in: "query", schema: { type: "integer", default: 50, maximum: 500 } }],
+        responses: {
+          "200": { description: "Alerts, newest first", content: { "application/json": { schema: { type: "array", items: { type: "object", properties: {
+            id: { type: "integer" }, kind: { type: "string" }, blockNumber: { type: "integer" }, txHash: { type: "string" }, payload: { type: "object" }, createdAt: { type: "string" },
+          } } } } } },
         },
       },
     },

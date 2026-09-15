@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { logger } from "./logger.js";
 import type { BackendState } from "./contracts.js";
 import { LORA_CAPABILITY_TYPE } from "@taopp/sdk";
 import { pinJSON, buildEvidence } from "./ipfs.js";
@@ -74,7 +75,7 @@ export async function runDemo(state: BackendState): Promise<DemoResult> {
     } catch (e) {
       const msg = String((e as Error).message ?? e).toLowerCase();
       if ((msg.includes("nonce") || msg.includes("nonce_expired") || msg.includes("nonce too low")) && attempt < 2) {
-        console.warn(`Nonce error on attempt ${attempt+1} for attest, retrying after reset...`);
+        logger.warn(`Nonce error on attempt ${attempt+1} for attest, retrying after reset...`);
         await new Promise(r => setTimeout(r, 1500));
         continue;
       }

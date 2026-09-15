@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { logger } from "./logger.js";
 import path from "node:path";
 import { ethers } from "ethers";
 import type { BackendState } from "./contracts.js";
@@ -71,7 +72,7 @@ export function recordCapability(c: {
   certified: boolean;
 }): void {
   if (c.capabilityId === 0n) {
-    console.warn("[recordCapability] refusing to record id=0");
+    logger.warn("[recordCapability] refusing to record id=0");
     return;
   }
   db()

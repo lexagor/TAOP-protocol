@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { logger } from "./logger.js";
 
 /**
  * Pinata IPFS pinning client. Pins JSON metadata and text evidence to IPFS
@@ -8,7 +9,7 @@ const PINATA_PIN_URL = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
 const JWT = process.env.PINATA_JWT;
 
 if (!JWT) {
-  console.warn("PINATA_JWT not set — IPFS pinning will return mock CIDs");
+  logger.warn("PINATA_JWT not set — IPFS pinning will return mock CIDs");
 }
 
 export interface PinataPinResponse {

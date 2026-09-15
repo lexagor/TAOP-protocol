@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { logger } from "./logger.js";
 import { ethers } from "ethers";
 import path from "node:path";
 import {
@@ -87,7 +88,7 @@ export async function initState(): Promise<BackendState> {
   // migrate, but the environment always wins.
   const legacyFilePk = (deployment as { agentAPk?: string }).agentAPk;
   if (legacyFilePk) {
-    console.warn(
+    logger.warn(
       "[backend] SECURITY WARNING: deployments.json still contains 'agentAPk' — remove it and set AGENT_A_PK in .env " +
         "(deployments.json is publishable, see SECURITY.md).",
     );
@@ -125,7 +126,7 @@ export async function initState(): Promise<BackendState> {
   if (timelock) {
     currentTimelockDelay = await timelock.getMinDelay();
     if (currentTimelockDelay > 0n) {
-      console.log(`[Timelock] Current minDelay = ${currentTimelockDelay}s (non-zero delay mode)`);
+      logger.info(`[Timelock] Current minDelay = ${currentTimelockDelay}s (non-zero delay mode)`);
     }
   }
 
@@ -148,7 +149,7 @@ export async function initState(): Promise<BackendState> {
     const scheduleReceipt = await scheduleTx.wait();
 
     if (delay > 0n) {
-      console.warn(
+      logger.warn(
         `[Timelock] Admin action scheduled with ${delay}s delay. ` +
         `It will NOT execute immediately. Use the Timelock UI or a keeper to execute after the delay.`
       );
@@ -172,7 +173,7 @@ export async function initState(): Promise<BackendState> {
       } catch {}
       if (ready) break;
       if (attempt > 0) {
-        console.log(`[Timelock] waiting for 0-delay operation to become Ready (attempt ${attempt + 1})...`);
+        logger.info(`[Timelock] waiting for 0-delay operation to become Ready (attempt ${attempt + 1})...`);
       }
       await new Promise((r) => setTimeout(r, 700));
       // also reset in case of any transient signer state
@@ -180,7 +181,7 @@ export async function initState(): Promise<BackendState> {
     }
     if (!ready) {
       // As a last resort, try execute anyway (it may still work or surface a clearer error)
-      console.warn(`[Timelock] operation ${id} not yet Ready after polling; attempting execute anyway`);
+      logger.warn(`[Timelock] operation ${id} not yet Ready after polling; attempting execute anyway`);
     }
 
     const execTx = await timelock.execute(target, value, data, predecessor, salt);
@@ -232,7 +233,7 @@ export async function ensureCapability(state: BackendState): Promise<void> {
   const currentRegistry = deployment.registry.toLowerCase();
   const lastRegistry = getMeta("last_registry")?.toLowerCase();
   if (lastRegistry && lastRegistry !== currentRegistry) {
-    console.log("[ensureCapability] Registry changed (old:", lastRegistry, "new:", currentRegistry, ") — clearing stale capability and completion caches");
+    logger.info(`[ensureCapability] Registry changed (old: ${lastRegistry} new: ${currentRegistry}) — clearing stale capability and completion caches`);
     db().prepare("DELETE FROM capabilities").run();
     db().prepare("DELETE FROM completions").run();
     setMeta("last_registry", currentRegistry);
@@ -254,7 +255,7 @@ export async function ensureCapability(state: BackendState): Promise<void> {
       }
     } catch (e) {
       // NoSuchCapability or other — cache is stale (common after `npm run deploy:sepolia`)
-      console.warn(`[ensureCapability] Cached capabilityId ${dbId} invalid on current registry (likely after redeploy), will scan/register fresh.`);
+      logger.warn(`[ensureCapability] Cached capabilityId ${dbId} invalid on current registry (likely after redeploy), will scan/register fresh.`);
     }
     if (useCached) return;
   }
@@ -264,7 +265,7 @@ export async function ensureCapability(state: BackendState): Promise<void> {
   for (let i = 0n; i < total; i++) {
     const id = await registryOracle.tokenByIndex(i);
     if (id === 0n) {
-      console.warn("[ensureCapability] tokenByIndex returned 0, skipping (should not happen)");
+      logger.warn("[ensureCapability] tokenByIndex returned 0, skipping (should not happen)");
       continue;
     }
     let cap;
@@ -272,7 +273,7 @@ export async function ensureCapability(state: BackendState): Promise<void> {
       cap = await registryOracle.getCapability(id);
     } catch (e) {
       const reason = (e as { shortMessage?: string }).shortMessage ?? (e as Error).message ?? String(e);
-      console.warn(`[ensureCapability] getCapability(${id}) failed on current registry, skipping:`, reason);
+      logger.warn(`[ensureCapability] getCapability(${id}) failed on current registry, skipping: ${reason}`);
       continue;
     }
     if (

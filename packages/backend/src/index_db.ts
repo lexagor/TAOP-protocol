@@ -37,7 +37,59 @@ export function initIndexSchema(): void {
       block_number INTEGER NOT NULL,
       PRIMARY KEY (tx_hash, log_index)
     );
+    CREATE TABLE IF NOT EXISTS alerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind TEXT NOT NULL,
+      block_number INTEGER NOT NULL,
+      tx_hash TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
+}
+
+// --- alerts (F12) ---
+
+export function recordAlert(kind: string, blockNumber: number, txHash: string, payload: unknown): void {
+  db()
+    .prepare(
+      "INSERT INTO alerts (kind, block_number, tx_hash, payload, created_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .run(kind, blockNumber, txHash, JSON.stringify(payload ?? {}), new Date().toISOString());
+}
+
+export function listAlerts(limit = 50): Array<{
+  id: number;
+  kind: string;
+  blockNumber: number;
+  txHash: string;
+  payload: unknown;
+  createdAt: string;
+}> {
+  const rows = db()
+    .prepare("SELECT * FROM alerts ORDER BY id DESC LIMIT ?")
+    .all(Math.min(Math.max(limit, 1), 500)) as Array<{
+    id: number;
+    kind: string;
+    block_number: number;
+    tx_hash: string;
+    payload: string;
+    created_at: string;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    blockNumber: r.block_number,
+    txHash: r.tx_hash,
+    payload: (() => {
+      try {
+        return JSON.parse(r.payload);
+      } catch {
+        return r.payload;
+      }
+    })(),
+    createdAt: r.created_at,
+  }));
 }
 
 // --- indexer cursor ---
