@@ -35,6 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   indexer lag; `GET /api/alerts` streams `ChallengeSubmitted`,
   `ChallengeResolved`, `CapabilitySlashed`, `BondWithdrawn` and
   `EthPoolWithdrawn`; `docs/OPERATIONS.md` is the operator runbook.
+- **Redeploy + hardening prep.** `docs/redeploy-v0.2.md` (locally rehearsed
+  redeploy runbook) and `docs/hardened-timelock.md` (multisig + non-zero delay).
+  New `test/TimelockDelay.test.ts` proves `schedule → wait → execute`, that a
+  non-proposer cannot schedule, and the 0-delay contrast (60 contract tests total).
+- `scripts/deploy-local.ts` is now at parity with the Sepolia script (Timelock
+  proposer/executor config, `TIMELOCK_DELAY`, `MULTISIG_ADDRESS`/`PROPOSERS`/
+  `EXECUTORS`, `deployedBlock`, `deployedAt`, `DEPLOYMENTS_PATH`); both deploy
+  scripts honor `DEPLOYMENTS_PATH` so a redeploy can be staged without clobbering
+  the live pilot file.
 
 ### Changed
 - Discovery now ranks on the two-sided score where the contract supports it and

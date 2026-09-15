@@ -305,6 +305,8 @@ See `TEST_RESULTS.md` for latest verified E2E pilot flows (cURL + UI + on-chain)
 See:
 - `scripts/deploy-base-sepolia.ts` (detailed comments on multisig + delay + mainnet)
 - `hardhat.config.ts` (base network)
+- [`docs/redeploy-v0.2.md`](docs/redeploy-v0.2.md) (redeploy runbook, locally rehearsed)
+- [`docs/hardened-timelock.md`](docs/hardened-timelock.md) (multisig + non-zero delay rehearsal)
 - `IMPROVEMENTS_PLAN.md` and `NEXT_STEPS.md` for full roadmap.
 
 See:

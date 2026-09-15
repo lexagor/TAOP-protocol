@@ -170,7 +170,10 @@ async function main() {
     deployedAt: new Date().toISOString(),
     deployedBlock: deployStartBlock,
   };
-  const outPath = path.resolve(__dirname, "..", "deployments.json");
+  // Output path can be staged/rehearsed without clobbering the live pilot file.
+  const outPath = process.env.DEPLOYMENTS_PATH
+    ? path.resolve(process.env.DEPLOYMENTS_PATH)
+    : path.resolve(__dirname, "..", "deployments.json");
   fs.writeFileSync(outPath, JSON.stringify(deployment, null, 2) + "\n");
 
   console.log("\n=== TAOP MVP deployed (network from hardhat) ===");

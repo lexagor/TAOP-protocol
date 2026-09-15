@@ -316,9 +316,12 @@ still v0.1.2 and consumers fall back to the self-attest score there. See
 - [x] Two-sided attestations (counterparty receipt: `attestReceipt`/`revokeReceipt`)
       + challenge window with optimistic resolution (`contestChallenge`/
       `finalizeChallenge`, owner fallback). `getTwoSidedScore` for ranking (F11).
-- [ ] Multisig (Safe on Base) + non-zero Timelock delay, rehearsed on Sepolia;
-      explicitly document the decision to **unfreeze the 0-delay policy** (frozen
-      by choice in `PRE_MAINNET_CHECKLIST.md`).
+- [x] Multisig/delay **tooling + rehearsal**: both deploy scripts accept
+      `MULTISIG_ADDRESS`/`PROPOSERS`/`EXECUTORS`/`TIMELOCK_DELAY`;
+      `test/TimelockDelay.test.ts` proves schedule → wait → execute, the
+      non-proposer guard, and the 0-delay contrast; `docs/hardened-timelock.md`.
+      ⏳ **Owner action:** create the Safe and run the Sepolia rehearsal with a
+      non-zero delay (this deliberately unfreezes the 0-delay policy).
 - [x] Off-chain indexer + paginated discovery (F10): `getCapabilitiesByTypePaged` /
       `countCapabilitiesByType` on the registry; a SQLite `eth_getLogs` poller
       (`packages/backend/src/indexer.ts`) serves `/api/discover` with
@@ -329,6 +332,8 @@ still v0.1.2 and consumers fall back to the self-attest score there. See
       redaction, enriched `/api/healthz` (RPC latency, block, indexer lag, write
       mode), a `/api/alerts` event stream, and `docs/OPERATIONS.md`.
 - [ ] Redeploy to Base Sepolia with the v0.2 contracts + update addresses/README.
+      Prep done and locally rehearsed — see `docs/redeploy-v0.2.md`.
+      ⏳ **Owner action:** run `npm run deploy:sepolia` with a funded `DEPLOYER_PK`.
 - [ ] Audit (Slither + manual + external if funded) → mainnet deploy → verification → monitoring.
 
 **Exit:** mainnet contracts with ≥1 external interaction, a public audit-or-review
