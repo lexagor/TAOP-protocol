@@ -16,7 +16,7 @@ import { startIndexer, queryIndexedDiscovery, isIndexerReady, indexedCount, inde
 import { listAlerts } from "./index_db.js";
 import { openApiSpec } from "./openapi.js";
 
-const app = express();
+export const app = express();
 app.use(express.json({ limit: "256kb" }));
 app.use(helmet({ contentSecurityPolicy: false }));
 
@@ -93,6 +93,11 @@ api.use(readLimiter);
 api.use(writeLimiter);
 api.use(requireApiKey);
 let state: BackendState;
+
+/** Test-only hook: inject a BackendState without starting the server/DB. */
+export function setBackendState(s: BackendState): void {
+  state = s;
+}
 
 function explorerBase(): string {
   return state.deployment.chainId === 84532
@@ -663,7 +668,10 @@ async function main() {
   process.on("SIGTERM", () => server.close(() => process.exit(0)));
 }
 
-main().catch((e) => {
-  logger.error({ err: e }, "fatal");
-  process.exit(1);
-});
+// Auto-start unless a test harness sets TAOP_NO_AUTOSTART (see test/).
+if (process.env.TAOP_NO_AUTOSTART !== "true") {
+  main().catch((e) => {
+    logger.error({ err: e }, "fatal");
+    process.exit(1);
+  });
+}

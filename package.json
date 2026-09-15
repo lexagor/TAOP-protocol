@@ -21,6 +21,7 @@
     "mcp:dev": "npm run dev -w @taopp/mcp-server",
     "mcp:publish": "npm publish -w @taopp/mcp-server --access public",
     "backend:dev": "tsx watch packages/backend/src/server.ts",
+    "backend:test": "vitest run",
     "backend:build": "esbuild packages/backend/src/server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=packages/backend/dist/server.cjs",
     "demo:dev": "vite --config apps/demo/vite.config.ts",
     "demo:build": "vite build --config apps/demo/vite.config.ts",
@@ -60,6 +61,7 @@
     "@types/node": "^22.14.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/supertest": "^7.2.1",
     "@vitejs/plugin-react": "^5.0.4",
     "chai": "^4.5.0",
     "esbuild": "^0.25.0",
@@ -68,11 +70,13 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "solidity-coverage": "^0.8.17",
+    "supertest": "^7.2.2",
     "tailwindcss": "^4.1.14",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typechain": "^8.3.2",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "vitest": "^5.0.1"
   }
 }

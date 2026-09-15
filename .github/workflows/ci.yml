@@ -43,6 +43,9 @@ jobs:
       - name: Run contract tests (with gas report)
         run: REPORT_GAS=true npm run contracts:test
 
+      - name: Backend API tests (vitest + supertest)
+        run: npm run backend:test
+
       - name: Build MCP server
         run: npm run mcp:build
 
@@ -115,7 +118,7 @@ jobs:
         run: npm run contracts:coverage
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: solidity-coverage
           path: coverage/
