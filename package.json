@@ -77,7 +77,7 @@
     "chai": "^4.5.0",
     "esbuild": "^0.25.0",
     "eslint": "^10.10.0",
-    "hardhat": "^2.28.6",
+    "hardhat": "^3.16.0",
     "hardhat-gas-reporter": "^2.3.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
