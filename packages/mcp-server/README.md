@@ -32,11 +32,12 @@ npm run dev -w @taopp/mcp-server
 Create a `.env` (or set environment variables):
 
 ```env
-RPC_URL=https://base-sepolia.infura.io/v3/YOUR_KEY
+# Default is the public https://sepolia.base.org (no key needed)
+RPC_URL=https://sepolia.base.org
 # Or use deployments.json (recommended)
 DEPLOYMENTS_PATH=../../deployments.json
 
-# For write operations (attest, challenge, register, resolve)
+# For write operations (attest, receipt, challenge, contest, finalize, register, resolve)
 PRIVATE_KEY=0x...
 # or DEPLOYER_PK or AGENT_A_PK
 ```
@@ -47,10 +48,13 @@ The server will automatically load addresses from `deployments.json` if present.
 
 - `get_deployment_info` - Contract addresses
 - `get_agent_score` - Reputation of an agent
-- `discover_capabilities` - Find high-scoring agents by capability type
+- `discover_capabilities` - Find high-scoring agents by capability type (results carry `scoreType`)
 - `get_capability`
-- `get_completion`
+- `get_completion` - Includes the v0.2 `counterparty` / `receiptTimestamp`
 - `attest_completion` - Self-attest work (requires signer)
+- `attest_receipt` - Countersign a completion as the requester — two-sided trust (v0.2, requires signer)
+- `contest_challenge` - Agent rebuts a challenge within the window (v0.2, requires the agent's signer)
+- `finalize_challenge` - Finalize an uncontested challenge after the window (v0.2, permissionless)
 - `challenge_completion` - Challenge fraud (requires signer + bond)
 - `register_capability` - Register a LoRA / capability (requires signer + bond)
 - `resolve_challenge` - Resolve disputes (owner only)

@@ -1,12 +1,10 @@
 # @taopp/sdk
 
-TypeScript SDK for interacting with the TAOP (Agent Credit Bureau + LoRA Guilds) contracts.
+TypeScript SDK for the TAOP contracts — the Credit Bureau
+(`ReputationOracleNetwork`) and the capability registry (`CapabilityRegistry`).
 
-> **⚠️ Pre-Mainnet / Early Access Notice**
->
-> This SDK targets the **current testnet deployment** on Base Sepolia.
-> The contracts and API are still evolving. Breaking changes may occur before mainnet.
-> Use at your own risk for development and experimentation only.
+> **⚠️ Pre-mainnet / early access.** Targets the Base Sepolia pilot. Contracts and
+> API are still evolving; breaking changes may occur before mainnet.
 
 ## Installation
 
@@ -14,74 +12,87 @@ TypeScript SDK for interacting with the TAOP (Agent Credit Bureau + LoRA Guilds)
 npm install @taopp/sdk
 ```
 
-## Usage
-
-### Read-only example
+## Read-only
 
 ```ts
 import { ethers } from "ethers";
 import {
   ReputationOracleNetworkClient,
   CapabilityRegistryClient,
+  discover,
 } from "@taopp/sdk";
 
-// Use a public or private RPC for Base Sepolia
-const provider = new ethers.JsonRpcProvider("https://base-sepolia.infura.io/v3/YOUR_KEY");
+const provider = new ethers.JsonRpcProvider("https://sepolia.base.org");
 
 const ron = new ReputationOracleNetworkClient(
-  "0x716EB78D4E7B297b53d9962e3952228691e3CEaA",  // live Base Sepolia
-  provider
+  "0x5C0A790787DDA75bc88E5CBa2531B45f4D47c356", // live Base Sepolia
+  provider,
 );
-
-// Get reputation score for an agent
-const score = await ron.getSelfAttestScore("0xAgentAddress...");
-console.log(score);
-// → { completions: 5n, disputes: 1n, score: 4n }
-
 const registry = new CapabilityRegistryClient(
-  "0x6132175a065295A51FC6d0eA8f1a7456F5c82019",  // live Base Sepolia
-  provider
+  "0x2E72Ada571df608AC1C811174A1921CAaDE46362", // live Base Sepolia
+  provider,
 );
 
-const cap = await registry.getCapability(1n);
-console.log(cap);
+// Legacy self-attest score: { completions, disputes, score }
+console.log(await ron.getSelfAttestScore("0xAgent..."));
 
-// Discover best LoRA agents (uses new discover helper, no manual scan)
-import { discover } from "@taopp/sdk";
+// v0.2 two-sided score: { confirmed, disputes, score, lastActivity, decayBps }
+console.log(await ron.getTwoSidedScore("0xAgent..."));
+
+// Prefer this for ranking — it picks the best score the deployment supports
+// (two-sided on v0.2, self-attest on the current pilot).
+console.log(await ron.getRankingScore("0xAgent..."));
+
+// Discovery (indexed; resilient to stale ids). `scoreType` says which signal won.
 const best = await discover(registry, ron, "LoRA", 1);
 console.log(best[0]);
-// → { agentAddress: "0xD921…", capabilityId: 1n, score: 3n, completions: 3n, ... }
+
+// Paginated capability views (v0.2): metadata-carried of live ids
+console.log(await registry.countCapabilitiesByType("LoRA"));
+console.log(await registry.getCapabilitiesByTypePaged("LoRA", 0, 10));
 ```
 
-### Write operations (requires a signer)
+## Write operations (signer required)
 
 ```ts
-const signer = new ethers.Wallet("0xYOUR_PRIVATE_KEY", provider);
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
+const ronWrite = new ReputationOracleNetworkClient(RON, signer);
 
-const ronWrite = new ReputationOracleNetworkClient(
-  "0x716EB78D4E7B297b53d9962e3952228691e3CEaA",  // live Base Sepolia
-  signer
-);
-
-const { completionId, receipt } = await ronWrite.attestCompletion(
-  "summarization",
-  "ipfs://QmYourResultCID..."
-);
-
-console.log("Attested completion:", completionId.toString());
+const { completionId } = await ronWrite.attestCompletion("summarization", "ipfs://Qm...");
+await ronWrite.attestReceipt(completionId, "ipfs://QmRequesterReceipt"); // two-sided (v0.2)
+await ronWrite.revokeReceipt(completionId);                             // withdraw endorsement
+await ronWrite.challengeCompletion(completionId, "ipfs://QmEvidence", await ronWrite.challengeBond());
+await ronWrite.contestChallenge(completionId, "ipfs://QmRebuttal");     // agent, within window
+await ronWrite.finalizeChallenge(completionId);                         // permissionless, after window
 ```
 
-> **Note:** Write operations on the live Sepolia deployment currently use a TimelockController for admin functions (resolve, withdraw). Most user actions like `attestCompletion`, `challengeCompletion`, and `registerCapability` can be called directly.
+### v0.2 semantics
 
-## Live Addresses (Base Sepolia)
+A completion counts toward the **two-sided** score only once an independent
+requester countersigns it (`attestReceipt`). A challenge opens a
+`CHALLENGE_WINDOW`; the agent may `contestChallenge` with a rebuttal, otherwise
+anyone can `finalizeChallenge` after the window and it is upheld optimistically.
+An upheld dispute invalidates the receipt.
 
-See the main project `README.md` or `deployments.json` for the latest addresses.
+> On the current v0.1.2 pilot these v0.2 calls revert; `getRankingScore` and
+> `discover` fall back to the self-attest score automatically. They activate once
+> the v0.2 contracts are deployed.
 
-## Building from source
+Admin functions (`resolveChallenge`, `withdrawEthPool`, `setCertifier`) are
+`onlyOwner` via a `TimelockController`.
+
+## Live addresses (Base Sepolia)
+
+See the repo [`README.md`](../../README.md) / `deployments.json.example` for the
+latest. SDK-relevant contracts: `ron`, `registry`, `timelock`.
+
+## Build from source
 
 ```bash
 npm run build -w @taopp/sdk
 ```
+
+Generated API reference: `npm run docs:api` (repo root) → `docs/api/`.
 
 ## License
 

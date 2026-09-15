@@ -15,7 +15,9 @@ Index of the project's docs. Start with the root [`README.md`](../README.md).
 
 ## Security
 - [`../SECURITY.md`](../SECURITY.md) — disclosure policy, secrets policy, incident history.
+- [`THREAT_MODEL.md`](THREAT_MODEL.md) — assets, actors, trust boundaries, threat table.
 - [`SECURITY-REVIEW.md`](SECURITY-REVIEW.md) — Slither + Aderyn results and manual review of privileged paths.
+- [`anti-sybil-proposal.md`](anti-sybil-proposal.md) — v0.3 sybil-resistance options (proposal).
 - [`EMERGENCY.md`](EMERGENCY.md) — key management + emergency playbooks (no pause).
 - [`../PHASE0_OWNER_ACTIONS.md`](../PHASE0_OWNER_ACTIONS.md) — Phase 0 incident runbook (closed).
 

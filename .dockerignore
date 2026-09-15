@@ -1,0 +1,25 @@
+# Keep the build context small and avoid clobbering the image with local state.
+.git
+.github
+**/node_modules
+node_modules
+**/dist
+**/out
+artifacts
+cache
+cache_forge
+coverage
+coverage.json
+typechain-types
+lib
+docs/api
+report.md
+mutation_campaign
+.env
+.env.*
+*.log
+*.tgz
+*.db
+*.db-shm
+*.db-wal
+.DS_Store

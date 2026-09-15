@@ -1,0 +1,61 @@
+name: Nightly
+
+# Catches drift between pushes: live-bytecode compatibility and new advisories.
+on:
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build SDK
+        run: npm run sdk:build
+
+      - name: Live read-only checks (Base Sepolia)
+        run: npm run test:live
+
+  deps:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: npm audit (report only)
+        run: npm audit --audit-level=high || true
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: pip-audit (report only)
+        run: |
+          python -m pip install -q --upgrade pip
+          python -m pip install -q -e packages/python-sdk pip-audit
+          pip-audit || true
