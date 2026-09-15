@@ -18,7 +18,7 @@ import {
 
 dotenv.config();
 
-const DEFAULT_RPC = process.env.RPC_URL || "https://base-sepolia.infura.io/v3/";
+const DEFAULT_RPC = process.env.RPC_URL || "https://sepolia.base.org";
 const DEFAULT_DEPLOYMENTS = process.env.DEPLOYMENTS_PATH || path.resolve(process.cwd(), "../../deployments.json");
 
 interface ToolArgs {
@@ -64,7 +64,7 @@ async function loadClients() {
 const server = new Server(
   {
     name: "taop-credit-bureau",
-    version: "0.0.1",
+    version: "0.1.1",
   },
   {
     capabilities: {
@@ -291,7 +291,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const results: any[] = [];
 
         for (const id of ids) {
-          const cap = await registryRead.getCapability(id);
+          // v0.1.2: one stale id must never break the whole discovery response.
+          let cap;
+          try {
+            cap = await registryRead.getCapability(id);
+          } catch {
+            continue;
+          }
 
           if (!cap.certified || cap.slashed) continue;
 

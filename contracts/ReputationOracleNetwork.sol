@@ -131,28 +131,63 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
         emit EthPoolWithdrawn(to, amount);
     }
 
-    /// @notice v1 score = completions - disputes for `agent`, with simple decay:
-    ///         net score halves for every 30 days of inactivity (based on last attest).
+    // --- Inactivity decay (v0.1.2 semantics) ---
+
+    /// @notice Scores are untouched for this long after the last attestation.
+    uint256 public constant DECAY_GRACE = 30 days;
+    /// @notice After the grace period the score decays linearly to zero over this window.
+    uint256 public constant DECAY_HORIZON = 150 days;
+
+    // --- v1 score (v0.1.2) ---
+
+    /// @notice Score = completions - disputes for `agent`, with inactivity decay:
+    ///         untouched for DECAY_GRACE, then linear to zero over DECAY_HORIZON.
+    ///         (v0.1.1 used integer halving per 30 days, which zeroed small scores
+    ///         far too quickly — e.g. 3 completions became 0 after ~60 days.)
     function getSelfAttestScore(address agent)
         external
         view
         returns (uint64 completionCount_, uint64 disputeCount_, uint64 score)
     {
+        (completionCount_, disputeCount_, score, , ) = getScoreDetails(agent);
+    }
+
+    /// @notice Full score view including decay inputs (v0.1.2), for UIs and indexers.
+    /// @return completionCount_ total self-attested completions.
+    /// @return disputeCount_ total upheld disputes.
+    /// @return score decay-adjusted net score.
+    /// @return lastActivity_ unix seconds of the agent's last attestation.
+    /// @return decayBps remaining score weight in basis points (10000 = undecayed).
+    function getScoreDetails(address agent)
+        public
+        view
+        returns (
+            uint64 completionCount_,
+            uint64 disputeCount_,
+            uint64 score,
+            uint64 lastActivity_,
+            uint16 decayBps
+        )
+    {
         completionCount_ = completionCount[agent];
         disputeCount_ = disputeCount[agent];
-        uint64 net = completionCount_ > disputeCount_ ? completionCount_ - disputeCount_ : 0;
+        lastActivity_ = lastActivity[agent];
 
-        uint64 last = lastActivity[agent];
-        if (last > 0 && net > 0) {
-            uint256 daysSince = (block.timestamp - last) / 1 days;
-            if (daysSince > 30) {
-                uint256 halvings = daysSince / 30;
-                // cap halvings to avoid underflow
-                if (halvings > 63) halvings = 63;
-                net = uint64(net >> halvings);
+        decayBps = 10000;
+        uint256 net = completionCount_ > disputeCount_ ? uint256(completionCount_ - disputeCount_) : 0;
+        if (lastActivity_ > 0 && net > 0) {
+            uint256 elapsed = block.timestamp - lastActivity_;
+            if (elapsed > DECAY_GRACE) {
+                uint256 decayed = elapsed - DECAY_GRACE;
+                if (decayed >= DECAY_HORIZON) {
+                    decayBps = 0;
+                } else {
+                    decayBps = uint16(((DECAY_HORIZON - decayed) * 10000) / DECAY_HORIZON);
+                }
             }
+            net = (net * decayBps) / 10000;
         }
-        score = net;
+        score = uint64(net);
     }
 
     function getCompletion(uint256 completionId) external view returns (Completion memory) {

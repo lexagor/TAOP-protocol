@@ -301,12 +301,25 @@ api.get("/completions/:id", async (req, res) => {
 // --- Agent scores (MVP: self-attest score) ---
 
 api.get("/agents/:address/score", async (req, res) => {
-  const s = await state.ron.getSelfAttestScore(req.params.address);
-  res.json({
-    completions: s.completions.toString(),
-    disputes: s.disputes.toString(),
-    score: s.score.toString(),
-  });
+  try {
+    // v0.1.2 contracts expose decay inputs; older deployments fall back to the
+    // plain score view.
+    const d = await state.ron.getScoreDetails(req.params.address);
+    res.json({
+      completions: d.completions.toString(),
+      disputes: d.disputes.toString(),
+      score: d.score.toString(),
+      lastActivity: d.lastActivity.toString(),
+      decayBps: d.decayBps,
+    });
+  } catch {
+    const s = await state.ron.getSelfAttestScore(req.params.address);
+    res.json({
+      completions: s.completions.toString(),
+      disputes: s.disputes.toString(),
+      score: s.score.toString(),
+    });
+  }
 });
 
 // --- Basic agent identity (Step 7) ---
@@ -358,7 +371,14 @@ api.get("/discover", async (req, res) => {
   const ids = await state.registryOracle.getCapabilitiesByType(typeLabel);
   const out: unknown[] = [];
   for (const id of ids) {
-    const cap = await state.registryOracle.getCapability(id);
+    // v0.1.2: one stale id (pre-fix index pollution, or burned elsewhere) must
+    // never break the whole discovery response.
+    let cap;
+    try {
+      cap = await state.registryOracle.getCapability(id);
+    } catch {
+      continue;
+    }
     if (!cap.certified || cap.slashed) continue;
     const score = await state.ron.getSelfAttestScore(cap.creator);
     const scoreNum = Number(score.score);

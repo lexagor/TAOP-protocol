@@ -597,9 +597,11 @@ function PanelB({
               </span>
             </div>
             <div className="mono mt-1 text-[10px] text-[var(--color-text-secondary)]">
-              Raw (no decay): {beforeCompletions - beforeDisputes} → {demo.after.completions - demo.after.disputes} (decays with inactivity via lastActivity on RON)
+              Raw (no decay): {beforeCompletions - beforeDisputes} → {Number(demo.after.completions) - Number(demo.after.disputes)}
             </div>
-            <div className="mt-1 text-[10px] text-[var(--color-text-secondary)]">Note: displayed scores from getSelfAttestScore already apply decay for &gt;30d inactivity.</div>
+            <div className="mt-1 text-[10px] text-[var(--color-text-secondary)]">
+              Note: v0.1.2 decay is linear — scores are untouched for 30 days of inactivity, then decay to zero over 150 days (getScoreDetails on RON).
+            </div>
           </div>
         </div>
       )}

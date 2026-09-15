@@ -104,6 +104,22 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
         return true;
     }
 
+    /// @notice Remove `capabilityId` from its type index (swap-and-pop) so
+    ///         discovery never yields burned capabilities (v0.1.2 fix: previously
+    ///         a withdrawn bond left a stale id that made discovery revert for
+    ///         every consumer).
+    function _removeFromTypeIndex(bytes32 capabilityType, uint256 capabilityId) private {
+        uint256[] storage list = capabilitiesByType[capabilityType];
+        uint256 len = list.length;
+        for (uint256 i = 0; i < len; i++) {
+            if (list[i] == capabilityId) {
+                list[i] = list[len - 1];
+                list.pop();
+                return;
+            }
+        }
+    }
+
     /// @notice Creator reclaims their un-slashed ETH bond. Burns the NFT and
     ///         returns the remaining bond to the caller.
     function withdrawBond(uint256 capabilityId) external nonReentrant {
@@ -113,6 +129,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
         uint256 amount = c.bond;
         if (amount == 0) revert BondStillSlashed();
         c.bond = 0;
+        _removeFromTypeIndex(c.capabilityType, capabilityId);
         _burn(capabilityId);
         (bool ok, ) = payable(msg.sender).call{value: amount}("");
         require(ok, "eth withdraw failed");

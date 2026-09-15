@@ -81,20 +81,30 @@ def test_capability_exists(registry):
 
 
 def test_get_capability(registry):
-    """getCapability returns a valid Capability struct."""
+    """getCapability returns a valid Capability struct for a live id."""
     cap = registry.get_capability(1)
     assert cap.creator.startswith("0x")
-    assert cap.bond > 0
     assert cap.bond > 0
     assert cap.certified is True
 
 
+def test_discover_uses_indexed_lookup(registry, ron):
+    """v0.1.2: indexed lookup returns the same live ids as a full scan."""
+    indexed = registry.get_capabilities_by_type(LORA_CAPABILITY_TYPE)
+    total = registry.total_supply()
+    scanned = [registry.token_by_index(i) for i in range(total)]
+    # Indexed ids must be a subset of minted ids (no stale/burned entries).
+    assert set(indexed).issubset(set(scanned))
+
+
 def test_self_attest_score(ron, deployment):
-    """getSelfAttestScore returns a valid score for Agent A."""
+    """getSelfAttestScore is decay-adjusted: 0 <= score <= max(0, completions - disputes)."""
     score = ron.get_self_attest_score(deployment["agentA"])
-    assert score.completions >= 0
-    assert score.disputes >= 0
-    assert score.score == max(0, score.completions - score.disputes)
+    net = max(0, score.completions - score.disputes)
+    assert 0 <= score.score <= net
+    # Decay must be monotonic: it can only reduce the raw net score.
+    if score.completions > 0:
+        assert score.score <= score.completions
 
 
 def test_discover(registry, ron):

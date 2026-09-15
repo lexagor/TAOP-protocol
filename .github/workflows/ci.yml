@@ -22,7 +22,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: TypeScript typecheck
+      - name: Guard against tracked secrets / generated files
+        run: |
+          BAD=$(git ls-files | grep -E '(^deployments\.json$|^taop\.db|typechain-types/|egg-info|__pycache__|\.env$)' || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::Files that must stay gitignored are tracked:"
+            echo "$BAD"
+            exit 1
+          fi
+
+      - name: TypeScript typecheck (sdk, demo, backend, mcp — real, fails on error)
         run: npm run typecheck
 
       - name: Build contracts
@@ -40,12 +49,16 @@ jobs:
       - name: Build demo
         run: npm run demo:build
 
-      - name: Run backend typecheck
-        run: cd packages/backend && npx tsc --noEmit || true
+      - name: Build backend
+        run: npm run backend:build
 
-      - name: Smoke test backend build (no RPC needed)
+      - name: Python SDK tests (only when a local deployments.json exists)
         run: |
-          npm run backend:build || echo "backend build step skipped or optional"
+          if [ -f deployments.json ]; then
+            cd packages/python-sdk && . .venv/bin/activate && python -m pytest tests/ -q
+          else
+            echo "skipped: no deployments.json in CI (addresses-only example is committed instead)"
+          fi
 
       - name: Lint (if eslint configured)
         run: npm run lint || echo "no lint script or passes"

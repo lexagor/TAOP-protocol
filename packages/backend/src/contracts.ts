@@ -271,7 +271,8 @@ export async function ensureCapability(state: BackendState): Promise<void> {
     try {
       cap = await registryOracle.getCapability(id);
     } catch (e) {
-      console.warn(`[ensureCapability] getCapability(${id}) failed on current registry, skipping:`, (e as Error).shortMessage || e);
+      const reason = (e as { shortMessage?: string }).shortMessage ?? (e as Error).message ?? String(e);
+      console.warn(`[ensureCapability] getCapability(${id}) failed on current registry, skipping:`, reason);
       continue;
     }
     if (
@@ -310,6 +311,22 @@ export async function ensureCapability(state: BackendState): Promise<void> {
     metadataCID,
     bond,
   );
+  // L2 read-after-write lag: public RPC replicas may serve the registration a
+  // few seconds late, and certifying too early reverts NoSuchCapability at the
+  // estimateGas stage. Wait until the capability is visible first.
+  let visible = false;
+  for (let i = 0; i < 10; i++) {
+    try {
+      await registryOracle.getCapability(capabilityId);
+      visible = true;
+      break;
+    } catch {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  if (!visible) {
+    throw new Error(`Capability ${capabilityId} not visible after register (L2 lag exceeded).`);
+  }
   await registryOracle.certifyCapability(capabilityId);
   state.capabilityId = capabilityId;
 

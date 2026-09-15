@@ -81,6 +81,9 @@ export async function runDemo(state: BackendState): Promise<DemoResult> {
       throw e;
     }
   }
+  if (!attestResult) {
+    throw new Error("Attestation failed after 3 attempts (persistent nonce errors).");
+  }
   const { completionId, receipt } = attestResult;
 
   // Read-after-write can lag on L2; retry until the count increments.

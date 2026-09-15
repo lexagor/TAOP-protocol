@@ -29,9 +29,11 @@ def _keccak(s: str) -> bytes:
 
 def _load_deployment(path: Union[str, Path]) -> Deployment:
     data = json.loads(Path(path).read_text())
+    # `token` / `validatorStake` only exist in local-deploy output; the live
+    # deployments.json is addresses-only (v0.1.2 removed key material from it).
     return Deployment(
         chain_id=data["chainId"],
-        token=data["token"],
+        token=data.get("token", "0x0000000000000000000000000000000000000000"),
         ron=data["ron"],
         registry=data["registry"],
         validator=data["validator"],
@@ -41,6 +43,24 @@ def _load_deployment(path: Union[str, Path]) -> Deployment:
         network=data.get("network", ""),
         deployed_at=data.get("deployedAt", ""),
     )
+
+
+def _event_id_from_receipt(contract, receipt, event_name: str, arg_name: str) -> Optional[int]:
+    """v0.1.2: derive ids from the emitted event, never from supply counters
+    (totalSupply()/nextCompletionId() diverge once capabilities are burned)."""
+    if receipt is None:
+        return None
+    try:
+        event = getattr(contract.events, event_name)
+    except Exception:
+        return None
+    for log in receipt.get("logs", []) or []:
+        try:
+            parsed = event().process_log(log)
+            return int(parsed["args"][arg_name])
+        except Exception:
+            continue
+    return None
 
 
 class ReputationOracleNetworkClient:
@@ -56,8 +76,11 @@ class ReputationOracleNetworkClient:
         return self.contract.address
 
     def get_agent_score(self, agent: str) -> AgentScore:
-        r = self.contract.functions.getAgentScore(agent).call()
-        return AgentScore(total_score=r[0], count=r[1], last_updated=r[2])
+        """Removed in v0.1.2: `getAgentScore` was dormant v2 ABI that reverts
+        against the deployed v1 contracts. Use `get_self_attest_score`."""
+        raise NotImplementedError(
+            "get_agent_score was removed in v0.1.2 (dormant v2 ABI). Use get_self_attest_score()."
+        )
 
     def get_self_attest_score(self, agent: str) -> SelfAttestScore:
         r = self.contract.functions.getSelfAttestScore(agent).call()
@@ -115,8 +138,10 @@ class ReputationOracleNetworkClient:
             "chainId": self.w3.eth.chain_id,
         })
         receipt = self._send_tx(tx)
-        # Read nextCompletionId after confirmation
-        completion_id = self.contract.functions.nextCompletionId().call()
+        # v0.1.2: read the id from the emitted event (concurrency-safe).
+        completion_id = _event_id_from_receipt(self.contract, receipt, "SelfAttested", "completionId")
+        if completion_id is None:
+            completion_id = self.contract.functions.nextCompletionId().call()
         return {"completionId": completion_id, "receipt": receipt}
 
     def challenge_completion(self, completion_id: int, evidence_cid: str, bond_wei: int) -> dict:
@@ -169,6 +194,10 @@ class CapabilityRegistryClient:
             certified=r[4], slashed=r[5],
         )
 
+    def get_capabilities_by_type(self, capability_type: str) -> list[int]:
+        """v0.1.2: indexed lookup (O(1) per type) instead of a full scan."""
+        return list(self.contract.functions.getCapabilitiesByType(_keccak(capability_type)).call())
+
     def _send_tx(self, tx):
         if self.account is None:
             raise ValueError("No account set — cannot send transactions")
@@ -188,7 +217,12 @@ class CapabilityRegistryClient:
             "chainId": self.w3.eth.chain_id,
         })
         receipt = self._send_tx(tx)
-        capability_id = self.contract.functions.totalSupply().call()
+        # v0.1.2: derive the id from the emitted event. totalSupply() returns the
+        # wrong id once any capability has been withdrawn (burn decrements supply,
+        # ids keep incrementing).
+        capability_id = _event_id_from_receipt(self.contract, receipt, "CapabilityRegistered", "capabilityId")
+        if capability_id is None:
+            capability_id = self.contract.functions.totalSupply().call()
         return {"capabilityId": capability_id, "receipt": receipt}
 
     def certify_capability(self, capability_id: int) -> dict:
@@ -226,15 +260,22 @@ def discover(
     capability_type: str = LORA_CAPABILITY_TYPE,
     min_score: int = 0,
 ) -> list[dict]:
-    """Discover agents by capability proof + self-attest score. Mirrors /api/discover."""
-    type_hash = _keccak(capability_type)
-    total = registry.total_supply()
+    """Discover agents by capability proof + self-attest score. Mirrors /api/discover.
+
+    v0.1.2: uses the indexed getCapabilitiesByType lookup and skips stale ids
+    instead of failing the whole call when one id no longer resolves."""
+    try:
+        ids = registry.get_capabilities_by_type(capability_type)
+    except Exception:
+        total = registry.total_supply()
+        ids = [registry.token_by_index(i) for i in range(total)]
+
     results = []
-    for i in range(total):
-        cap_id = registry.token_by_index(i)
-        cap = registry.get_capability(cap_id)
-        if cap.capability_type != type_hash:
-            continue
+    for cap_id in ids:
+        try:
+            cap = registry.get_capability(cap_id)
+        except Exception:
+            continue  # stale/unreadable id — skip, never fail the whole discovery
         if not cap.certified or cap.slashed:
             continue
         score = ron.get_self_attest_score(cap.creator)

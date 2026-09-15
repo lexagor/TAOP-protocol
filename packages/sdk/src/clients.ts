@@ -1,6 +1,29 @@
 import { ethers, type Contract, type ContractRunner, type ContractTransactionReceipt } from "ethers";
 import { RON_ABI, CAPABILITY_REGISTRY_ABI } from "./abis.js";
-import type { Capability, Completion, SelfAttestScore } from "./types.js";
+import type { Capability, Completion, ScoreDetails, SelfAttestScore } from "./types.js";
+
+/** Extract an event argument from a receipt (v0.1.2): ids must come from the
+ *  emitted event, never from supply counters (which diverge after burns). */
+function parseEventId(
+  receipt: ContractTransactionReceipt | null,
+  contract: Contract,
+  eventName: string,
+  argName: string,
+): bigint | null {
+  if (!receipt) return null;
+  for (const log of receipt.logs) {
+    try {
+      const parsed = contract.interface.parseLog(log);
+      if (parsed && parsed.name === eventName) {
+        const value = parsed.args.getValue(argName) ?? parsed.args[0];
+        return BigInt(value);
+      }
+    } catch {
+      // log emitted by another contract in the same tx — ignore
+    }
+  }
+  return null;
+}
 
 export class ReputationOracleNetworkClient {
   private readonly c: Contract;
@@ -20,11 +43,10 @@ export class ReputationOracleNetworkClient {
   async attestCompletion(taskType: string, resultCID: string): Promise<{ completionId: bigint; receipt: ContractTransactionReceipt | null }> {
     const tx = await this.c.attestCompletion(ethers.id(taskType), resultCID);
     const receipt = (await tx.wait()) ?? null;
-    let completionId = (await this.c.nextCompletionId()) as bigint;
-    for (let i = 0; i < 5 && completionId === 0n; i++) {
-      await new Promise((r) => setTimeout(r, 1000));
-      completionId = (await this.c.nextCompletionId()) as bigint;
-    }
+    // v0.1.2: read the id from the emitted event. Reading `nextCompletionId()`
+    // after the tx breaks under concurrency (two attestations in flight).
+    const completionId =
+      parseEventId(receipt, this.c, "SelfAttested", "completionId") ?? (await this.c.nextCompletionId() as bigint);
     return { completionId, receipt };
   }
   async challengeCompletion(completionId: number | bigint, evidenceCID: string, bond: bigint): Promise<ContractTransactionReceipt | null> {
@@ -36,6 +58,11 @@ export class ReputationOracleNetworkClient {
   async getSelfAttestScore(agent: string): Promise<SelfAttestScore> {
     const r = (await this.c.getSelfAttestScore(agent)) as [bigint, bigint, bigint];
     return { completions: r[0], disputes: r[1], score: r[2] };
+  }
+  /** v0.1.2: score with decay inputs (lastActivity, decayBps). */
+  async getScoreDetails(agent: string): Promise<ScoreDetails> {
+    const r = (await this.c.getScoreDetails(agent)) as [bigint, bigint, bigint, bigint, number];
+    return { completions: r[0], disputes: r[1], score: r[2], lastActivity: r[3], decayBps: Number(r[4]) };
   }
   async getCompletion(id: number | bigint): Promise<Completion> {
     const r = (await this.c.getCompletion(id)) as [string, string, string, bigint, boolean, boolean];
@@ -94,7 +121,12 @@ export class CapabilityRegistryClient {
   async registerCapabilityEth(capabilityType: string, metadataCID: string, bondWei: bigint): Promise<{ capabilityId: bigint; receipt: ContractTransactionReceipt | null }> {
     const tx = await this.c.registerCapabilityEth(ethers.id(capabilityType), metadataCID, { value: bondWei });
     const receipt = (await tx.wait()) ?? null;
-    const capabilityId = (await this.c.totalSupply()) as bigint;
+    // v0.1.2: derive the id from the emitted event. `totalSupply()` returns the
+    // wrong id once any capability has been withdrawn (burn decrements supply
+    // but ids keep incrementing) — which made the backend certify the wrong NFT.
+    const capabilityId =
+      parseEventId(receipt, this.c, "CapabilityRegistered", "capabilityId") ??
+      (await this.c.totalSupply() as bigint);
     return { capabilityId, receipt };
   }
   async certifyCapability(id: number | bigint): Promise<ContractTransactionReceipt | null> {
@@ -143,7 +175,14 @@ export async function discover(
   }
   const out: DiscoveryItem[] = [];
   for (const capId of ids) {
-    const cap = await registry.getCapability(capId);
+    // v0.1.2: a single stale/unreadable id (e.g. pre-fix index pollution, or an
+    // id burned on another deployment) must never break the whole discovery call.
+    let cap;
+    try {
+      cap = await registry.getCapability(capId);
+    } catch {
+      continue;
+    }
     if (cap.capabilityType.toLowerCase() !== ethers.id(capabilityType).toLowerCase()) continue;
     if (!cap.certified || cap.slashed) continue;
     const s = await ron.getSelfAttestScore(cap.creator);

@@ -1,4 +1,4 @@
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -54,6 +54,20 @@ async function main() {
   const deployerBal = await ethers.provider.getBalance(deployerAddr);
   console.log("Deployer balance:", ethers.formatEther(deployerBal), "ETH");
 
+  // Pre-flight funds check: 3 contract deploys + agent top-up + buffer.
+  const MIN_DEPLOYER = ethers.parseEther("0.08");
+  if (deployerBal < MIN_DEPLOYER) {
+    console.error(
+      `\n❌ Deployer ${deployerAddr} holds ${ethers.formatEther(deployerBal)} ETH but at least ` +
+        `${ethers.formatEther(MIN_DEPLOYER)} is required (3 deploys + Agent A top-up + gas buffer).`,
+    );
+    console.error("   Faucet options:");
+    console.error("   - Coinbase CDP: https://portal.cdp.coinbase.com/products/faucet (0.1 ETH/24h)");
+    console.error("   - Alchemy: https://www.alchemy.com/faucets/base-sepolia");
+    console.error("   - Chainlink: https://faucets.chain.link/base-sepolia");
+    process.exit(1);
+  }
+
   // --- Deploy RON (v1, ETH-only) ---
   const RON = await ethers.getContractFactory("ReputationOracleNetwork");
   const ron = await RON.deploy();
@@ -105,18 +119,36 @@ async function main() {
   await ron.transferOwnership(timelockAddr);
   await registry.transferOwnership(timelockAddr);
 
-  // --- Generate a fresh Agent A wallet, fund it from the deployer ---
-  const agentAWallet = ethers.Wallet.createRandom();
+  // --- Agent A: reuse the existing identity or mint a fresh one ---
+  // REUSE_AGENT_A=true + AGENT_A_PK keeps the same agent address across
+  // redeploys (per the 2026-09-15 decision to preserve the Agent A identity).
+  const existingPk = (process.env.AGENT_A_PK ?? "").trim();
+  const reuse = process.env.REUSE_AGENT_A === "true" && existingPk.length === 66;
+  let agentAWallet: ethers.Wallet | ethers.HDNodeWallet;
+  if (reuse) {
+    agentAWallet = new ethers.Wallet(existingPk, ethers.provider);
+    console.log("Reusing existing Agent A identity:", agentAWallet.address, "(REUSE_AGENT_A=true)");
+  } else {
+    agentAWallet = ethers.Wallet.createRandom().connect(ethers.provider);
+    console.log("Generated a fresh Agent A:", agentAWallet.address);
+  }
   const agentAAddr = agentAWallet.address;
   const agentAPk = agentAWallet.privateKey;
-  const fundAmount = ethers.parseEther("0.05"); // enough for capability bond (0.01) + attest gas + challenge bond (0.01) + buffer on testnet
-  console.log("Funding Agent A:", agentAAddr, "with", ethers.formatEther(fundAmount), "ETH");
-  const fundTx = await deployer.sendTransaction({
-    to: agentAAddr,
-    value: fundAmount,
-  });
-  await fundTx.wait();
-  console.log("Funded Agent A in tx:", fundTx.hash);
+
+  // Top up only the shortfall so repeated deploys don't accumulate idle funds.
+  const MIN_AGENT_BALANCE = ethers.parseEther("0.05"); // capability bond (0.01) + attest gas + challenge bond (0.01) + buffer
+  const agentBal = await ethers.provider.getBalance(agentAAddr);
+  if (agentBal < MIN_AGENT_BALANCE) {
+    const topUp = MIN_AGENT_BALANCE - agentBal;
+    console.log(
+      `Funding Agent A: +${ethers.formatEther(topUp)} ETH (has ${ethers.formatEther(agentBal)} ETH)`,
+    );
+    const fundTx = await deployer.sendTransaction({ to: agentAAddr, value: topUp });
+    await fundTx.wait();
+    console.log("Funded Agent A in tx:", fundTx.hash);
+  } else {
+    console.log("Agent A already funded:", ethers.formatEther(agentBal), "ETH — no top-up needed");
+  }
 
   // SECURITY: key material never goes into deployments.json (it is a publishable
   // artifact) and is never printed to logs/CI. It is written only to the
@@ -124,9 +156,10 @@ async function main() {
   const envPath = path.resolve(__dirname, "..", ".env");
   upsertEnvVar(envPath, "AGENT_A_PK", agentAPk);
 
+  const isMainnet = network.name === "base";
   const deployment = {
-    chainId: 84532,
-    network: "base-sepolia",
+    chainId: isMainnet ? 8453 : 84532,
+    network: isMainnet ? "base" : "base-sepolia",
     ron: ronAddr,
     registry: registryAddr,
     timelock: timelockAddr,

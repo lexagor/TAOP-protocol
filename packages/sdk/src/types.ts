@@ -22,6 +22,17 @@ export interface SelfAttestScore {
   score: bigint;
 }
 
+/** v0.1.2: full score view including decay inputs. */
+export interface ScoreDetails {
+  completions: bigint;
+  disputes: bigint;
+  score: bigint;
+  /** Unix seconds of the agent's last attestation. */
+  lastActivity: bigint;
+  /** Remaining score weight in basis points (10000 = undecayed, 0 = fully decayed). */
+  decayBps: number;
+}
+
 export interface Deployment {
   chainId: number;
   network?: string;
