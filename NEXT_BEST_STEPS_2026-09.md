@@ -75,8 +75,9 @@ grow scope.
 ## 3. P0 — Security (contain this before anything else)
 
 ### F1. Private key published in the public repo 🔴
-`git show HEAD:deployments.json` →
-`"agentAPk": "***REMOVED***"`.
+`git show HEAD:deployments.json` → the `agentAPk` field held a live Agent A private
+key (full value redacted here and scrubbed from history; see `SECURITY.md` §3 for
+the affected agent addresses).
 `.gitignore` ignores `deployments.json` *now*, but the file is tracked at HEAD and
 in history, and the MCP/backend startup path tells users to rely on it.
 

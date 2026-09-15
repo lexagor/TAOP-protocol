@@ -13,7 +13,17 @@
 #
 # Usage:
 #   scripts/purge-secrets-from-history.sh      # rewrite locally, with backups
-#   git push --force origin main               # publish the rewrite (see below)
+#   scripts/purge-secrets-from-history.sh --secrets-file /tmp/leaked-keys.txt
+#       also scrubs literal secret strings from blob *contents* (see below)
+#   git push --force --tags origin main        # publish (NOTE: --tags is required!)
+#
+# --secrets-file format (one per line, git-filter-repo "replace-text" syntax):
+#   literal:<secret>==>***REMOVED***
+# Keep that file OUTSIDE the repo (e.g. /tmp) — committing it would defeat the
+# purpose. Generate it from the pre-purge bundle, never from a tracked file.
+#
+# NOTE: rewriting `main` is not enough if remote tags still point at old commits
+# (a tag can keep the leaked blob reachable on GitHub), hence the `--tags` push.
 #
 # Backups: a full `--all` bundle is written OUTSIDE the repo before rewriting:
 #   ../taop-pre-purge-<timestamp>.bundle
@@ -22,6 +32,18 @@
 # History rewriting is irreversible for anyone who has cloned the old history.
 # Review `git log --oneline` after the rewrite and re-run the repo's test suite.
 set -euo pipefail
+
+SECRETS_FILE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --secrets-file) SECRETS_FILE="${2:-}"; shift 2 ;;
+    *) echo "ERROR: unknown argument '$1' (supported: --secrets-file <path>)" >&2; exit 2 ;;
+  esac
+done
+if [ -n "$SECRETS_FILE" ] && [ ! -f "$SECRETS_FILE" ]; then
+  echo "ERROR: --secrets-file '$SECRETS_FILE' not found" >&2
+  exit 2
+fi
 
 PATHS=(deployments.json taop.db taop.db-shm taop.db-wal)
 
@@ -59,6 +81,10 @@ echo "    stashed local copies in $STASH"
 
 ARGS=()
 for p in "${PATHS[@]}"; do ARGS+=(--path "$p"); done
+if [ -n "$SECRETS_FILE" ]; then
+  echo "==> Also scrubbing literal secrets from blob contents ($(wc -l < "$SECRETS_FILE" | tr -d ' ') expressions)"
+  ARGS+=(--replace-text "$SECRETS_FILE")
+fi
 
 echo "==> Rewriting history (removing: ${PATHS[*]})"
 git filter-repo --force --invert-paths "${ARGS[@]}"
@@ -68,6 +94,15 @@ if [ -n "$ORIGIN_URL" ] && ! git remote get-url origin >/dev/null 2>&1; then
   git remote add origin "$ORIGIN_URL"
   echo "==> Restored origin remote: $ORIGIN_URL"
 fi
+
+# Drop any pre-rewrite backup refs and expire reflogs *before* verifying, so the
+# verification actually reflects what a fresh clone would receive. Without this,
+# stale refs can keep the leaked blobs reachable and even pushable.
+git for-each-ref --format='%(refname)' refs/original 2>/dev/null | while read -r r; do
+  git update-ref -d "$r" && echo "==> Removed stale backup ref $r"
+done
+git reflog expire --expire=now --all >/dev/null 2>&1 || true
+git gc --prune=now >/dev/null 2>&1 || true
 
 echo "==> Verifying purge"
 FAIL=0
@@ -79,8 +114,13 @@ if [ -n "$(git log --all --oneline -- "${PATHS[@]}")" ]; then
 else
   echo "    ✓ ${PATHS[*]} removed from all commits"
 fi
-if [ -n "$(git rev-list --all --objects | grep -E '(^| )'"$(printf '%s|' "${PATHS[@]}" | sed 's/|$//')"'$' || true)" ]; then
-  echo "    ✗ objects for removed paths still reachable" >&2
+
+# 1b. No reachable object may carry those exact paths (anchored match — note that
+#     `deployments.json.example` is expected to exist and must not trip this).
+PATH_RE="(^| )($(printf '%s|' "${PATHS[@]}" | sed 's/|$//'))\$"
+if [ -n "$(git rev-list --all --objects | grep -E "$PATH_RE" || true)" ]; then
+  echo "    ✗ objects for removed paths still reachable:" >&2
+  git rev-list --all --objects | grep -E "$PATH_RE" | head -5 >&2
   FAIL=1
 else
   echo "    ✓ no reachable objects for those paths"
@@ -106,9 +146,6 @@ if [ -n "$PK_HITS" ]; then
 else
   echo "    ✓ no private-key-shaped values in history"
 fi
-
-git reflog expire --expire=now --all >/dev/null 2>&1 || true
-git gc --prune=now >/dev/null 2>&1 || true
 
 if [ "$FAIL" -ne 0 ]; then
   echo "!! Verification failed — restore from $BUNDLE before pushing anything." >&2
@@ -141,12 +178,17 @@ Next steps (manual, requires write access to the repo):
   git log --oneline
   npm run contracts:test
 
-  # 2. Publish the rewrite (destructive for anyone who cloned the old history):
-  git push --force-with-lease origin main
-  #    if the lease check complains after the rewrite:
-  git push --force origin main
+  # 2. Publish the rewrite. --tags matters: remote tags can keep the old
+  #    (leaking) commits reachable on GitHub even after main is rewritten.
+  git push --force --tags origin main
+  #    or, if you prefer a lease check first:
+  #    git push --force-with-lease origin main && git push --force --tags origin
 
-  # 3. Assume every key that was in that file is public forever:
+  # 3. Verify the remote is clean:
+  #    git ls-remote --tags origin            # no tag should point at an old sha
+  #    curl -sI https://raw.githubusercontent.com/<owner>/<repo>/<any-old-sha>/deployments.json
+
+  # 4. Assume every key that was in that file is public forever:
   #    - rotate PINATA_JWT / REPLICATE_API_TOKEN
   #    - use a fresh AGENT_A_PK (the next deploy does this automatically)
 
