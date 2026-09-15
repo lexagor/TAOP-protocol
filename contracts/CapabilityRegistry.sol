@@ -35,14 +35,15 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     mapping(bytes32 => uint256[]) public capabilitiesByType; // for efficient discovery by type
 
-    event CapabilityRegistered(uint256 capabilityId, address creator);
-    event CapabilityCertified(uint256 capabilityId, address certifier);
+    event CapabilityRegistered(uint256 capabilityId, address indexed creator);
+    event CapabilityCertified(uint256 capabilityId, address indexed certifier);
     event CapabilitySlashed(uint256 capabilityId, uint256 penalty);
-    event BondWithdrawn(uint256 capabilityId, address to, uint256 amount);
-    event EthPoolWithdrawn(address to, uint256 amount);
+    event BondWithdrawn(uint256 capabilityId, address indexed to, uint256 amount);
+    event EthPoolWithdrawn(address indexed to, uint256 amount);
 
     error NotCertifier();
     error ZeroBond();
+    error ZeroAddress();
     error PenaltyExceedsBond(uint256 requested, uint256 available);
     error NoSuchCapability();
     error NotCreator();
@@ -50,10 +51,12 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     error NothingToWithdraw();
 
     constructor(address _certifier) ERC721("TAOP Capability", "TAOP-CAP") Ownable(msg.sender) {
+        if (_certifier == address(0)) revert ZeroAddress();
         certifier = _certifier;
     }
 
     function setCertifier(address c) external onlyOwner {
+        if (c == address(0)) revert ZeroAddress();
         certifier = c;
     }
 
@@ -138,6 +141,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     /// @notice Owner withdraws slashed ETH bonds from the protocol pool.
     function withdrawEthPool(address payable to, uint256 amount) external onlyOwner nonReentrant {
+        if (to == address(0)) revert ZeroAddress();
         if (amount == 0 || amount > slashedEthPool) revert NothingToWithdraw();
         slashedEthPool -= amount;
         (bool ok, ) = to.call{value: amount}("");

@@ -35,20 +35,20 @@ import {
  */
 
 const REGISTRY_EVENTS = [
-  "event CapabilityRegistered(uint256 capabilityId, address creator)",
-  "event CapabilityCertified(uint256 capabilityId, address certifier)",
+  "event CapabilityRegistered(uint256 capabilityId, address indexed creator)",
+  "event CapabilityCertified(uint256 capabilityId, address indexed certifier)",
   "event CapabilitySlashed(uint256 capabilityId, uint256 penalty)",
-  "event BondWithdrawn(uint256 capabilityId, address to, uint256 amount)",
-  "event EthPoolWithdrawn(address to, uint256 amount)",
+  "event BondWithdrawn(uint256 capabilityId, address indexed to, uint256 amount)",
+  "event EthPoolWithdrawn(address indexed to, uint256 amount)",
 ];
 
 const RON_EVENTS = [
-  "event SelfAttested(uint256 completionId, address agent, bytes32 taskType)",
+  "event SelfAttested(uint256 completionId, address indexed agent, bytes32 taskType)",
   "event ReceiptAttested(uint256 completionId, address indexed agent, address indexed counterparty)",
   "event ReceiptRevoked(uint256 completionId, address indexed counterparty)",
-  "event ChallengeSubmitted(uint256 completionId, address challenger)",
+  "event ChallengeSubmitted(uint256 completionId, address indexed challenger)",
   "event ChallengeResolved(uint256 completionId, bool upheld)",
-  "event EthPoolWithdrawn(address to, uint256 amount)",
+  "event EthPoolWithdrawn(address indexed to, uint256 amount)",
   "event AgentRegistered(address indexed agent, string metadataCID)",
 ];
 

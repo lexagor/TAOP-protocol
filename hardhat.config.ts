@@ -1,5 +1,6 @@
 import "dotenv/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "hardhat-gas-reporter";
 
 /** @type import("hardhat/config").HardhatUserConfig */
 const config = {
@@ -9,6 +10,15 @@ const config = {
       optimizer: { enabled: true, runs: 200 },
       evmVersion: "cancun" as const,
     },
+  },
+  // Gas usage: `REPORT_GAS=true npm run contracts:test` (prints a table / writes
+  // GAS_REPORT_FILE). Off by default so normal runs stay quiet.
+  gasReporter: {
+    enabled: process.env.REPORT_GAS === "true",
+    currency: "USD",
+    noColors: true,
+    outputFile: process.env.GAS_REPORT_FILE,
+    excludeContracts: [],
   },
   tsconfig: "./tsconfig.hardhat.json",
   paths: {

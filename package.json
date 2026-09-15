@@ -10,6 +10,9 @@
   "scripts": {
     "contracts:build": "hardhat compile",
     "contracts:test": "hardhat test",
+    "contracts:test:gas": "REPORT_GAS=true hardhat test",
+    "contracts:coverage": "hardhat coverage",
+    "slither": "slither . --config-file slither.config.json --fail-medium",
     "deploy:local": "hardhat run scripts/deploy-local.ts --network localhost",
     "deploy:sepolia": "hardhat run scripts/deploy-base-sepolia.ts --network baseSepolia",
     "deploy:mainnet": "hardhat run scripts/deploy-base-sepolia.ts --network base",

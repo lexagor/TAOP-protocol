@@ -40,8 +40,8 @@ jobs:
       - name: TypeScript typecheck (sdk, demo, backend, mcp — real, fails on error)
         run: npm run typecheck
 
-      - name: Run contract tests
-        run: npm run contracts:test
+      - name: Run contract tests (with gas report)
+        run: REPORT_GAS=true npm run contracts:test
 
       - name: Build MCP server
         run: npm run mcp:build
@@ -65,3 +65,55 @@ jobs:
 
       - name: MCP smoke (dist parses as valid JS/ESM)
         run: node --check packages/mcp-server/dist/index.js
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build contracts
+        run: npm run contracts:build
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Slither
+        run: pip install slither-analyzer
+
+      - name: Slither (fail on high/medium in our contracts)
+        run: npm run slither
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Solidity coverage
+        run: npm run contracts:coverage
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: solidity-coverage
+          path: coverage/
+          if-no-files-found: ignore

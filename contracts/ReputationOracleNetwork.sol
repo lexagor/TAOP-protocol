@@ -71,13 +71,13 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     mapping(address => uint64) public lastActivity; // for score decay
     uint256 public slashedEthPool; // forfeited challenger bonds, owner-withdrawable
 
-    event SelfAttested(uint256 completionId, address agent, bytes32 taskType);
+    event SelfAttested(uint256 completionId, address indexed agent, bytes32 taskType);
     event ReceiptAttested(uint256 completionId, address indexed agent, address indexed counterparty);
     event ReceiptRevoked(uint256 completionId, address indexed counterparty);
-    event ChallengeSubmitted(uint256 completionId, address challenger);
+    event ChallengeSubmitted(uint256 completionId, address indexed challenger);
     event ChallengeContested(uint256 completionId, address indexed agent, string rebuttalCID);
     event ChallengeResolved(uint256 completionId, bool upheld);
-    event EthPoolWithdrawn(address to, uint256 amount);
+    event EthPoolWithdrawn(address indexed to, uint256 amount);
 
     error NoSuchCompletion();
     error AlreadyChallenged();
@@ -91,6 +91,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     error AlreadyReceipted();
     error NotCounterparty();
     error NothingToWithdraw();
+    error ZeroAddress();
 
     constructor() Ownable(msg.sender) {}
 
@@ -245,6 +246,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
 
     /// @notice Owner withdraws forfeited challenger bonds.
     function withdrawEthPool(address payable to, uint256 amount) external onlyOwner nonReentrant {
+        if (to == address(0)) revert ZeroAddress();
         if (amount == 0 || amount > slashedEthPool) revert NothingToWithdraw();
         slashedEthPool -= amount;
         (bool ok, ) = to.call{value: amount}("");

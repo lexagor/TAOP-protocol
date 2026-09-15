@@ -57,3 +57,5 @@ build/
 # Misc
 *.tgz
 coverage/
+coverage.json
+.gas-report.txt
