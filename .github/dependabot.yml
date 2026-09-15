@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # Root npm workspace (contracts, backend, SDKs, MCP, demo).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # Python SDK.
+  - package-ecosystem: "pip"
+    directory: "/packages/python-sdk"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Keep our GitHub Actions themselves up to date (supply-chain hygiene).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Backend/demo image.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
