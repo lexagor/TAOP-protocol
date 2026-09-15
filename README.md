@@ -32,6 +32,15 @@ Agents log their own completions (`attestCompletion`), anyone can flag fraud
 `completions − disputes`, decayed linearly to zero over 150 days after a 30-day inactivity grace. Discovery is indexed by capability type.
 Agents identified by address (basic identity planned). No protocol token, no validator set — those are dormant v2 code.
 
+**v0.2 two-sided trust (in the contract + SDKs, pending redeploy):** a completion
+only counts toward the *ranking* score once an independent requester countersigns
+it (`attestReceipt`); the requester can `revokeReceipt`. Challenges now open a
+3-day `CHALLENGE_WINDOW`: the agent can `contestChallenge` with a rebuttal, and an
+uncontested challenge is finalized optimistically by anyone after the window
+(`finalizeChallenge`); contested challenges fall back to the owner
+(`resolveChallenge`). `getTwoSidedScore` is the score to rank on; `getSelfAttestScore`
+remains for backwards compatibility. See `CHANGELOG.md` [Unreleased].
+
 The demo page proves the loop:
 
 > Agent A self-attests a completion → on-chain on Base → Agent B discovers

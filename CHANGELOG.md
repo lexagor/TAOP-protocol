@@ -5,6 +5,34 @@ All notable changes to TAOP will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — v0.2 two-sided trust (Phase 3)
+
+### Added
+- **Two-sided attestation (F11).** `attestReceipt(completionId, receiptCID)` lets an
+  independent requester countersign a completion; `revokeReceipt` withdraws the
+  endorsement. `confirmedCount` + `getTwoSidedScore` expose the receipt-confirmed
+  score, so an agent can no longer "grade its own homework" for ranking purposes.
+- **Optimistic challenge resolution (F11).** A challenge now opens a
+  `CHALLENGE_WINDOW` (3 days). The agent rebuts within it via `contestChallenge`;
+  an uncontested challenge can be finalized by anyone after the window
+  (`finalizeChallenge`) and is upheld optimistically. Contested challenges fall
+  back to the owner (`resolveChallenge`, via Timelock).
+- Two-sided flow wired through both SDKs, the MCP server, the backend API
+  (`POST /completions/:id/{receipt,revoke-receipt,contest,finalize}`) and the demo UI.
+- 20 new contract tests (32 → 52).
+
+### Changed
+- Discovery now ranks on the two-sided score where the contract supports it and
+  falls back to the self-attest score on older deployments (`scoreType` in payloads).
+- An upheld dispute invalidates the completion's receipt (and decrements the count).
+- Demo UI: "Requester confirms completion" action; real repository links.
+
+### Notes
+- The contract change requires a redeploy. The live Base Sepolia pilot is still
+  v0.1.2, so the SDKs/MCP/backend detect the old bytecode and fall back to
+  `getSelfAttestScore`. Package versions stay `@taopp/sdk@0.1.2` /
+  `@taopp/mcp-server@0.1.1` until the next redeploy + republish.
+
 ## [0.1.2] - 2026-09-15
 
 **Live on Base Sepolia:**

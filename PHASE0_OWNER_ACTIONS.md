@@ -5,6 +5,13 @@ Everything in **Part 1** is already done (verified). **Part 2** needs you, becau
 it involves credentials, funds, or publishing history. **Part 3** is the exact list
 of things to tell me.
 
+> **STATUS — Phase 0 closed 2026-09-15.** The Phase 0 changes are committed; the
+> history rewrite and force-push have been run and verified; the Pinata/Replicate
+> tokens were rotated by the maintainer; no sweep was performed (the compromised
+> testnet agent is retired). The only remaining item is outside our control:
+> GitHub still serves the pre-purge blob by SHA and needs a Support GC request
+> (`SECURITY.md` §3.7). The steps below are retained as a record.
+
 ---
 
 ## Part 1 — Done in this session (no action needed)
@@ -28,14 +35,17 @@ of things to tell me.
 
 Nothing in this set touches Solidity, so contract behaviour is unchanged.
 
-**These changes are staged but NOT committed** — review `git diff --cached --stat`
-and `git diff` first, then commit (Part 2.2 step 1). The history-purge script
-requires a clean worktree, so committing is a prerequisite for it.
+Everything in this set was committed as `aee46e9` (and follow-ups). It does not
+touch Solidity, so contract behaviour is unchanged. The history-purge script
+requires a clean worktree — that is satisfied, and the purge has since been run
+(Part 2.2).
 
 ---
 ## Part 2 — Your actions (exact steps)
 
 ### 2.1 Rotate the credentials that were in `.env` (`PINATA_JWT`, `REPLICATE_API_TOKEN`)
+
+> ✅ **Done 2026-09-15** (maintainer). Steps retained for reference.
 
 Never committed, but rotate them as hygiene. ~5 minutes each.
 
@@ -62,6 +72,12 @@ Never committed, but rotate them as hygiene. ~5 minutes each.
 > `.env` and tell me only "rotated".
 
 ### 2.2 Purge the leaked key from git history, then force-push
+
+> ✅ **Done 2026-09-15.** History was rewritten and force-pushed; local and remote
+> `main` are clean. Note the pre-purge backup bundles on disk still contain the
+> old key material — keep them out of Git and delete once you no longer need them.
+> Residual: GitHub still serves old commit `6a60a618` by SHA (see `SECURITY.md`
+> §3.7) — request a Support GC.
 
 The script is already tested. It rewrites history so `deployments.json` never
 existed, backs everything up to a bundle outside the repo, and keeps your local
@@ -95,6 +111,9 @@ git push --force-with-lease origin main  # add --force if the lease check compla
 - GitHub may cache old commits, so treat the key as burned regardless.
 
 ### 2.3 Decide about the compromised demo agent (~0.01 testnet ETH)
+
+> ✅ **Decided 2026-09-15: do nothing** (testnet-only; key retired at the v0.1.2
+> redeploy). No sweep performed.
 
 `0xD921D63e5d97AEe05Ffc5cccB0162589422DF2bE` holds ~0.00999 ETH and its private key
 is public.
