@@ -67,6 +67,18 @@ The deployer remains `validator`/certifier unless you reconfigure it, but admin
 actions (`resolveChallenge`, `withdrawEthPool`, `setCertifier`) are then proposed
 by the Safe and only take effect after the delay.
 
+## Mainnet notes
+
+- The deploy script **does not auto-fund a freshly generated Agent A on `base`**
+  (that would send real ETH). Fund it yourself, or opt in with
+  `FUND_AGENT_A=true`. On testnet it still tops up automatically.
+- The script **refuses to write `.env` or `deployments.json` if they are not
+  gitignored** (it runs `git check-ignore`), so a misconfiguration can't commit a
+  key. `.env` is chmod 600, and no private key is ever written to
+  `deployments.json` or printed.
+- The Basescan link printed at the end is derived from the network (mainnet vs
+  Sepolia).
+
 ## Post-deploy (any option)
 
 1. **Update the publishable artifacts:**

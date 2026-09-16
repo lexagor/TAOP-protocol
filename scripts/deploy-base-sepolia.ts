@@ -1,6 +1,7 @@
 import { ethers, network } from "hardhat";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { execFileSync } from "node:child_process";
 
 /**
  * Deploy the TAOP MVP contracts (works for Sepolia or mainnet).
@@ -32,24 +33,57 @@ function upsertEnvVar(file: string, key: string, value: string): void {
   fs.chmodSync(file, 0o600);
 }
 
+/** Refuse to write secret material into a path git would track. */
+function assertNotTracked(p: string, label: string): void {
+  let root: string;
+  try {
+    root = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+  } catch {
+    console.warn(`! Not a git repo — cannot verify ${label} is ignored (${p}). Proceed with care.`);
+    return;
+  }
+  const rel = path.relative(root, p);
+  const insideRepo = rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+  if (!insideRepo) return; // outside the repo — cannot be committed
+
+  try {
+    execFileSync("git", ["check-ignore", "-q", rel], { cwd: root, stdio: "ignore" });
+  } catch (e) {
+    if ((e as { status?: number }).status === 1) {
+      console.error(`\n❌ REFUSING TO WRITE ${label}: ${p} is inside the repo but NOT gitignored.`);
+      console.error("   Add it to .gitignore — key material must never be committed.\n");
+      process.exit(1);
+    }
+    console.warn(`! Could not verify .gitignore for ${p}.`);
+  }
+}
+
 async function main() {
+  const isMainnet = network.name === "base";
+  const networkLabel = isMainnet ? "Base mainnet" : "Base Sepolia";
+
   const [deployer] = await ethers.getSigners();
   if (!deployer) {
     console.error("\n❌ ERROR: No deployer signer available.");
     console.error("   Set a valid DEPLOYER_PK (0x + 64 hex chars) in .env");
     console.error("   Example: DEPLOYER_PK=0x1234... (length must be 66)");
-    console.error("\n   Get test ETH for Base Sepolia (free faucets):");
-    console.error("   - Coinbase CDP: https://portal.cdp.coinbase.com/products/faucet (up to 0.1 ETH/24h)");
-    console.error("   - Alchemy: https://www.alchemy.com/faucets/base-sepolia");
-    console.error("   - thirdweb: https://thirdweb.com/base-sepolia-testnet");
-    console.error("   - Official list: https://docs.base.org/base-chain/network-information/network-faucets");
-    console.error("   - Chainlink: https://faucets.chain.link/base-sepolia\n");
-    console.error("   For the full demo (capability 0.01 bond + attest gas + challenge 0.01 bond + buffer): faucet at least ~0.1 ETH to your DEPLOYER_PK.\n");
-    console.error("   Then: npm run deploy:sepolia\n");
+    if (isMainnet) {
+      console.error("\n   Fund the deployer with REAL Base ETH (≥ ~0.1 ETH for 3 deploys + agent + gas).");
+      console.error("   Then: npm run deploy:mainnet\n");
+    } else {
+      console.error("\n   Get test ETH for Base Sepolia (free faucets):");
+      console.error("   - Coinbase CDP: https://portal.cdp.coinbase.com/products/faucet (up to 0.1 ETH/24h)");
+      console.error("   - Alchemy: https://www.alchemy.com/faucets/base-sepolia");
+      console.error("   - thirdweb: https://thirdweb.com/base-sepolia-testnet");
+      console.error("   - Official list: https://docs.base.org/base-chain/network-information/network-faucets");
+      console.error("   - Chainlink: https://faucets.chain.link/base-sepolia\n");
+      console.error("   For the full demo (capability 0.01 bond + attest gas + challenge 0.01 bond + buffer): faucet at least ~0.1 ETH to your DEPLOYER_PK.\n");
+      console.error("   Then: npm run deploy:sepolia\n");
+    }
     process.exit(1);
   }
   const deployerAddr = await deployer.getAddress();
-  console.log("Deploying to Base Sepolia with deployer:", deployerAddr);
+  console.log(`Deploying to ${networkLabel} with deployer:`, deployerAddr);
 
   const deployerBal = await ethers.provider.getBalance(deployerAddr);
   console.log("Deployer balance:", ethers.formatEther(deployerBal), "ETH");
@@ -61,10 +95,14 @@ async function main() {
       `\n❌ Deployer ${deployerAddr} holds ${ethers.formatEther(deployerBal)} ETH but at least ` +
         `${ethers.formatEther(MIN_DEPLOYER)} is required (3 deploys + Agent A top-up + gas buffer).`,
     );
-    console.error("   Faucet options:");
-    console.error("   - Coinbase CDP: https://portal.cdp.coinbase.com/products/faucet (0.1 ETH/24h)");
-    console.error("   - Alchemy: https://www.alchemy.com/faucets/base-sepolia");
-    console.error("   - Chainlink: https://faucets.chain.link/base-sepolia");
+    if (isMainnet) {
+      console.error("   Send REAL Base ETH to the deployer, then re-run.");
+    } else {
+      console.error("   Faucet options:");
+      console.error("   - Coinbase CDP: https://portal.cdp.coinbase.com/products/faucet (0.1 ETH/24h)");
+      console.error("   - Alchemy: https://www.alchemy.com/faucets/base-sepolia");
+      console.error("   - Chainlink: https://faucets.chain.link/base-sepolia");
+    }
     process.exit(1);
   }
 
@@ -138,16 +176,28 @@ async function main() {
   const agentAPk = agentAWallet.privateKey;
 
   // Top up only the shortfall so repeated deploys don't accumulate idle funds.
+  // On mainnet this would send REAL ETH to a freshly generated wallet, so it is
+  // opt-in (FUND_AGENT_A=true); otherwise the operator funds it deliberately.
   const MIN_AGENT_BALANCE = ethers.parseEther("0.05"); // capability bond (0.01) + attest gas + challenge bond (0.01) + buffer
   const agentBal = await ethers.provider.getBalance(agentAAddr);
   if (agentBal < MIN_AGENT_BALANCE) {
     const topUp = MIN_AGENT_BALANCE - agentBal;
-    console.log(
-      `Funding Agent A: +${ethers.formatEther(topUp)} ETH (has ${ethers.formatEther(agentBal)} ETH)`,
-    );
-    const fundTx = await deployer.sendTransaction({ to: agentAAddr, value: topUp });
-    await fundTx.wait();
-    console.log("Funded Agent A in tx:", fundTx.hash);
+    const autoFund = !isMainnet || process.env.FUND_AGENT_A === "true";
+    if (autoFund) {
+      console.log(
+        `Funding Agent A: +${ethers.formatEther(topUp)} ETH (has ${ethers.formatEther(agentBal)} ETH)` +
+          (isMainnet ? " (FUND_AGENT_A=true)" : ""),
+      );
+      const fundTx = await deployer.sendTransaction({ to: agentAAddr, value: topUp });
+      await fundTx.wait();
+      console.log("Funded Agent A in tx:", fundTx.hash);
+    } else {
+      console.warn(
+        `\n! Agent A ${agentAAddr} holds ${ethers.formatEther(agentBal)} ETH (< ${ethers.formatEther(MIN_AGENT_BALANCE)}).`,
+      );
+      console.warn(`  Mainnet auto-funding is OFF (no real ETH sent). Send it ≥ ${ethers.formatEther(topUp)} ETH manually,`);
+      console.warn("  or re-run with FUND_AGENT_A=true to let the deployer fund it.");
+    }
   } else {
     console.log("Agent A already funded:", ethers.formatEther(agentBal), "ETH — no top-up needed");
   }
@@ -156,9 +206,9 @@ async function main() {
   // artifact) and is never printed to logs/CI. It is written only to the
   // gitignored .env, which we lock down to the current user.
   const envPath = path.resolve(__dirname, "..", ".env");
+  assertNotTracked(envPath, ".env (key material)");
   upsertEnvVar(envPath, "AGENT_A_PK", agentAPk);
 
-  const isMainnet = network.name === "base";
   const deployment = {
     chainId: isMainnet ? 8453 : 84532,
     network: isMainnet ? "base" : "base-sepolia",
@@ -174,13 +224,16 @@ async function main() {
   const outPath = process.env.DEPLOYMENTS_PATH
     ? path.resolve(process.env.DEPLOYMENTS_PATH)
     : path.resolve(__dirname, "..", "deployments.json");
+  assertNotTracked(outPath, "deployments output");
   fs.writeFileSync(outPath, JSON.stringify(deployment, null, 2) + "\n");
 
+  const explorerBase = isMainnet ? "https://basescan.org" : "https://sepolia.basescan.org";
   console.log("\n=== TAOP MVP deployed (network from hardhat) ===");
+  console.log("Network:   ", deployment.network, `(chainId ${deployment.chainId})`);
   console.log("RON:       ", ronAddr);
   console.log("Registry:  ", registryAddr);
   console.log("Agent A:   ", agentAAddr);
-  console.log("Basescan:  https://sepolia.basescan.org/address/" + ronAddr);
+  console.log("Explorer:  ", explorerBase + "/address/" + ronAddr);
   console.log("\nWrote", outPath, "(addresses only — no keys)");
   console.log("Wrote AGENT_A_PK to", envPath, "(chmod 600, gitignored)");
   console.log("\nNext: restart the backend so it picks up the new agent key.");
