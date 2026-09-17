@@ -1,0 +1,10 @@
+# Default owner
+* @lexagor
+
+# Security-sensitive paths — owner review only
+/contracts/ @lexagor
+/scripts/ @lexagor
+/packages/backend/src/ @lexagor
+/.github/ @lexagor
+/SECURITY.md @lexagor
+/.env.example @lexagor

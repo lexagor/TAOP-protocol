@@ -28,9 +28,25 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 ## Supply chain
 
 - Dependabot (npm, pip, github-actions, docker) + Dependabot security updates.
-- All GitHub Actions are **pinned to commit SHAs**.
+- All GitHub Actions are **pinned to commit SHAs**, and GitHub now **enforces**
+  full-length SHA pinning (`sha_pinning_required: true`).
 - Nightly `npm audit` + `pip-audit` report (`.github/workflows/nightly.yml`).
+- **CodeQL** code scanning (default setup) on JS/TS + Python.
+- **SBOM** (CycloneDX) generated in CI and uploaded as an artifact.
 - Lockfiles committed; `npm ci` used everywhere.
+
+## Runtime / operations
+
+- Backend: loopback by default, `X-TAOP-Key` write gate (constant-time), rate
+  limits, `DEMO_READ_ONLY`, refuses a public bind without a key; structured logs
+  with secret redaction; enriched `/api/healthz` + `/api/alerts`.
+- **Security headers**: helmet with a Content-Security-Policy (external scripts,
+  framing, and objects blocked; `unsafe-inline` only for Swagger UI's bootstrap
+  and injected styles), plus `frame-ancestors 'none'`.
+- **Server timeouts** (`headersTimeout` 20s, `requestTimeout` 30s) against
+  slowloris/resource exhaustion.
+- Indexer: confirmation depth + reorg rebuild.
+- Key management + emergency playbooks in [`EMERGENCY.md`](EMERGENCY.md).
 
 ## Contracts
 
@@ -40,17 +56,14 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - Mutation spot-check (12/12 critical mutants caught).
 - Zero-address guards; indexed address events; no protocol token.
 
-## Runtime / operations
+## GitHub settings (applied)
 
-- Backend: loopback by default, `X-TAOP-Key` write gate (constant-time), rate
-  limits, `DEMO_READ_ONLY`, refuses a public bind without a key; structured logs
-  with secret redaction; enriched `/api/healthz` + `/api/alerts`.
-- Indexer: confirmation depth + reorg rebuild.
-- Key management + emergency playbooks in [`EMERGENCY.md`](EMERGENCY.md).
-
-## Owner-only GitHub settings (applied where noted)
-
-- [x] **Actions → "Require actions to be pinned to a full-length commit SHA"** — enabled (`sha_pinning_required: true`).
-- [x] **Rules → `main-protection`**: requires status checks `test`, `security`, `coverage`, `foundry`, `mutation`, `e2e`, `docker`; blocks deletion + force-push; admins can bypass to push directly.
+- [x] **Actions → require full-length SHA pinning** (`sha_pinning_required: true`).
+- [x] **Rules → `main-protection`**: requires status checks `test`, `security`,
+  `coverage`, `foundry`, `mutation`, `e2e`, `docker`; blocks deletion + force-push;
+  admins can bypass to push directly.
+- [x] **Rules → `tag-protection`**: release tags cannot be deleted or force-pushed.
+- [x] **CodeQL default setup** enabled (JS/TS + Python).
 - [x] Secret scanning + push protection.
 - [x] Dependabot alerts + security updates.
+- [x] PR template with a security checklist + `CODEOWNERS` for sensitive paths.
