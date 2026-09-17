@@ -3,28 +3,19 @@ const BASE = "/api";
 /**
  * Optional API key for write routes. The backend requires `X-TAOP-Key` on all
  * non-GET /api routes whenever TAOP_API_KEY is set on the server (mandatory for
- * any non-loopback deployment). Build the demo with the same value:
- *   VITE_TAOP_API_KEY=<same value> npm run demo:build
- * Local development (HOST=127.0.0.1, no key) needs nothing.
+ * any non-loopback deployment).
+ *
+ * SECURITY: the key is held **in memory only** — never written to localStorage or
+ * sessionStorage (a secret in web storage is exposed to any XSS). It can be
+ * provided at build time for a *private* write-enabled instance via
+ * `VITE_TAOP_API_KEY`, or entered per session in the UI. A publicly hosted demo
+ * must run with `DEMO_READ_ONLY=true` and needs no key at all.
  */
-const API_BASE_KEY = "taop-api-key";
-
 let apiKey = (import.meta.env.VITE_TAOP_API_KEY ?? "").trim();
-try {
-  apiKey = localStorage.getItem(API_BASE_KEY) ?? apiKey;
-} catch {
-  /* private mode — fall back to the build-time value */
-}
 
-/** Persist the backend API key for write routes (stored in this browser only). */
+/** Set the backend API key for this page session (memory only). */
 export function setApiKey(key: string): void {
   apiKey = key.trim();
-  try {
-    if (apiKey) localStorage.setItem(API_BASE_KEY, apiKey);
-    else localStorage.removeItem(API_BASE_KEY);
-  } catch {
-    /* ignore storage errors */
-  }
 }
 
 /** Currently configured API key ("" = none). */

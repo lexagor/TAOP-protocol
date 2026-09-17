@@ -45,6 +45,10 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
   and injected styles), plus `frame-ancestors 'none'`.
 - **Server timeouts** (`headersTimeout` 20s, `requestTimeout` 30s) against
   slowloris/resource exhaustion.
+- **API key is memory-only** in the demo UI (never in localStorage/sessionStorage);
+  a public demo must run read-only, since a build-time `VITE_TAOP_API_KEY` is
+  embedded in the JS bundle.
+- SPA fallback (serves `index.html`) is rate-limited like the API.
 - Indexer: confirmation depth + reorg rebuild.
 - Key management + emergency playbooks in [`EMERGENCY.md`](EMERGENCY.md).
 

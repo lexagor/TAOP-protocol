@@ -87,6 +87,16 @@ const writeLimiter = rateLimit({
   message: { error: "Too many write requests — this endpoint spends ETH; slow down." },
 });
 
+// The SPA fallback serves a file (index.html); rate-limit it too (static assets
+// are handled by express.static). Generous so a normal page load is never throttled.
+const spaFallbackLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 300,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many requests — slow down." },
+});
+
 /** Gate for state-changing requests: read-only kill-switch + constant-time API key. */
 function requireApiKey(req: express.Request, res: express.Response, next: express.NextFunction) {
   // Reads are always allowed (including on a read-only public instance).
@@ -652,8 +662,8 @@ api.get("/docs", (_req, res) => {
 const demoDist = path.resolve(process.cwd(), "apps", "demo", "dist");
 if (fs.existsSync(demoDist)) {
   app.use(express.static(demoDist));
-  // SPA fallback: non-/api routes serve index.html
-  app.get("*", (_req, res) => {
+  // SPA fallback: non-/api routes serve index.html (rate-limited; serves a file)
+  app.get("*", spaFallbackLimiter, (_req, res) => {
     res.sendFile(path.join(demoDist, "index.html"));
   });
 }

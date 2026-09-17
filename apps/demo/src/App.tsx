@@ -42,7 +42,7 @@ function ApiKeyGate({ onChange }: { onChange: () => void }) {
         </button>
       )}
       <span className="mono text-[10px] text-[var(--color-text-secondary)]">
-        {active ? "stored in this browser only" : "not set — writes fail with 401 on a keyed server"}
+        {active ? "held in memory for this page only (not persisted)" : "not set — writes fail with 401 on a keyed server"}
       </span>
     </div>
   );

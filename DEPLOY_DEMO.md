@@ -15,6 +15,11 @@ a key).
 
 ## 1. Build the demo with the API key baked in
 
+> **Warning:** baking `VITE_TAOP_API_KEY` embeds the key in the **public JS
+> bundle** — anyone who views the page source can extract it and call write
+> endpoints. Only do this for a **private / access-controlled** instance. For any
+> publicly reachable demo, run `DEMO_READ_ONLY=true` and do **not** bake a key.
+
 ```bash
 cd /Users/a/Documents/cline-desktop/credit-bureau/new-credit-bureau
 # .env already contains TAOP_API_KEY + VITE_TAOP_API_KEY (generated 2026-09-15)
