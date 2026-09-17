@@ -12,10 +12,14 @@ Companion docs: [`redeploy-v0.2.md`](redeploy-v0.2.md),
 
 - [x] Deploy scripts support `MULTISIG_ADDRESS` / `PROPOSERS` / `EXECUTORS` / `TIMELOCK_DELAY`.
 - [x] `test/TimelockDelay.test.ts` proves schedule → wait → execute, the non-proposer guard, and the 0-delay contrast.
-- [ ] **Decision: unfreeze the 0-delay freeze** for mainnet (the pilot freeze was deliberate and is *not* the mainnet plan).
-- [ ] Create a Safe (or multisig) on Base; set it as proposer/executor.
-- [ ] Rehearse on Sepolia: `MULTISIG_ADDRESS=0xSafe TIMELOCK_DELAY=86400 npm run deploy:sepolia`, then schedule + execute an admin action.
+- [x] **Decision (2026-09-17): unfreeze 0-delay for hardened/mainnet deploys.** The
+      pilot itself stays 0-delay until a hardened deploy happens; mainnet ships with
+      a non-zero delay + Safe. Steps: [`hardened-timelock.md`](hardened-timelock.md).
+- [ ] Create a Safe (or multisig) on Base Sepolia, then on Base; set it as proposer/executor.
+- [ ] Rehearse on Sepolia: `MULTISIG_ADDRESS=0xSafe TIMELOCK_DELAY=3600 REUSE_AGENT_A=true DEPLOYMENTS_PATH=/tmp/hardened.json npm run deploy:sepolia`, then schedule + execute an admin action with `npm run timelock:tx -- --action pause`.
 - [ ] Set `certifier` to the multisig (or a dedicated operator), not an EOA you keep hot.
+- [ ] Note the ops change: with a Safe proposer the **backend can no longer schedule**
+      admin actions (`/resolve`, `/admin/*` revert) — use the Safe (see `OPERATIONS.md` §4c).
 
 ## 2. Security & audit
 

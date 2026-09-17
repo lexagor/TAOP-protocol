@@ -1,8 +1,8 @@
 {
   "name": "@taopp/sdk",
-  "version": "0.1.2",
+  "version": "0.3.0",
   "private": false,
-  "description": "TypeScript SDK for TAOP (Agent Credit Bureau + Capability Registry) — early access for the testnet deployment",
+  "description": "TypeScript SDK for TAOP (Agent Credit Bureau + Capability Registry) \u2014 early access for the testnet deployment",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

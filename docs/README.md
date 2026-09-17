@@ -25,7 +25,8 @@ Index of the project's docs. Start with the root [`README.md`](../README.md).
 ## Operations & deploy
 - [`OPERATIONS.md`](OPERATIONS.md) — runbook: health, logs, indexer, alerts, incidents.
 - [`redeploy-v0.2.md`](redeploy-v0.2.md) — redeploy runbook (locally rehearsed).
-- [`hardened-timelock.md`](hardened-timelock.md) — multisig + non-zero delay rehearsal.
+- [`hardened-timelock.md`](hardened-timelock.md) — multisig + non-zero delay rehearsal + admin-via-Safe.
+- [`PUBLISHING.md`](PUBLISHING.md) — npm + PyPI trusted-publishing runbook.
 - [`../DEPLOY_DEMO.md`](../DEPLOY_DEMO.md) — hosting the (write-enabled) demo.
 - [`../PRE_MAINNET_CHECKLIST.md`](../PRE_MAINNET_CHECKLIST.md) — pre-mainnet readiness.
 

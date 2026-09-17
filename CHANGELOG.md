@@ -33,6 +33,12 @@ Agent A `0x14dB7D98431C3DaCF44ed12a3a142aBaf3B431ac`.
 - 8 contract tests, an extended Foundry invariant (`distinct ≤ confirmed`), and
   backend/indexer tests.
 
+### Packages
+- `@taopp/sdk@0.3.0`, `@taopp/mcp-server@0.3.0`, `taop@0.3.0` (version bumps for the
+  v0.2/v0.3 feature set: two-sided scores, paged views, credit score, pause/cooldown,
+  new MCP tools). Publish via the `Publish npm packages` / `Publish Python SDK`
+  workflows — see `docs/PUBLISHING.md`.
+
 ### Changed
 - Discovery/ranking prefers the diversity score where the contract supports it.
 

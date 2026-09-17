@@ -90,6 +90,22 @@ first). Kinds and suggested responses:
 | `CertifierChanged` | Certifier role changed | Verify it was intended (owner action) |
 | `Paused` / `Unpaused` | Protocol actions were paused/resumed | Confirm it was intentional; a pause blocks attestations/challenges |
 
+## 4a. Admin actions when owner = Safe + Timelock
+
+With a **Safe** as Timelock proposer/executor, admin actions are no longer
+possible from the backend: `/api/completions/:id/resolve`, `/api/admin/pause`,
+`/api/admin/unpause`, `/api/admin/attest-cooldown` will revert (`AccessControl`),
+because the backend key isn't a proposer. Use the Safe UI instead:
+
+```bash
+npm run timelock:tx -- --action pause --delay 3600
+# load timelock-batch-schedule.json in Safe → Apps → Transaction Builder, sign
+# after the delay, load timelock-batch-execute.json and sign
+```
+
+The admin audit log (§4b) still records backend attempts, which will show as
+failures — that is expected. Front-run by pausing via the Safe for emergencies.
+
 ## 4b. Admin audit log
 
 Every privileged backend action (pause, unpause, attest-cooldown, resolveChallenge)

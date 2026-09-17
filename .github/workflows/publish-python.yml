@@ -1,0 +1,38 @@
+name: Publish Python SDK
+
+# Manual dispatch only — publishing is a deliberate act. Configure PyPI Trusted
+# Publishing first (see docs/PUBLISHING.md):
+#   PyPI → your project → Publishing → add publisher:
+#     owner: lexagor · repo: TAOP-protocol · workflow: publish-python.yml · env: pypi
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # OIDC → PyPI trusted publishing (no API token stored)
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Build sdist + wheel and validate metadata
+        working-directory: packages/python-sdk
+        run: |
+          python -m pip install -q --upgrade pip
+          python -m pip install -q build twine
+          python -m build
+          python -m twine check dist/*
+          python check_wheel.py dist/*.whl
+
+      - name: Publish to PyPI (trusted publishing)
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: packages/python-sdk/dist

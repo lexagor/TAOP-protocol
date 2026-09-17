@@ -63,7 +63,7 @@ async function loadClients() {
 const server = new Server(
   {
     name: "taop-credit-bureau",
-    version: "0.1.1",
+    version: "0.3.0",
   },
   {
     capabilities: {

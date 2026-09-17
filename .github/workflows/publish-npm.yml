@@ -1,0 +1,54 @@
+name: Publish npm packages
+
+# Manual dispatch only — publishing is a deliberate act. Auth options:
+#  A) npm Trusted Publishing (recommended, no secret): on npmjs.com → each
+#     package → Settings → Trusted Publisher → GitHub Actions with
+#     owner: lexagor · repo: TAOP-protocol · workflow: publish-npm.yml · env: npm-publish
+#  B) A granular npm token stored as the `NPM_TOKEN` secret, and uncomment the
+#     NODE_AUTH_TOKEN env lines below.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (build + `npm publish --dry-run`, no registry write)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write # OIDC → npm trusted publishing + provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+          cache: 'npm'
+
+      # npm >= 11.5.1 is required for OIDC trusted publishing.
+      - name: Use a recent npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Dry run (default)
+        if: inputs.dry_run
+        run: |
+          npm publish -w @taopp/sdk --access public --dry-run
+          npm publish -w @taopp/mcp-server --access public --dry-run
+
+      - name: Publish
+        if: ${{ !inputs.dry_run }}
+        run: |
+          npm publish -w @taopp/sdk --access public --provenance
+          npm publish -w @taopp/mcp-server --access public --provenance
+        # env:
+        #   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
