@@ -144,6 +144,32 @@ if (dep.deployedBlock !== undefined) {
   console.log("INFO  no deployedBlock recorded (older file)");
 }
 
+// If the agent key is available, it must correspond to the descriptor's agentA
+// (catches an .env / deployments.json mismatch — e.g. a clobbered key).
+function readEnvVar(key) {
+  try {
+    const env = readFileSync(resolve(".env"), "utf8");
+    let value = "";
+    for (const line of env.split(/\r?\n/)) {
+      if (line.trim().startsWith(`${key}=`)) value = line.split("=").slice(1).join("=").trim();
+    }
+    return value;
+  } catch {
+    return "";
+  }
+}
+const agentPk = process.env.AGENT_A_PK || readEnvVar("AGENT_A_PK");
+if (/^0x[0-9a-fA-F]{64}$/.test(agentPk)) {
+  const derived = new ethers.Wallet(agentPk).address;
+  check(
+    "AGENT_A_PK matches deployments.json agentA",
+    derived.toLowerCase() === dep.agentA.toLowerCase(),
+    `env=${derived} descriptor=${dep.agentA}`,
+  );
+} else {
+  console.log("INFO  AGENT_A_PK not available — skipping agent key/descriptor check");
+}
+
 for (const [label, addr] of [["validator", dep.validator], ["agentA", dep.agentA]]) {
   try {
     console.log(`INFO  ${label} ${addr} balance: ${ethers.formatEther(await provider.getBalance(addr))} ETH`);
