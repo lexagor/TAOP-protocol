@@ -48,12 +48,9 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - Indexer: confirmation depth + reorg rebuild.
 - Key management + emergency playbooks in [`EMERGENCY.md`](EMERGENCY.md).
 
-## Owner-only GitHub settings (cannot be set from CI)
+## Owner-only GitHub settings (applied where noted)
 
-These require repo **Settings** (the API token used in this repo lacks the
-fine-grained "Actions policies"/rulesets write permission):
-
-- [ ] **Settings → Actions → General → "Require actions to be pinned to a full-length commit SHA"** (we already pin; enable enforcement).
-- [ ] **Settings → Rules → `main-protection`**: add **"Require status checks to pass"** with contexts `test`, `security`, `coverage`, `foundry`, `mutation`, `e2e`, `docker` (a ruleset already blocks deletion + force-push; admin bypass can be added so maintainers can still push).
-- [x] Secret scanning + push protection (done).
-- [x] Dependabot alerts + security updates (done).
+- [x] **Actions → "Require actions to be pinned to a full-length commit SHA"** — enabled (`sha_pinning_required: true`).
+- [x] **Rules → `main-protection`**: requires status checks `test`, `security`, `coverage`, `foundry`, `mutation`, `e2e`, `docker`; blocks deletion + force-push; admins can bypass to push directly.
+- [x] Secret scanning + push protection.
+- [x] Dependabot alerts + security updates.
