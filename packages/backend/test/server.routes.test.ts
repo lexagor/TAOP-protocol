@@ -28,6 +28,7 @@ setBackendState({
     validator: "0x0000000000000000000000000000000000000004",
     agentA: AGENT,
   },
+  oracleAddress: "0x0000000000000000000000000000000000000004",
   provider: {
     getBlockNumber: async () => 100,
     getBalance: async () => 10n ** 18n,
@@ -163,6 +164,14 @@ describe("backend API — v0.2 routes (authorized)", () => {
     expect(ok.status).toBe(200);
     const bad = await post("/api/admin/attest-cooldown", { cooldown: -1 });
     expect(bad.status).toBe(400);
+  });
+
+  it("admin actions are recorded in the audit log", async () => {
+    await post("/api/admin/pause");
+    const audit = await request(app).get("/api/admin/audit?limit=10");
+    expect(audit.status).toBe(200);
+    const actions = (audit.body as { action: string }[]).map((a) => a.action);
+    expect(actions).toContain("pause");
   });
 
   it("admin routes require the API key", async () => {

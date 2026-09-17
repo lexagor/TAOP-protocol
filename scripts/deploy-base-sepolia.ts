@@ -1,4 +1,4 @@
-import { ethers, network } from "hardhat";
+import { ethers } from "hardhat";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { assertNotTracked, assertNoKeyMaterial } from "./lib/security";
@@ -34,8 +34,19 @@ function upsertEnvVar(file: string, key: string, value: string): void {
 }
 
 async function main() {
-  const isMainnet = network.name === "base";
-  const networkLabel = isMainnet ? "Base mainnet" : "Base Sepolia";
+  // Detect the target by CHAIN ID, not the hardhat network name: a custom/renamed
+  // mainnet network would otherwise be treated as testnet (wrong chainId, and
+  // auto-funding a fresh agent with real ETH).
+  const chainId = Number((await ethers.provider.getNetwork()).chainId);
+  const isMainnet = chainId === 8453;
+  const networkLabel = isMainnet ? "Base mainnet" : chainId === 84532 ? "Base Sepolia" : `chain ${chainId}`;
+
+  if (!isMainnet && chainId !== 84532 && chainId !== 31337 && process.env.ALLOW_UNKNOWN_CHAIN !== "true") {
+    console.error(`\n❌ REFUSING TO DEPLOY: unexpected chainId ${chainId}.`);
+    console.error("   Expected 8453 (Base), 84532 (Base Sepolia) or 31337 (local).");
+    console.error("   Set ALLOW_UNKNOWN_CHAIN=true to override deliberately.\n");
+    process.exit(1);
+  }
 
   const [deployer] = await ethers.getSigners();
   if (!deployer) {
@@ -185,8 +196,8 @@ async function main() {
   upsertEnvVar(envPath, "AGENT_A_PK", agentAPk);
 
   const deployment = {
-    chainId: isMainnet ? 8453 : 84532,
-    network: isMainnet ? "base" : "base-sepolia",
+    chainId,
+    network: isMainnet ? "base" : chainId === 84532 ? "base-sepolia" : `chain-${chainId}`,
     ron: ronAddr,
     registry: registryAddr,
     timelock: timelockAddr,

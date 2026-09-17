@@ -192,6 +192,13 @@ export const openApiSpec = {
         },
       },
     },
+    "/admin/audit": {
+      get: {
+        summary: "Admin action audit log (pause/unpause/cooldown/resolve)",
+        parameters: [{ name: "limit", in: "query", schema: { type: "integer", default: 50, maximum: 500 } }],
+        responses: { "200": { description: "Audit entries, newest first" } },
+      },
+    },
     "/admin/pause": {
       post: {
         summary: "Pause protocol actions (owner/Timelock)",

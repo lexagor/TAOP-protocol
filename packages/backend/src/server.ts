@@ -11,7 +11,7 @@ import fs from "node:fs";
 import { initState, type BackendState } from "./contracts.js";
 import { runDemo } from "./demo.js";
 import { LORA_CAPABILITY_TYPE } from "@taopp/sdk";
-import { listCapabilities, listCompletions, markCompletionChallenged, markCompletionResolved } from "./db.js";
+import { listCapabilities, listCompletions, markCompletionChallenged, markCompletionResolved, recordAdminAction, listAdminActions } from "./db.js";
 import { startIndexer, queryIndexedDiscovery, isIndexerReady, indexedCount, indexerStatus } from "./indexer.js";
 import { listAlerts } from "./index_db.js";
 import { openApiSpec } from "./openapi.js";
@@ -402,6 +402,14 @@ api.post("/completions/:id/resolve", async (req, res) => {
       if (result.executed) {
         markCompletionResolved(completionId, upheld);
       }
+      recordAdminAction({
+        action: "resolveChallenge",
+        actor: state.oracleAddress,
+        txHash: receipt?.hash ?? null,
+        detail: { completionId: completionId.toString(), upheld },
+        scheduled: result.scheduled,
+        executed: result.executed,
+      });
       res.json({
         txHash: receipt?.hash ?? null,
         upheld,
@@ -416,6 +424,14 @@ api.post("/completions/:id/resolve", async (req, res) => {
     } else {
       receipt = await state.ron.resolveChallenge(completionId, upheld);
       markCompletionResolved(completionId, upheld);
+      recordAdminAction({
+        action: "resolveChallenge",
+        actor: state.oracleAddress,
+        txHash: receipt?.hash ?? null,
+        detail: { completionId: completionId.toString(), upheld },
+        scheduled: false,
+        executed: true,
+      });
     }
 
     res.json({ txHash: receipt?.hash ?? null, upheld });
@@ -432,14 +448,18 @@ api.post("/completions/:id/resolve", async (req, res) => {
 
 async function ownerTx(fnName: string, args: unknown[], direct: () => Promise<{ hash?: string } | null>) {
   state.oracleRunner?.reset?.();
+  let result: { txHash: string | null; scheduled: boolean; executed: boolean };
   if (state.executeViaTimelock) {
     const iface = new ethers.Interface([`function ${fnName}`]);
     const data = iface.encodeFunctionData(fnName, args);
     const r = await state.executeViaTimelock(state.deployment.ron, data);
-    return { txHash: r.receipt?.hash ?? null, scheduled: r.scheduled, executed: r.executed };
+    result = { txHash: r.receipt?.hash ?? null, scheduled: r.scheduled, executed: r.executed };
+  } else {
+    const receipt = await direct();
+    result = { txHash: receipt?.hash ?? null, scheduled: false, executed: true };
   }
-  const receipt = await direct();
-  return { txHash: receipt?.hash ?? null, scheduled: false, executed: true };
+  recordAdminAction({ action: fnName.split("(")[0], actor: state.oracleAddress, detail: { args }, ...result });
+  return result;
 }
 
 api.post("/admin/pause", async (_req, res) => {
@@ -689,6 +709,10 @@ api.get("/discover", async (req, res) => {
 });
 
 /** F10: indexer health/observability for operators. */
+api.get("/admin/audit", (req, res) => {
+  res.json(listAdminActions(Number(req.query.limit ?? 50)));
+});
+
 api.get("/indexer", (_req, res) => {
   res.json(indexerStatus());
 });

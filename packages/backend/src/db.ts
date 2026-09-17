@@ -43,6 +43,14 @@ export function db(): Database.Database {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS admin_actions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      action TEXT NOT NULL,
+      actor TEXT NOT NULL,
+      tx_hash TEXT,
+      detail TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL
+    );
   `);
   return _db;
 }
@@ -197,4 +205,60 @@ export async function refreshScore(
 ): Promise<{ completions: bigint; disputes: bigint; score: bigint }> {
   const s = await state.ron.getSelfAttestScore(agent);
   return { completions: s.completions, disputes: s.disputes, score: s.score };
+}
+// --- F12/hardening: admin action audit log ---
+
+export function recordAdminAction(a: {
+  action: string;
+  actor: string;
+  txHash: string | null;
+  detail?: unknown;
+  scheduled?: boolean;
+  executed?: boolean;
+}): void {
+  db()
+    .prepare(
+      "INSERT INTO admin_actions (action, actor, tx_hash, detail, created_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .run(
+      a.action,
+      a.actor.toLowerCase(),
+      a.txHash,
+      JSON.stringify({ ...(typeof a.detail === "object" && a.detail ? a.detail : {}), scheduled: a.scheduled, executed: a.executed }),
+      new Date().toISOString(),
+    );
+}
+
+export function listAdminActions(limit = 50): Array<{
+  id: number;
+  action: string;
+  actor: string;
+  txHash: string | null;
+  detail: unknown;
+  createdAt: string;
+}> {
+  const rows = db()
+    .prepare("SELECT * FROM admin_actions ORDER BY id DESC LIMIT ?")
+    .all(Math.min(Math.max(limit, 1), 500)) as Array<{
+    id: number;
+    action: string;
+    actor: string;
+    tx_hash: string | null;
+    detail: string;
+    created_at: string;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    action: r.action,
+    actor: r.actor,
+    txHash: r.tx_hash,
+    detail: (() => {
+      try {
+        return JSON.parse(r.detail);
+      } catch {
+        return r.detail;
+      }
+    })(),
+    createdAt: r.created_at,
+  }));
 }

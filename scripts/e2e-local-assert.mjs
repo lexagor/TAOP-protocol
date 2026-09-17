@@ -108,6 +108,13 @@ for (let i = 0; i < 20 && !pauseAlert; i++) {
 }
 check("pause/unpause raise alerts", pauseAlert);
 
+const audit = await req("GET", "/api/admin/audit?limit=10");
+check(
+  "admin audit log records privileged actions",
+  Array.isArray(audit.json) && audit.json.some((a) => a.action === "pause"),
+  JSON.stringify(audit.json).slice(0, 140),
+);
+
 if (failures > 0) {
   console.error(`\nE2E FAILED: ${failures} check(s) failed`);
   process.exit(1);

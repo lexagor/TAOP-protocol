@@ -90,6 +90,18 @@ first). Kinds and suggested responses:
 | `CertifierChanged` | Certifier role changed | Verify it was intended (owner action) |
 | `Paused` / `Unpaused` | Protocol actions were paused/resumed | Confirm it was intentional; a pause blocks attestations/challenges |
 
+## 4b. Admin audit log
+
+Every privileged backend action (pause, unpause, attest-cooldown, resolveChallenge)
+is recorded in SQLite with the actor address, tx hash, and whether it was executed
+or only scheduled on the Timelock. Review it with:
+
+```bash
+curl -s 'localhost:4000/api/admin/audit?limit=20' | jq
+```
+
+Treat an unexpected entry as an incident (see [`EMERGENCY.md`](EMERGENCY.md)).
+
 ## 5. Key rotation
 
 - `DEPLOYER_PK` (owner/proposer ⇒ full control): rotate only via a controlled
