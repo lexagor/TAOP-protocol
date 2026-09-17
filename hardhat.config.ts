@@ -31,9 +31,18 @@ const config = {
     timeout: 60000,
   },
   networks: {
-    hardhat: {
-      chainId: 31337,
-    },
+    // Forking is only supported on the in-process network, so `FORK_BASE_MAINNET`
+    // turns the default `hardhat` network into a read-only Base mainnet fork for
+    // rehearsing the real deploy path without funds: `npm run rehearse:mainnet-fork`.
+    hardhat:
+      process.env.FORK_BASE_MAINNET === "true"
+        ? {
+            chainId: 8453,
+            forking: { url: process.env.BASE_MAINNET_RPC_URL || "https://mainnet.base.org" },
+          }
+        : {
+            chainId: 31337,
+          },
     localhost: {
       url: process.env.RPC_URL || process.env.BASE_SEPOLIA_RPC_URL || "http://127.0.0.1:8545",
       chainId: 31337,

@@ -1,7 +1,7 @@
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { assertNotTracked, assertNoKeyMaterial } from "./lib/security";
+import { assertNotTracked, assertNoKeyMaterial, backupFile } from "./lib/security";
 
 /**
  * Deploy the TAOP MVP contracts (works for Sepolia or mainnet).
@@ -39,6 +39,8 @@ async function main() {
   // auto-funding a fresh agent with real ETH).
   const chainId = Number((await ethers.provider.getNetwork()).chainId);
   const isMainnet = chainId === 8453;
+  // Hardhat exposes forking config on the network; treat a fork as a rehearsal.
+  const isFork = Boolean((network.config as { forking?: unknown }).forking);
   const networkLabel = isMainnet ? "Base mainnet" : chainId === 84532 ? "Base Sepolia" : `chain ${chainId}`;
 
   if (!isMainnet && chainId !== 84532 && chainId !== 31337 && process.env.ALLOW_UNKNOWN_CHAIN !== "true") {
@@ -191,9 +193,19 @@ async function main() {
   // SECURITY: key material never goes into deployments.json (it is a publishable
   // artifact) and is never printed to logs/CI. It is written only to the
   // gitignored .env, which we lock down to the current user.
+  //
+  // A rehearsal (RL fork / dry run) must NEVER touch .env: it generates a
+  // throwaway agent, and overwriting the live key would lose it.
   const envPath = path.resolve(__dirname, "..", ".env");
-  assertNotTracked(envPath, ".env (key material)");
-  upsertEnvVar(envPath, "AGENT_A_PK", agentAPk);
+  if (process.env.REHEARSAL === "true") {
+    console.warn("! Rehearsal mode: NOT writing AGENT_A_PK to .env (throwaway agent).");
+  } else if (isFork) {
+    console.warn("! Fork detected: NOT writing AGENT_A_PK to .env (throwaway agent).");
+  } else {
+    assertNotTracked(envPath, ".env (key material)");
+    backupFile(envPath);
+    upsertEnvVar(envPath, "AGENT_A_PK", agentAPk);
+  }
 
   const deployment = {
     chainId,
@@ -216,6 +228,9 @@ async function main() {
   fs.writeFileSync(outPath, json);
 
   const explorerBase = isMainnet ? "https://basescan.org" : "https://sepolia.basescan.org";
+  if (process.env.REHEARSAL === "true" || isFork) {
+    console.warn("! Rehearsal/fork: addresses written, no key persisted.");
+  }
   console.log("\n=== TAOP MVP deployed (network from hardhat) ===");
   console.log("Network:   ", deployment.network, `(chainId ${deployment.chainId})`);
   console.log("RON:       ", ronAddr);
@@ -223,7 +238,11 @@ async function main() {
   console.log("Agent A:   ", agentAAddr);
   console.log("Explorer:  ", explorerBase + "/address/" + ronAddr);
   console.log("\nWrote", outPath, "(addresses only — no keys)");
-  console.log("Wrote AGENT_A_PK to", envPath, "(chmod 600, gitignored)");
+  if (process.env.REHEARSAL === "true" || isFork) {
+    console.log("Rehearsal/fork: AGENT_A_PK NOT written to .env (throwaway agent).");
+  } else {
+    console.log("Wrote AGENT_A_PK to", envPath, "(chmod 600, gitignored; previous .env backed up)");
+  }
   console.log("\nNext: restart the backend so it picks up the new agent key.");
 
   // Mainnet prep (Step 5): For Base mainnet use `npm run deploy:mainnet`

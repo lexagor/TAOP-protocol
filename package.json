@@ -38,7 +38,9 @@
     "docs:api": "typedoc",
     "e2e:local": "bash scripts/e2e-local.sh",
     "verify:deployment": "node scripts/verify-deployment.mjs",
-    "scan:secrets": "node scripts/scan-secrets.mjs"
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "coverage:check": "node scripts/check-coverage.mjs",
+    "rehearse:mainnet-fork": "REHEARSAL=true FORK_BASE_MAINNET=true DEPLOYMENTS_PATH=/tmp/taop-fork-rehearsal.json hardhat run scripts/deploy-base-sepolia.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

@@ -34,7 +34,8 @@ Companion docs: [`redeploy-v0.2.md`](redeploy-v0.2.md),
 - [ ] Production Base RPC (dedicated provider, not the public endpoint); set `BASE_MAINNET_RPC_URL`.
 - [ ] Fund the deployer with real Base ETH (≥ 0.05–0.1 ETH for deploy + bonds + gas).
 - [ ] `BASESCAN_API_KEY` for verification.
-- [ ] Test the deploy path on a fork / dry-run before broadcasting.
+- [x] Rehearse the deploy path on a read-only Base fork: `npm run rehearse:mainnet-fork`
+      (CI `fork-rehearsal` job). No funds, and it never writes `.env`.
 - [ ] Key management per [`EMERGENCY.md`](EMERGENCY.md): owner/deployer in a hardware wallet or KMS; mainnet keys never hot; no key sharing with tooling.
 
 ## 4. Deployment & verification

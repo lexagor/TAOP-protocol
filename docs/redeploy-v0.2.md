@@ -70,6 +70,18 @@ The deployer remains `validator`/certifier unless you reconfigure it, but admin
 actions (`resolveChallenge`, `withdrawEthPool`, `setCertifier`) are then proposed
 by the Safe and only take effect after the delay.
 
+## Rehearse first (no funds)
+
+```bash
+# Deploys to a read-only Base mainnet fork: real mainnet code path, no real ETH.
+npm run rehearse:mainnet-fork
+```
+
+It writes `/tmp/taop-fork-rehearsal.json` (addresses only) and **never touches
+`.env`** — rehearsals/fork deploys generate a throwaway agent, so the live
+`AGENT_A_PK` is left alone. A real (non-fork) deploy backs up `.env` to
+`.env.bak-<timestamp>` before updating it.
+
 ## Mainnet notes
 
 - The deploy script **does not auto-fund a freshly generated Agent A on `base`**

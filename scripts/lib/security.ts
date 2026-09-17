@@ -1,5 +1,20 @@
 import { execFileSync } from "node:child_process";
+import * as fs from "node:fs";
 import * as path from "node:path";
+
+/** Copy an existing file to `<name>.bak-<timestamp>` (chmod 600) before modifying it. */
+export function backupFile(p: string): void {
+  if (!fs.existsSync(p)) return;
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const bak = `${p}.bak-${stamp}`;
+  fs.copyFileSync(p, bak);
+  try {
+    fs.chmodSync(bak, 0o600);
+  } catch {
+    /* best effort */
+  }
+  console.log("Backed up", p, "to", bak);
+}
 
 /** Refuse to write secret material into a path git would track. */
 export function assertNotTracked(p: string, label: string): void {
