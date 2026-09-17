@@ -230,6 +230,9 @@ jobs:
       - name: Live read-only checks (Base Sepolia)
         run: npm run test:live
 
+      - name: Verify deployments.json.example against the live chain
+        run: DEPLOYMENTS_PATH=deployments.json.example npm run verify:deployment
+
   # Full local stack: Hardhat node + contracts + backend + HTTP flow. No
   # credentials needed (IPFS/inference fall back to mock/local).
   e2e:

@@ -35,6 +35,9 @@ const ron = new ethers.Contract(
     "function owner() view returns (address)",
     "function CHALLENGE_WINDOW() view returns (uint256)",
     "function getTwoSidedScore(address) view returns (uint64,uint64,uint64,uint64,uint16)",
+    "function paused() view returns (bool)",
+    "function attestCooldown() view returns (uint64)",
+    "function getCreditScore(address) view returns (uint64,uint64,uint64,uint64,uint16)",
   ],
   provider,
 );
@@ -44,6 +47,7 @@ const registry = new ethers.Contract(
     "function owner() view returns (address)",
     "function certifier() view returns (address)",
     "function countCapabilitiesByType(bytes32) view returns (uint256)",
+    "function paused() view returns (bool)",
   ],
   provider,
 );
@@ -93,6 +97,38 @@ try {
   check("v0.2 countCapabilitiesByType present", false, "reverted — pre-v0.2 deployment");
 }
 if (!v2) check("deployment is v0.2 (F11/F10 active)", false, "redeploy not reflected on-chain");
+
+// v0.3 features (pause, cooldown, diversity score).
+let v3 = true;
+try {
+  const paused = await ron.paused();
+  check("v0.3 paused() present", true, `paused=${paused}`);
+  if (paused) console.log("WARN  RON is PAUSED — protocol actions are disabled (exits still open).");
+} catch {
+  v3 = false;
+  check("v0.3 paused() present", false, "reverted — pre-v0.3 deployment");
+}
+try {
+  const cooldown = await ron.attestCooldown();
+  console.log(`INFO  attestCooldown = ${cooldown}s`);
+} catch {
+  v3 = false;
+  check("v0.3 attestCooldown() present", false, "reverted — pre-v0.3 deployment");
+}
+try {
+  await ron.getCreditScore(dep.validator);
+  check("v0.3 getCreditScore present", true);
+} catch {
+  v3 = false;
+  check("v0.3 getCreditScore present", false, "reverted — pre-v0.3 deployment");
+}
+try {
+  const regPaused = await registry.paused();
+  console.log(`INFO  Registry paused = ${regPaused}`);
+} catch {
+  v3 = false;
+}
+console.log(`INFO  feature level: ${v2 ? (v3 ? "v0.3" : "v0.2") : "pre-v0.2"}`);
 
 try {
   const delay = await timelock.getMinDelay();

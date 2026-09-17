@@ -83,6 +83,22 @@ console.log(`  INFO discovery served from index: ${indexed.headers.get("x-indexe
 const ix = await req("GET", "/api/indexer");
 check("indexer reports enabled", ix.json?.enabled === true, JSON.stringify(ix.json));
 
+// v0.3 admin controls routed through the Timelock (0-delay locally).
+const pauseRes = await req("POST", "/api/admin/pause", {});
+check("admin pause via Timelock", pauseRes.status === 200, JSON.stringify(pauseRes.json));
+
+const blocked = await req("POST", "/api/completions/attest", { taskType: "LoRA", resultCID: "ipfs://paused" });
+check("attestation blocked while paused", blocked.status >= 400, `status=${blocked.status}`);
+
+const unpauseRes = await req("POST", "/api/admin/unpause", {});
+check("admin unpause via Timelock", unpauseRes.status === 200, JSON.stringify(unpauseRes.json));
+
+const afterUnpause = await req("POST", "/api/completions/attest", { taskType: "LoRA", resultCID: "ipfs://unpaused" });
+check("attestation works after unpause", afterUnpause.status === 200, `status=${afterUnpause.status}`);
+
+const cooldownRes = await req("POST", "/api/admin/attest-cooldown", { cooldown: 0 });
+check("attest cooldown settable", cooldownRes.status === 200, JSON.stringify(cooldownRes.json));
+
 if (failures > 0) {
   console.error(`\nE2E FAILED: ${failures} check(s) failed`);
   process.exit(1);

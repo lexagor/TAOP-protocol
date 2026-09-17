@@ -5,10 +5,13 @@ All notable changes to TAOP will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — v0.3 hardening (pause, cooldown, diversity score)
+## [0.3.0] - 2026-09-17
 
-> **Not yet deployed** — these contract changes require a redeploy to activate.
-> The live pilot remains v0.2.
+**Live on Base Sepolia:**
+RON `0xCD45B416ba36FC3C1375D15e2ae763FbD5889cbA`,
+Registry `0xE3a525A60C3AfFa24f0965f3B08f4F915171eA55`,
+Timelock `0x145Cd7bdeBbc7bfB273C4757a34e34455E536aE8` (0-delay pilot, policy frozen),
+Agent A `0xc4E87c0b30f63Ddcfadc41fBbF565F48ef7b1d50`.
 
 ### Added
 - **Pausable circuit breaker** on both contracts (owner/Timelock). Pauses

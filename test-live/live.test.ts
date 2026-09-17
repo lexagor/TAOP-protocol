@@ -48,14 +48,14 @@ describe("live Base Sepolia — SDK reads real deployed bytecode", () => {
     const results = await discover(registry, ron, "LoRA", 0);
     expect(Array.isArray(results)).toBe(true);
     for (const r of results) {
-      expect(["two-sided", "self-attest"]).toContain(r.scoreType);
+      expect(["credit", "two-sided", "self-attest"]).toContain(r.scoreType);
       expect(r.score).toBeGreaterThanOrEqual(0n);
       expect(r.agentAddress).toMatch(/^0x[0-9a-fA-F]{40}$/);
     }
   });
 
-  it("getRankingScore selects a supported score type on live bytecode", async () => {
+  it("getRankingScore selects a supported score type on live bytecode (credit > two-sided > self-attest)", async () => {
     const r = await ron.getRankingScore(dep.agentA);
-    expect(["two-sided", "self-attest"]).toContain(r.scoreType);
+    expect(["credit", "two-sided", "self-attest"]).toContain(r.scoreType);
   });
 });

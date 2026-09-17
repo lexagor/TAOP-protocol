@@ -53,17 +53,17 @@ The demo page proves the loop:
 
 ### Contracts (Live on Base Sepolia)
 
-> v0.2 redeploy (2026-09-15): two-sided receipts (`attestReceipt`/`revokeReceipt`), optimistic challenge window (`contestChallenge`/`finalizeChallenge`), two-sided score (`getTwoSidedScore`), plus paginated discovery (`countCapabilitiesByType`/`getCapabilitiesByTypePaged`); carried over: linear decay (30-day grace, 150-day horizon), indexed discovery, TimelockController (0 delay for pilot).
+> v0.3 redeploy (2026-09-17): pause circuit breaker, attest cooldown, diversity-adjusted credit score (`getCreditScore`). Carried over from v0.2: two-sided receipts (`attestReceipt`/`revokeReceipt`), optimistic challenge window (`contestChallenge`/`finalizeChallenge`), two-sided score (`getTwoSidedScore`), plus paginated discovery (`countCapabilitiesByType`/`getCapabilitiesByTypePaged`); carried over: linear decay (30-day grace, 150-day horizon), indexed discovery, TimelockController (0 delay for pilot).
 
 | Contract | Address | Basescan |
 |---|---|---|
-| ReputationOracleNetwork | `0xA5b6E3933E4eEF3Ec9dd1F21282a137E7eb7310A` | [view](https://sepolia.basescan.org/address/0xA5b6E3933E4eEF3Ec9dd1F21282a137E7eb7310A) |
-| CapabilityRegistry | `0x766d619657d1a18088a9F9F96B3E411749B8481e` | [view](https://sepolia.basescan.org/address/0x766d619657d1a18088a9F9F96B3E411749B8481e) |
-| TimelockController | `0xF8B23a91c951122F572Df15661e9Fc6b9D1D56D0` | [view](https://sepolia.basescan.org/address/0xF8B23a91c951122F572Df15661e9Fc6b9D1D56D0) |
+| ReputationOracleNetwork | `0xCD45B416ba36FC3C1375D15e2ae763FbD5889cbA` | [view](https://sepolia.basescan.org/address/0xCD45B416ba36FC3C1375D15e2ae763FbD5889cbA) |
+| CapabilityRegistry | `0xE3a525A60C3AfFa24f0965f3B08f4F915171eA55` | [view](https://sepolia.basescan.org/address/0xE3a525A60C3AfFa24f0965f3B08f4F915171eA55) |
+| TimelockController | `0x145Cd7bdeBbc7bfB273C4757a34e34455E536aE8` | [view](https://sepolia.basescan.org/address/0x145Cd7bdeBbc7bfB273C4757a34e34455E536aE8) |
 
 **Validator / Deployer:** `0x37374FD4f27c2b46Fd5d1a9BAFdc709315E51120`
 
-**Agent A:** `0x877963940a867aD40A389C295a6fA341d9849b87` (fresh key, v0.2 redeploy 2026-09-15 — the previously published agent key is retired)
+**Agent A:** `0xc4E87c0b30f63Ddcfadc41fBbF565F48ef7b1d50` (fresh key, v0.3 redeploy 2026-09-17 — the previously published agent key is retired)
 
 **Redeploy / refresh:**  
 If you need to redeploy again: `npm run deploy:sepolia` (we lowered the Agent A fund amount to 0.02 ETH).
@@ -73,7 +73,7 @@ If you need to redeploy again: `npm run deploy:sepolia` (we lowered the Agent A 
 - Alchemy: https://www.alchemy.com/faucets/base-sepolia  
 - More: https://docs.base.org/base-chain/network-information/network-faucets
 
-**Current status (v0.2, live 2026-09-15):** Public repo, `@taopp/sdk@0.1.2` + `@taopp/mcp-server@0.1.1` (pending publish), Timelock (0-delay — policy frozen by decision), **two-sided receipts + optimistic challenge window**, linear decay (30-day grace + 150-day horizon) with `getScoreDetails`, indexed discovery, basic agent identity, gated writes (`X-TAOP-Key`, `DEMO_READ_ONLY`), secrets purged from history (see `SECURITY.md`). CI: 70 contract + 11 Foundry + 31 backend + MCP + live tests, Slither/Aderyn/Solhint/ESLint, mutation spot-check, coverage, E2E + Docker jobs. Self-audit in `docs/SELF-AUDIT.md`. Governance (multisig/delay) deferred; free-only security.
+**Current status (v0.3, live 2026-09-17):** Public repo, Timelock-owned (0-delay — policy frozen by decision), **pause circuit breaker** (exits stay open), **attestation cooldown** (default 0), **diversity-adjusted credit score** (`getCreditScore` = distinct counterparties − disputes), two-sided receipts + optimistic challenge window, linear decay (30-day grace + 150-day horizon), indexed discovery, basic agent identity, gated writes (`X-TAOP-Key`, `DEMO_READ_ONLY`), secrets purged from history (see `SECURITY.md`). CI: 78 contract + 11 Foundry + 36 backend + MCP + live + live-chain tests, Slither/Aderyn/Solhint/ESLint, mutation (16/16), coverage, E2E + Docker jobs. Self-audit in `docs/SELF-AUDIT.md`. Multisig/delay deferred; free-only security.
 
 To redeploy with latest on-chain features (decay + indexed + Timelock), use the command in the Contracts section above. It will update `deployments.json`. Then paste fresh addresses into the table.
 
@@ -157,7 +157,7 @@ import { ethers } from "ethers";
 
 const provider = new ethers.JsonRpcProvider("https://base-sepolia.infura.io/v3/...");
 
-const ron = new ReputationOracleNetworkClient("0xA5b6E3933E4eEF3Ec9dd1F21282a137E7eb7310A", provider); // live on Base Sepolia
+const ron = new ReputationOracleNetworkClient("0xCD45B416ba36FC3C1375D15e2ae763FbD5889cbA", provider); // live on Base Sepolia
 const score = await ron.getSelfAttestScore("0x...");
 console.log(score); // { completions, disputes, score }
 ```
@@ -214,7 +214,7 @@ from taop import ReputationOracleNetworkClient, CapabilityRegistryClient
 from web3 import Web3
 
 w3 = Web3(Web3.HTTPProvider("https://sepolia.base.org"))
-ron = ReputationOracleNetworkClient(w3, "0xA5b6E3933E4eEF3Ec9dd1F21282a137E7eb7310A")
+ron = ReputationOracleNetworkClient(w3, "0xCD45B416ba36FC3C1375D15e2ae763FbD5889cbA")
 score = ron.get_self_attest_score("0xAgent...")
 print(score)
 ```
@@ -230,8 +230,8 @@ from taop import connect, CapabilityRegistryClient, ReputationOracleNetworkClien
 from taop.integrations.langchain import TaopDiscoverTool
 
 w3 = connect("https://sepolia.base.org", 84532)
-ron = ReputationOracleNetworkClient("0xA5b6E3933E4eEF3Ec9dd1F21282a137E7eb7310A", w3)
-reg = CapabilityRegistryClient("0x766d619657d1a18088a9F9F96B3E411749B8481e", w3)
+ron = ReputationOracleNetworkClient("0xCD45B416ba36FC3C1375D15e2ae763FbD5889cbA", w3)
+reg = CapabilityRegistryClient("0xE3a525A60C3AfFa24f0965f3B08f4F915171eA55", w3)
 tool = TaopDiscoverTool(reg, ron)
 print(tool._run(capabilityType="LoRA", minScore=1))  # best LoRA agents
 

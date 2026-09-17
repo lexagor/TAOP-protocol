@@ -31,6 +31,9 @@ jobs:
       - name: Live read-only checks (Base Sepolia)
         run: npm run test:live
 
+      - name: Verify deployments.json.example against the live chain
+        run: DEPLOYMENTS_PATH=deployments.json.example npm run verify:deployment
+
   deps:
     runs-on: ubuntu-latest
     continue-on-error: true
