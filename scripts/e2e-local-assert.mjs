@@ -99,6 +99,15 @@ check("attestation works after unpause", afterUnpause.status === 200, `status=${
 const cooldownRes = await req("POST", "/api/admin/attest-cooldown", { cooldown: 0 });
 check("attest cooldown settable", cooldownRes.status === 200, JSON.stringify(cooldownRes.json));
 
+// The pause/unpause events should surface as alerts once the indexer catches up.
+let pauseAlert = false;
+for (let i = 0; i < 20 && !pauseAlert; i++) {
+  const alerts = await req("GET", "/api/alerts?limit=25");
+  pauseAlert = Array.isArray(alerts.json) && alerts.json.some((a) => a.kind === "Paused" || a.kind === "Unpaused");
+  if (!pauseAlert) await sleep(1000);
+}
+check("pause/unpause raise alerts", pauseAlert);
+
 if (failures > 0) {
   console.error(`\nE2E FAILED: ${failures} check(s) failed`);
   process.exit(1);

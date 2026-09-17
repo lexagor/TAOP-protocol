@@ -46,6 +46,8 @@ const REGISTRY_EVENTS = [
   "event BondWithdrawn(uint256 capabilityId, address indexed to, uint256 amount)",
   "event EthPoolWithdrawn(address indexed to, uint256 amount)",
   "event CertifierChanged(address indexed previousCertifier, address indexed newCertifier)",
+  "event Paused(address account)",
+  "event Unpaused(address account)",
 ];
 
 const RON_EVENTS = [
@@ -56,6 +58,8 @@ const RON_EVENTS = [
   "event ChallengeResolved(uint256 completionId, bool upheld)",
   "event EthPoolWithdrawn(address indexed to, uint256 amount)",
   "event AgentRegistered(address indexed agent, string metadataCID)",
+  "event Paused(address account)",
+  "event Unpaused(address account)",
 ];
 
 const registryIface = new ethers.Interface(REGISTRY_EVENTS);
@@ -268,6 +272,13 @@ async function applyRegistryEvent(
         newCertifier: parsed.args[1] as string,
       });
       break;
+    case "Paused":
+    case "Unpaused":
+      recordAlert(parsed.name, log.blockNumber, log.transactionHash, {
+        contract: "CapabilityRegistry",
+        account: parsed.args[0] as string,
+      });
+      break;
     default:
       break;
   }
@@ -357,6 +368,13 @@ async function applyRonEvent(
       setAgentIdentity(agent, metadataCID);
       break;
     }
+    case "Paused":
+    case "Unpaused":
+      recordAlert(parsed.name, log.blockNumber, log.transactionHash, {
+        contract: "ReputationOracleNetwork",
+        account: parsed.args[0] as string,
+      });
+      break;
     default:
       break;
   }

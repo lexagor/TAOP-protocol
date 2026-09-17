@@ -133,6 +133,15 @@ function explorerBase(): string {
     : "https://basescan.org";
 }
 
+/** Read `paused()` defensively (absent/old contracts -> null). */
+async function safePaused(client: { paused?: () => Promise<boolean> }): Promise<boolean | null> {
+  try {
+    return typeof client.paused === "function" ? await client.paused() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** v0.2/F10: JSON + ETag helper for cacheable read endpoints. */
 function sendJsonWithEtag(
   req: express.Request,
@@ -222,6 +231,10 @@ api.get("/healthz", async (_req, res) => {
     uptimeSec: Math.round(process.uptime()),
     writes: WRITES_DISABLED ? "disabled" : API_KEY ? "keyed" : "open-loopback",
     rpc: { ok: rpcOk, latencyMs: Date.now() - startedAt, blockNumber, error: rpcError },
+    contracts: {
+      ronPaused: await safePaused(state.ron),
+      registryPaused: await safePaused(state.registryOracle),
+    },
     indexer: {
       enabled: ix.enabled,
       ready: ix.ready,

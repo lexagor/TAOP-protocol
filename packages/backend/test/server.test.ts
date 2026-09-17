@@ -31,8 +31,9 @@ setBackendState({
     getScoreDetails: async () => ({ completions: 0n, disputes: 0n, score: 0n, lastActivity: 0n, decayBps: 10000 }),
     getTwoSidedScore: async () => ({ confirmed: 0n, disputes: 0n, score: 0n, lastActivity: 0n, decayBps: 10000 }),
     getAgentMetadata: async () => "",
+    paused: async () => false,
   },
-  registryOracle: { getCapabilitiesByType: async () => [] },
+  registryOracle: { getCapabilitiesByType: async () => [], paused: async () => false },
   timelockDelay: 0n,
   capabilityId: 1n,
 } as never);
@@ -46,6 +47,7 @@ describe("backend API — write gate + health (keyed loopback)", () => {
     expect(res.body.rpc.blockNumber).toBe(4242);
     expect(res.body.writes).toBe("keyed");
     expect(res.body.indexer).toBeDefined();
+    expect(res.body.contracts).toEqual({ ronPaused: false, registryPaused: false });
   });
 
   it("rejects a write without the API key (401)", async () => {

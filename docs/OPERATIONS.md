@@ -28,7 +28,8 @@ readiness detail:
 }
 ```
 
-`ok` is process liveness (true whenever the process is up). Use the nested
+`ok` is process liveness (true whenever the process is up). `contracts.ronPaused`
+/ `contracts.registryPaused` expose the on-chain pause state. Use the nested
 fields for readiness alerts:
 
 | Signal | Healthy | Investigate |
@@ -86,6 +87,8 @@ first). Kinds and suggested responses:
 | `CapabilitySlashed` | A capability bond was slashed | Confirm the certifier acted intentionally |
 | `BondWithdrawn` | A creator reclaimed a bond (NFT burned) | Expected churn; confirm it isn't a rug |
 | `EthPoolWithdrawn` | Owner withdrew protocol fees/slashed bonds | Investigate immediately — owners only move funds deliberately |
+| `CertifierChanged` | Certifier role changed | Verify it was intended (owner action) |
+| `Paused` / `Unpaused` | Protocol actions were paused/resumed | Confirm it was intentional; a pause blocks attestations/challenges |
 
 ## 5. Key rotation
 
