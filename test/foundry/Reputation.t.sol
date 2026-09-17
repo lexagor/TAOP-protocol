@@ -152,6 +152,10 @@ contract RONInvariants is Test {
             assertLe(score, conf);
             (uint64 comps, , uint64 selfScore) = ron.getSelfAttestScore(a);
             assertLe(selfScore, comps);
+            // v0.3: distinct counterparties can never exceed confirmations.
+            (uint64 distinct, , uint64 credit, , ) = ron.getCreditScore(a);
+            assertLe(distinct, conf);
+            assertLe(credit, distinct);
         }
     }
 }

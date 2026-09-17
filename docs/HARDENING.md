@@ -59,6 +59,9 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
   score bounds, index integrity).
 - Mutation spot-check (12/12 critical mutants caught).
 - Zero-address guards; indexed address events; no protocol token.
+- **v0.3 (code, pending redeploy):** `Pausable` circuit breaker on both contracts
+  (exits stay open), settable attestation cooldown, and a diversity-adjusted
+  credit score (distinct counterparties) so self-dealing can't inflate ranking.
 
 ## GitHub settings (applied)
 

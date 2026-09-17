@@ -69,6 +69,16 @@ class TwoSidedScore:
 
 
 @dataclass
+class CreditScore:
+    """v0.3: diversity-adjusted score based on distinct counterparties."""
+    distinct_counterparties: int
+    disputes: int
+    score: int
+    last_activity: int
+    decay_bps: int
+
+
+@dataclass
 class ScoreSubmission:
     agent: str
     task_id: int

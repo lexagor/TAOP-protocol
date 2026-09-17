@@ -1,4 +1,7 @@
-# Redeploy v0.2 to Base Sepolia
+# Redeploy to Base Sepolia (v0.2 / v0.3)
+
+> Applies to the current `main`: the v0.3 contract hardening (pause, cooldown,
+> diversity score) ships with the same deploy path.
 
 Everything in this runbook is **prepared and locally rehearsed**; the only steps
 that need you are the ones touching your deployer key and funds (marked

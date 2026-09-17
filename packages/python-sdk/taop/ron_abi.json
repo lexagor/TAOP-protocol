@@ -35,6 +35,27 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint64",
+        "name": "readyAt",
+        "type": "uint64"
+      }
+    ],
+    "name": "CooldownActive",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EnforcedPause",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ExpectedPause",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "NoSuchCompletion",
     "type": "error"
@@ -124,6 +145,19 @@
       }
     ],
     "name": "AgentRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "cooldown",
+        "type": "uint64"
+      }
+    ],
+    "name": "AttestCooldownChanged",
     "type": "event"
   },
   {
@@ -232,6 +266,19 @@
     "inputs": [
       {
         "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "Paused",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
         "internalType": "uint256",
         "name": "completionId",
         "type": "uint256"
@@ -294,6 +341,19 @@
       }
     ],
     "name": "SelfAttested",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "Unpaused",
     "type": "event"
   },
   {
@@ -402,6 +462,19 @@
       }
     ],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "attestCooldown",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -605,9 +678,52 @@
         "internalType": "address",
         "name": "",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "counterpartyConfirmations",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "name": "disputeCount",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "distinctCounterparties",
     "outputs": [
       {
         "internalType": "uint64",
@@ -706,6 +822,45 @@
         "internalType": "struct ReputationOracleNetwork.Completion",
         "name": "",
         "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "agent",
+        "type": "address"
+      }
+    ],
+    "name": "getCreditScore",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "distinctCounterparties_",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "disputeCount_",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "score",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "lastActivity_",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint16",
+        "name": "decayBps",
+        "type": "uint16"
       }
     ],
     "stateMutability": "view",
@@ -838,6 +993,25 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "lastAttestation",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "nextCompletionId",
     "outputs": [
@@ -858,6 +1032,26 @@
         "internalType": "address",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "paused",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -934,6 +1128,19 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint64",
+        "name": "cooldown",
+        "type": "uint64"
+      }
+    ],
+    "name": "setAttestCooldown",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "slashedEthPool",
     "outputs": [
@@ -955,6 +1162,13 @@
       }
     ],
     "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "unpause",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

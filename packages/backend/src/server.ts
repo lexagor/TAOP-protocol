@@ -231,6 +231,7 @@ api.get("/healthz", async (_req, res) => {
       safeHead: ix.safeHead,
       reorgsDetected: ix.reorgsDetected,
       twoSided: ix.useTwoSided,
+      credit: ix.useCredit,
       lastError: ix.lastError,
     },
   });
@@ -414,6 +415,49 @@ api.post("/completions/:id/resolve", async (req, res) => {
   }
 });
 
+// --- v0.3 admin controls (owner-only; routed through the Timelock when present) ---
+
+async function ownerTx(fnName: string, args: unknown[], direct: () => Promise<{ hash?: string } | null>) {
+  state.oracleRunner?.reset?.();
+  if (state.executeViaTimelock) {
+    const iface = new ethers.Interface([`function ${fnName}`]);
+    const data = iface.encodeFunctionData(fnName, args);
+    const r = await state.executeViaTimelock(state.deployment.ron, data);
+    return { txHash: r.receipt?.hash ?? null, scheduled: r.scheduled, executed: r.executed };
+  }
+  const receipt = await direct();
+  return { txHash: receipt?.hash ?? null, scheduled: false, executed: true };
+}
+
+api.post("/admin/pause", async (_req, res) => {
+  try {
+    res.json(await ownerTx("pause()", [], () => state.ron.pause()));
+  } catch (e) {
+    const msg = String((e as Error).message ?? e);
+    res.status(msg.includes("revert") || msg.includes("CALL_EXCEPTION") ? 400 : 500).json({ error: msg });
+  }
+});
+
+api.post("/admin/unpause", async (_req, res) => {
+  try {
+    res.json(await ownerTx("unpause()", [], () => state.ron.unpause()));
+  } catch (e) {
+    const msg = String((e as Error).message ?? e);
+    res.status(msg.includes("revert") || msg.includes("CALL_EXCEPTION") ? 400 : 500).json({ error: msg });
+  }
+});
+
+api.post("/admin/attest-cooldown", async (req, res) => {
+  try {
+    const cooldown = Number(req.body?.cooldown ?? 0);
+    if (!Number.isInteger(cooldown) || cooldown < 0) return res.status(400).json({ error: "cooldown must be a non-negative integer (seconds)" });
+    res.json(await ownerTx("setAttestCooldown(uint64)", [cooldown], () => state.ron.setAttestCooldown(cooldown)));
+  } catch (e) {
+    const msg = String((e as Error).message ?? e);
+    res.status(msg.includes("revert") || msg.includes("CALL_EXCEPTION") ? 400 : 500).json({ error: msg });
+  }
+});
+
 api.get("/completions", (_req, res) => {
   res.json(listCompletions());
 });
@@ -530,16 +574,23 @@ api.get("/agents/:address/score", async (req, res) => {
       score: d.score.toString(),
       lastActivity: d.lastActivity.toString(),
       decayBps: d.decayBps,
-      // v0.2: receipt-confirmed ranking score (absent on older contracts).
+      // Ranking signal: credit (v0.3) > two-sided (v0.2) > self-attest.
       rankingScoreType: "self-attest",
     };
     try {
-      const two = await state.ron.getTwoSidedScore(req.params.address);
-      payload.confirmed = two.confirmed.toString();
-      payload.twoSidedScore = two.score.toString();
-      payload.rankingScoreType = "two-sided";
+      const credit = await state.ron.getCreditScore(req.params.address);
+      payload.distinctCounterparties = credit.distinctCounterparties.toString();
+      payload.creditScore = credit.score.toString();
+      payload.rankingScoreType = "credit";
     } catch {
-      // pre-v0.2 contract — leave defaults
+      try {
+        const two = await state.ron.getTwoSidedScore(req.params.address);
+        payload.confirmed = two.confirmed.toString();
+        payload.twoSidedScore = two.score.toString();
+        payload.rankingScoreType = "two-sided";
+      } catch {
+        // pre-v0.2 contract — leave defaults
+      }
     }
     res.json(payload);
   } catch {

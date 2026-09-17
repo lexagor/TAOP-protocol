@@ -46,6 +46,9 @@ setBackendState({
     finalizeChallenge: async () => receipt,
     resolveChallenge: async () => receipt,
     registerAgent: async () => receipt,
+    pause: async () => receipt,
+    unpause: async () => receipt,
+    setAttestCooldown: async () => receipt,
   },
   ronAgentA: {
     challengeCompletion: async () => receipt,
@@ -142,6 +145,29 @@ describe("backend API — v0.2 routes (authorized)", () => {
     const res = await post("/api/capabilities/1/certify");
     expect(res.status).toBe(200);
     expect(res.body.txHash).toBe(receipt.hash);
+  });
+
+  it("POST /admin/pause", async () => {
+    const res = await post("/api/admin/pause");
+    expect(res.status).toBe(200);
+    expect(res.body.txHash).toBe(receipt.hash);
+  });
+
+  it("POST /admin/unpause", async () => {
+    const res = await post("/api/admin/unpause");
+    expect(res.status).toBe(200);
+  });
+
+  it("POST /admin/attest-cooldown (valid + invalid)", async () => {
+    const ok = await post("/api/admin/attest-cooldown", { cooldown: 3600 });
+    expect(ok.status).toBe(200);
+    const bad = await post("/api/admin/attest-cooldown", { cooldown: -1 });
+    expect(bad.status).toBe(400);
+  });
+
+  it("admin routes require the API key", async () => {
+    const res = await request(app).post("/api/admin/pause").send({});
+    expect(res.status).toBe(401);
   });
 
   it("GET /capabilities/:id", async () => {

@@ -38,8 +38,10 @@ it (`attestReceipt`); the requester can `revokeReceipt`. Challenges now open a
 3-day `CHALLENGE_WINDOW`: the agent can `contestChallenge` with a rebuttal, and an
 uncontested challenge is finalized optimistically by anyone after the window
 (`finalizeChallenge`); contested challenges fall back to the owner
-(`resolveChallenge`). `getTwoSidedScore` is the score to rank on; `getSelfAttestScore`
-remains for backwards compatibility. See `CHANGELOG.md` [Unreleased].
+(`resolveChallenge`). `getTwoSidedScore` is the raw two-sided signal; **v0.3 (code, pending redeploy)**
+adds a `Pausable` circuit breaker, a settable attestation cooldown, and
+`getCreditScore` — a diversity-adjusted ranking score (distinct counterparties −
+disputes), which `getRankingScore` prefers when available. See `CHANGELOG.md`.
 
 The demo page proves the loop:
 

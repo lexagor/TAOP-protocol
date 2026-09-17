@@ -37,6 +37,16 @@ export function initIndexSchema(): void {
       block_number INTEGER NOT NULL,
       PRIMARY KEY (tx_hash, log_index)
     );
+    CREATE TABLE IF NOT EXISTS counterparty_confirmations (
+      agent TEXT NOT NULL,
+      counterparty TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (agent, counterparty)
+    );
+    CREATE TABLE IF NOT EXISTS agent_diversity (
+      agent TEXT PRIMARY KEY,
+      distinct_count INTEGER NOT NULL DEFAULT 0
+    );
     CREATE TABLE IF NOT EXISTS alerts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       kind TEXT NOT NULL,
@@ -217,6 +227,41 @@ export function bumpAgent(
     );
 }
 
+/**
+ * Track per-(agent, counterparty) confirmation counts and the distinct count
+ * (v0.3 diversity signal), mirroring the contract.
+ */
+export function bumpCounterparty(agent: string, counterparty: string, delta: 1 | -1): void {
+  const a = agent.toLowerCase();
+  const cp = counterparty.toLowerCase();
+  const row = db()
+    .prepare("SELECT count FROM counterparty_confirmations WHERE agent = ? AND counterparty = ?")
+    .get(a, cp) as { count: number } | undefined;
+  const cur = row?.count ?? 0;
+  const next = cur + delta;
+  if (next <= 0) {
+    db().prepare("DELETE FROM counterparty_confirmations WHERE agent = ? AND counterparty = ?").run(a, cp);
+    if (cur > 0) {
+      db().prepare("UPDATE agent_diversity SET distinct_count = MAX(0, distinct_count - 1) WHERE agent = ?").run(a);
+    }
+  } else {
+    db()
+      .prepare(
+        `INSERT INTO counterparty_confirmations (agent, counterparty, count) VALUES (?, ?, ?)
+         ON CONFLICT(agent, counterparty) DO UPDATE SET count = excluded.count`,
+      )
+      .run(a, cp, next);
+    if (cur === 0) {
+      db()
+        .prepare(
+          `INSERT INTO agent_diversity (agent, distinct_count) VALUES (?, 1)
+           ON CONFLICT(agent) DO UPDATE SET distinct_count = agent_diversity.distinct_count + 1`,
+        )
+        .run(a);
+    }
+  }
+}
+
 export function recordIndexedCompletion(c: {
   completionId: bigint;
   agent: string;
@@ -258,6 +303,13 @@ export function addReceiptIndex(completionId: bigint, agent: string, counterpart
     .run(Number(completionId), agent.toLowerCase(), counterparty.toLowerCase(), ts);
 }
 
+export function getReceiptCounterparty(completionId: bigint): string | null {
+  const row = db()
+    .prepare("SELECT counterparty FROM completion_receipts WHERE completion_id = ?")
+    .get(Number(completionId)) as { counterparty: string } | undefined;
+  return row?.counterparty ?? null;
+}
+
 export function getReceiptAgent(completionId: bigint): string | null {
   const row = db()
     .prepare("SELECT agent FROM completion_receipts WHERE completion_id = ?")
@@ -296,6 +348,7 @@ export interface IndexedCapabilityRow {
   slashed: number;
   completions: number;
   confirmed: number;
+  distinct_count: number;
   disputes: number;
   last_activity: number;
 }
@@ -317,10 +370,12 @@ export function queryIndexedCapabilities(capabilityTypeLabel: string): IndexedCa
       `SELECT c.capability_id, c.creator, c.bond, c.capability_type, c.metadata_cid, c.certified, c.slashed,
               COALESCE(a.completions, 0)   AS completions,
               COALESCE(a.confirmed, 0)     AS confirmed,
+              COALESCE(d.distinct_count, 0) AS distinct_count,
               COALESCE(a.disputes, 0)      AS disputes,
               COALESCE(a.last_activity, 0) AS last_activity
        FROM capabilities c
        LEFT JOIN agent_scores a ON a.agent = c.creator
+       LEFT JOIN agent_diversity d ON d.agent = c.creator
        WHERE c.capability_type = ? AND c.certified = 1 AND c.slashed = 0
        ORDER BY c.capability_id`,
     )

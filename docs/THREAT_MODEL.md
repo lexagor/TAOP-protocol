@@ -50,9 +50,10 @@ graph LR
 
 | # | Threat | Mitigation | Residual |
 |---|---|---|---|
-| T1 | Fraudulent self-attestation | Two-sided receipts + public challenge bonds + owner adjudication | Sybil: colluding agent+requester can vouch for each other (see proposal) |
+| T1 | Fraudulent self-attestation | Two-sided receipts + challenge bonds + owner adjudication; **v0.3: ranking on distinct counterparties + attest cooldown** | Collusion still possible; diversity makes it far less profitable |
 | T2 | Fake/malicious capability | Certifier gate + slashable bond | Certifier is one key/EOA |
 | T3 | Unauthorized admin action | `onlyOwner` via Timelock; multisig + delay before mainnet | Pilot: single-key, **0-delay** |
+| T3b | Exploit/bug draining an active flow | **v0.3: owner can pause** protocol actions (exits stay open) | Pause is a centralization trust point (Timelock) |
 | T4 | Reentrancy / ETH drain | `nonReentrant`, checked `.call{value}`; invariants assert ETH conservation | Low; fuzz/invariants cover |
 | T5 | Stale discovery index | Reorg-aware indexer; on-chain fallback; ETag | Cache trust (non-authoritative) |
 | T6 | Spam / griefing (attest, challenge) | Bond + rate limits on writes | Bonds may be too low on mainnet |

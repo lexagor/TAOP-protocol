@@ -1,7 +1,12 @@
 # Anti-sybil design proposal (v0.3)
 
-**Status: proposal — no code until the economic policy is chosen.** This document
-exists so the decision is ready to make; it does not change the current contracts.
+**Status (updated): the two cheap levers are IMPLEMENTED in v0.3** —
+counterparty-diversity weighting (`getCreditScore` on distinct counterparties) and
+an owner-settable attestation cooldown. They activate on redeploy. Still open
+(owner decisions): a minimum attest bond, identity anchors, and whether to require
+the credit score for any listing.
+
+Original proposal below, for the remaining decisions.
 
 ## Problem
 

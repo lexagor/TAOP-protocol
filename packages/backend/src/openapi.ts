@@ -192,6 +192,24 @@ export const openApiSpec = {
         },
       },
     },
+    "/admin/pause": {
+      post: {
+        summary: "Pause protocol actions (owner/Timelock)",
+        responses: { "200": { description: "Paused" }, "400": { description: "Reverted" } },
+      },
+    },
+    "/admin/unpause": {
+      post: {
+        summary: "Unpause protocol actions (owner/Timelock)",
+        responses: { "200": { description: "Unpaused" }, "400": { description: "Reverted" } },
+      },
+    },
+    "/admin/attest-cooldown": {
+      post: {
+        summary: "Set the per-address attestation cooldown in seconds (owner/Timelock)",
+        responses: { "200": { description: "Set" }, "400": { description: "Invalid/reverted" } },
+      },
+    },
     "/discover": {
       get: {
         summary: "Discover agents by capability proof + score (paginated; served from the F10 index when warm)",
@@ -220,7 +238,7 @@ export const openApiSpec = {
         summary: "Off-chain indexer status (F10)",
         responses: {
           "200": { description: "Indexer status", content: { "application/json": { schema: { type: "object", properties: {
-            enabled: { type: "boolean" }, ready: { type: "boolean" }, useTwoSided: { type: "boolean" },
+            enabled: { type: "boolean" }, ready: { type: "boolean" }, useTwoSided: { type: "boolean" }, useCredit: { type: "boolean" },
             lastBlock: { type: "integer" }, headBlock: { type: "integer" }, safeHead: { type: "integer" },
             lag: { type: "integer" }, reorgsDetected: { type: "integer" }, lastError: { type: "string", nullable: true },
           } } } } },
@@ -303,7 +321,9 @@ export const openApiSpec = {
           decayBps: { type: "integer" },
           confirmed: { type: "string" },
           twoSidedScore: { type: "string" },
-          rankingScoreType: { type: "string", enum: ["two-sided", "self-attest"] },
+          distinctCounterparties: { type: "string" },
+          creditScore: { type: "string" },
+          rankingScoreType: { type: "string", enum: ["credit", "two-sided", "self-attest"] },
         },
       },
       DiscoveryItem: {
@@ -320,7 +340,7 @@ export const openApiSpec = {
           completions: { type: "integer" },
           disputes: { type: "integer" },
           score: { type: "integer" },
-          scoreType: { type: "string", enum: ["two-sided", "self-attest"] },
+          scoreType: { type: "string", enum: ["credit", "two-sided", "self-attest"] },
         },
       },
       DemoResult: {

@@ -75,6 +75,21 @@ deployment decision, not a code defect.
 - [ ] A paid external audit before meaningful mainnet TVL.
 - [ ] Implement the anti-sybil + optional pause decisions (v0.3).
 
+## 7. v0.3 addendum (pending redeploy)
+
+New surface added after the review above — to be re-reviewed when deployed:
+
+- `Pausable` on both contracts (owner/Timelock). Trust note: pausing is a
+  privileged action and could be abused to halt protocol actions; exits
+  (`revokeReceipt`, `withdrawBond`, `withdrawEthPool`) and `resolveChallenge`
+  remain available while paused.
+- Per-address attestation cooldown (default off; owner-settable).
+- Diversity-adjusted `getCreditScore` + `distinctCounterparties` /
+  `counterpartyConfirmations` tracking, with a new Foundry invariant
+  (`distinct ≤ confirmed`) and contract tests (`test/V03Hardening.test.ts`).
+
+Tools should be re-run (Slither/Aderyn/Mythril/mutation) on the redeploy commit.
+
 ## 6. Reproduction
 
 ```bash

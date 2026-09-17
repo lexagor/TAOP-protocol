@@ -5,6 +5,7 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 // Kept so Hardhat/Foundry emit the Timelock artifact used by tests/deploy.
 // solhint-disable-next-line no-unused-import
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol"; // ensure artifact for Timelock deploys/tests (P0)
@@ -19,7 +20,7 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
  *   is fraudulent or underperforms. Certification is recorded on-chain by a
  *   designated certifier. No protocol token in v1.
  */
-contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
+contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard, Pausable {
     address public certifier;
 
     struct Capability {
@@ -64,12 +65,24 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
         certifier = c;
     }
 
+    /// @notice Pause protocol actions (owner/Timelock). Creator exits
+    ///         (`withdrawBond`) and pool withdrawals are never paused.
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice Unpause protocol actions (owner/Timelock).
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
     /// @notice Register a capability and lock an ETH bond (msg.value). Returns
     ///         the capabilityId (also the NFT tokenId minted to the caller).
     function registerCapabilityEth(bytes32 capabilityType, string calldata metadataCID)
         external
         payable
         nonReentrant
+        whenNotPaused
         returns (uint256 capabilityId)
     {
         uint256 bond = msg.value;
@@ -89,7 +102,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
 
     /// @notice Mark a capability as certified (certifier / owner only).
-    function certifyCapability(uint256 capabilityId) external nonReentrant returns (bool) {
+    function certifyCapability(uint256 capabilityId) external nonReentrant whenNotPaused returns (bool) {
         if (msg.sender != certifier && msg.sender != owner()) revert NotCertifier();
         if (_ownerOf(capabilityId) == address(0)) revert NoSuchCapability();
         _capabilities[capabilityId].certified = true;
@@ -99,7 +112,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     /// @notice Slash a creator's ETH bond (certifier / owner only). The penalty
     ///         is bounded by the remaining bond and added to `slashedEthPool`.
-    function slashCapability(uint256 capabilityId, uint256 penalty) external nonReentrant returns (bool) {
+    function slashCapability(uint256 capabilityId, uint256 penalty) external nonReentrant whenNotPaused returns (bool) {
         if (msg.sender != certifier && msg.sender != owner()) revert NotCertifier();
         Capability storage c = _capabilities[capabilityId];
         if (_ownerOf(capabilityId) == address(0)) revert NoSuchCapability();

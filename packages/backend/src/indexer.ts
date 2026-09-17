@@ -25,6 +25,8 @@ import {
   countIndexedCapabilities,
   queryIndexedCapabilities,
   recordAlert,
+  bumpCounterparty,
+  getReceiptCounterparty,
 } from "./index_db.js";
 
 /**
@@ -63,6 +65,8 @@ export interface IndexerStatus {
   enabled: boolean;
   ready: boolean;
   useTwoSided: boolean;
+  /** v0.3: diversity-adjusted credit score supported. */
+  useCredit: boolean;
   lastBlock: number;
   headBlock: number;
   /** Highest block safe to index (head - confirmations). */
@@ -77,6 +81,7 @@ const status: IndexerStatus = {
   enabled: false,
   ready: false,
   useTwoSided: false,
+  useCredit: false,
   lastBlock: 0,
   headBlock: 0,
   safeHead: 0,
@@ -128,6 +133,21 @@ async function detectTwoSided(state: BackendState): Promise<boolean> {
       state.provider,
     );
     await probe.CHALLENGE_WINDOW();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Detect whether the deployed contract supports the v0.3 credit score. */
+async function detectCredit(state: BackendState): Promise<boolean> {
+  try {
+    const probe = new ethers.Contract(
+      state.deployment.ron,
+      ["function getCreditScore(address) view returns (uint64,uint64,uint64,uint64,uint16)"],
+      state.provider,
+    );
+    await probe.getCreditScore(ethers.ZeroAddress);
     return true;
   } catch {
     return false;
@@ -282,12 +302,15 @@ async function applyRonEvent(
       const counterparty = (parsed.args[2] as string).toLowerCase();
       addReceiptIndex(completionId, agent, counterparty, ts);
       bumpAgent(agent, { confirmed: 1, lastActivity: ts });
+      bumpCounterparty(agent, counterparty, 1);
       break;
     }
     case "ReceiptRevoked": {
       const completionId = parsed.args[0] as bigint;
       const agent = getReceiptAgent(completionId);
+      const counterparty = getReceiptCounterparty(completionId);
       if (agent) bumpAgent(agent, { confirmed: -1 });
+      if (agent && counterparty) bumpCounterparty(agent, counterparty, -1);
       deleteReceiptIndex(completionId);
       break;
     }
@@ -311,8 +334,10 @@ async function applyRonEvent(
         const agent = getCompletionAgent(completionId);
         if (agent) {
           bumpAgent(agent, { disputes: 1 });
-          if (getReceiptAgent(completionId)) {
+          const counterparty = getReceiptCounterparty(completionId);
+          if (counterparty) {
             bumpAgent(agent, { confirmed: -1 });
+            bumpCounterparty(agent, counterparty, -1);
             deleteReceiptIndex(completionId);
           }
         }
@@ -421,6 +446,7 @@ export async function startIndexer(state: BackendState): Promise<void> {
 
   await loadDecayConstants(state);
   status.useTwoSided = await detectTwoSided(state);
+  status.useCredit = status.useTwoSided ? await detectCredit(state) : false;
 
   const head = await state.provider.getBlockNumber();
   const explicitStart = process.env.INDEXER_START_BLOCK ? Number(process.env.INDEXER_START_BLOCK) : undefined;
@@ -466,7 +492,7 @@ export interface IndexedDiscoveryItem {
   completions: number;
   disputes: number;
   score: number;
-  scoreType: "two-sided" | "self-attest";
+  scoreType: "credit" | "two-sided" | "self-attest";
 }
 
 export function queryIndexedDiscovery(opts: {
@@ -481,7 +507,8 @@ export function queryIndexedDiscovery(opts: {
   const scored: IndexedDiscoveryItem[] = [];
 
   for (const r of rows) {
-    const count = status.useTwoSided ? r.confirmed : r.completions;
+    // Best available signal: credit (v0.3 distinct) > two-sided > self-attest.
+    const count = status.useCredit ? r.distinct_count : status.useTwoSided ? r.confirmed : r.completions;
     const score = computeIndexedScore(count, r.disputes, r.last_activity, now);
     if (score < opts.minScore) continue;
     scored.push({

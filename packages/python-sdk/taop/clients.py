@@ -17,6 +17,7 @@ from .types import (
     AgentScore,
     Capability,
     Completion,
+    CreditScore,
     Deployment,
     SelfAttestScore,
     TwoSidedScore,
@@ -92,9 +93,21 @@ class ReputationOracleNetworkClient:
         r = self.contract.functions.getTwoSidedScore(agent).call()
         return TwoSidedScore(confirmed=r[0], disputes=r[1], score=r[2], last_activity=r[3], decay_bps=r[4])
 
+    def get_credit_score(self, agent: str) -> CreditScore:
+        """v0.3: diversity-adjusted score (distinct counterparties - disputes)."""
+        r = self.contract.functions.getCreditScore(agent).call()
+        return CreditScore(
+            distinct_counterparties=r[0], disputes=r[1], score=r[2], last_activity=r[3], decay_bps=r[4]
+        )
+
     def get_ranking_score(self, agent: str) -> tuple[int, int, int, str]:
-        """v0.2: two-sided score where the contract supports it, else self-attest.
+        """Best available signal: credit (v0.3) -> two-sided (v0.2) -> self-attest.
         Returns (score, count, disputes, score_type)."""
+        try:
+            s = self.get_credit_score(agent)
+            return s.score, s.distinct_counterparties, s.disputes, "credit"
+        except Exception:
+            pass
         try:
             s = self.get_two_sided_score(agent)
             return s.score, s.confirmed, s.disputes, "two-sided"
@@ -124,6 +137,34 @@ class ReputationOracleNetworkClient:
 
     def challenge_bond(self) -> int:
         return self.contract.functions.CHALLENGE_BOND().call()
+
+    def paused(self) -> bool:
+        """v0.3: is the contract paused?"""
+        return self.contract.functions.paused().call()
+
+    def pause(self) -> dict:
+        """v0.3: pause protocol actions (owner/Timelock only)."""
+        fn = self.contract.functions.pause()
+        tx = fn.build_transaction({
+            "from": self.account.address,
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
+            "gas": 100_000,
+            "gasPrice": self.w3.eth.gas_price,
+            "chainId": self.w3.eth.chain_id,
+        })
+        return self._send_tx(tx)
+
+    def unpause(self) -> dict:
+        """v0.3: unpause protocol actions (owner/Timelock only)."""
+        fn = self.contract.functions.unpause()
+        tx = fn.build_transaction({
+            "from": self.account.address,
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
+            "gas": 100_000,
+            "gasPrice": self.w3.eth.gas_price,
+            "chainId": self.w3.eth.chain_id,
+        })
+        return self._send_tx(tx)
 
     def challenge_window(self) -> int:
         """v0.2: seconds the agent has to contest a challenge."""

@@ -1,6 +1,6 @@
 import { ethers, type Contract, type ContractRunner, type ContractTransactionReceipt } from "ethers";
 import { RON_ABI, CAPABILITY_REGISTRY_ABI } from "./abis.js";
-import type { Capability, Completion, ScoreDetails, SelfAttestScore, TwoSidedScore } from "./types.js";
+import type { Capability, Completion, CreditScore, ScoreDetails, SelfAttestScore, ScoreType, TwoSidedScore } from "./types.js";
 
 /** Extract an event argument from a receipt (v0.1.2): ids must come from the
  *  emitted event, never from supply counters (which diverge after burns). */
@@ -85,16 +85,55 @@ export class ReputationOracleNetworkClient {
     const r = (await this.c.getTwoSidedScore(agent)) as [bigint, bigint, bigint, bigint, number];
     return { confirmed: r[0], disputes: r[1], score: r[2], lastActivity: r[3], decayBps: Number(r[4]) };
   }
-  /** v0.2: returns the two-sided score when the contract supports it (v0.2+),
-   *  otherwise the legacy self-attest score. Lets one client talk to both. */
-  async getRankingScore(agent: string): Promise<{ score: bigint; completions: bigint; disputes: bigint; scoreType: "two-sided" | "self-attest" }> {
+  /** v0.3: diversity-adjusted credit score (distinct counterparties - disputes). */
+  async getCreditScore(agent: string): Promise<CreditScore> {
+    const r = (await this.c.getCreditScore(agent)) as [bigint, bigint, bigint, bigint, number];
+    return { distinctCounterparties: r[0], disputes: r[1], score: r[2], lastActivity: r[3], decayBps: Number(r[4]) };
+  }
+  /** v0.3: number of distinct counterparties that have confirmed this agent. */
+  distinctCounterparties(agent: string): Promise<bigint> {
+    return this.c.distinctCounterparties(agent) as Promise<bigint>;
+  }
+  /** v0.3: per-(agent, counterparty) confirmation count. */
+  counterpartyConfirmations(agent: string, counterparty: string): Promise<bigint> {
+    return this.c.counterpartyConfirmations(agent, counterparty) as Promise<bigint>;
+  }
+  /** v0.3: attestation cooldown in seconds (0 = off). */
+  attestCooldown(): Promise<bigint> {
+    return this.c.attestCooldown() as Promise<bigint>;
+  }
+  /** v0.3: set the attestation cooldown (owner/Timelock only). */
+  async setAttestCooldown(cooldown: number | bigint): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.setAttestCooldown(cooldown)).wait()) ?? null;
+  }
+  /** v0.3: pause protocol actions (owner/Timelock only). */
+  async pause(): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.pause()).wait()) ?? null;
+  }
+  /** v0.3: unpause protocol actions (owner/Timelock only). */
+  async unpause(): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.unpause()).wait()) ?? null;
+  }
+  /** v0.3: is the contract paused? */
+  paused(): Promise<boolean> {
+    return this.c.paused() as Promise<boolean>;
+  }
+  /** Best available ranking signal: credit (v0.3) -> two-sided (v0.2) -> self-attest. */
+  async getRankingScore(agent: string): Promise<{ score: bigint; completions: bigint; disputes: bigint; scoreType: ScoreType }> {
+    try {
+      const s = await this.getCreditScore(agent);
+      return { score: s.score, completions: s.distinctCounterparties, disputes: s.disputes, scoreType: "credit" };
+    } catch {
+      /* pre-v0.3 */
+    }
     try {
       const s = await this.getTwoSidedScore(agent);
       return { score: s.score, completions: s.confirmed, disputes: s.disputes, scoreType: "two-sided" };
     } catch {
-      const s = await this.getSelfAttestScore(agent);
-      return { score: s.score, completions: s.completions, disputes: s.disputes, scoreType: "self-attest" };
+      /* pre-v0.2 */
     }
+    const s = await this.getSelfAttestScore(agent);
+    return { score: s.score, completions: s.completions, disputes: s.disputes, scoreType: "self-attest" };
   }
   async getScoreDetails(agent: string): Promise<ScoreDetails> {
     const r = (await this.c.getScoreDetails(agent)) as [bigint, bigint, bigint, bigint, number];
@@ -210,6 +249,19 @@ export class CapabilityRegistryClient {
   ): Promise<bigint[]> {
     return (await this.c.getCapabilitiesByTypePaged(ethers.id(capabilityType), offset, limit)) as bigint[];
   }
+
+  /** v0.3: pause registry actions (owner/Timelock only; creator exits stay open). */
+  async pause(): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.pause()).wait()) ?? null;
+  }
+  /** v0.3: unpause registry actions (owner/Timelock only). */
+  async unpause(): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.unpause()).wait()) ?? null;
+  }
+  /** v0.3: is the registry paused? */
+  paused(): Promise<boolean> {
+    return this.c.paused() as Promise<boolean>;
+  }
 }
 
 export type DiscoveryItem = {
@@ -223,8 +275,8 @@ export type DiscoveryItem = {
   completions: bigint;
   disputes: bigint;
   score: bigint;
-  /** v0.2: whether the ranking score is receipt-confirmed or self-attested. */
-  scoreType: "two-sided" | "self-attest";
+  /** Which signal the ranking score used (credit > two-sided > self-attest). */
+  scoreType: ScoreType;
 };
 
 export async function discover(

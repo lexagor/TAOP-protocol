@@ -81,6 +81,26 @@ describe("F10 index — persistence + read path", () => {
     expect(idb.alreadyIndexed("0xtx", 7)).toBe(true);
   });
 
+  it("tracks distinct counterparties (v0.3 diversity) from receipts", () => {
+    const cp1 = "0xAbC00000000000000000000000000000000000C1";
+    const cp2 = "0xAbC00000000000000000000000000000000000C2";
+    const distinctOf = () =>
+      idb.queryIndexedCapabilities("LoRA").find((r) => r.creator === A.toLowerCase())?.distinct_count ?? 0;
+
+    expect(distinctOf()).toBe(0);
+    idb.bumpCounterparty(A, cp1, 1);
+    idb.bumpCounterparty(A, cp1, 1);
+    expect(distinctOf()).toBe(1); // one distinct counterparty, two confirmations
+    idb.bumpCounterparty(A, cp2, 1);
+    expect(distinctOf()).toBe(2); // a second counterparty
+    idb.bumpCounterparty(A, cp1, -1);
+    expect(distinctOf()).toBe(2); // cp1 still has one confirmation
+    idb.bumpCounterparty(A, cp1, -1);
+    expect(distinctOf()).toBe(1); // cp1 fully removed
+    idb.bumpCounterparty(A, cp2, -1);
+    expect(distinctOf()).toBe(0);
+  });
+
   it("removes a capability from the index on withdraw", () => {
     idb.deleteIndexedCapability(2n);
     expect(idb.countIndexedCapabilities("LoRA")).toBe(1);

@@ -54,13 +54,13 @@ describe("v0.2 E2E — SDK clients on the in-process network", () => {
     expect(two.confirmed).to.eq(1n);
     expect(two.disputes).to.eq(0n);
     expect(two.score).to.eq(1n);
-    expect((await ronAgentA.getRankingScore(agentA.address)).scoreType).to.eq("two-sided");
+    expect((await ronAgentA.getRankingScore(agentA.address)).scoreType).to.eq("credit");
 
     // Discovery ranks on the two-sided score and never throws on a stale id.
     const found = await discover(registryAgentA, ronAgentA, LORA, 1);
     expect(found.length).to.eq(1);
-    expect(found[0].scoreType).to.eq("two-sided");
-    expect(found[0].score).to.eq(1n);
+    expect(found[0].scoreType).to.eq("credit");
+    expect(found[0].score).to.eq(1n); // credit: 1 distinct counterparty
 
     // 3. Challenge → agent contests → owner resolves upheld (invalidates receipt).
     await ronChallenger.challengeCompletion(a1.completionId, "ipfs://ev", BOND);

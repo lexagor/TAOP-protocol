@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 // Kept so Hardhat/Foundry emit the Timelock artifact used by tests/deploy.
 // solhint-disable-next-line no-unused-import
@@ -32,7 +33,7 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
  *   v2 may add a validator set + protocol-fee hooks; that design is documented
  *   in TRD.md Appendix but is NOT in this bytecode.
  */
-contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
+contract ReputationOracleNetwork is ReentrancyGuard, Ownable, Pausable {
     /// @notice ETH bond required to challenge a completion.
     uint256 public constant CHALLENGE_BOND = 0.01 ether;
 
@@ -73,6 +74,18 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     mapping(address => uint64) public lastActivity; // for score decay
     uint256 public slashedEthPool; // forfeited challenger bonds, owner-withdrawable
 
+    // --- v0.3 sybil-resistance ---
+    /// @notice Per-(agent, counterparty) confirmation count. Bounded diversity so a
+    ///         self-dealing pair contributes at most one distinct counterparty.
+    mapping(address => mapping(address => uint64)) public counterpartyConfirmations;
+    /// @notice Number of distinct counterparties that have confirmed this agent.
+    mapping(address => uint64) public distinctCounterparties;
+    /// @notice Minimum seconds between `attestCompletion` calls from one address
+    ///         (0 = disabled). Owner/Timelock-settable; set for mainnet.
+    uint64 public attestCooldown;
+    /// @notice Last attestation timestamp per address (cooldown enforcement).
+    mapping(address => uint64) public lastAttestation;
+
     event SelfAttested(uint256 completionId, address indexed agent, bytes32 taskType);
     event ReceiptAttested(uint256 completionId, address indexed agent, address indexed counterparty);
     event ReceiptRevoked(uint256 completionId, address indexed counterparty);
@@ -80,6 +93,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     event ChallengeContested(uint256 completionId, address indexed agent, string rebuttalCID);
     event ChallengeResolved(uint256 completionId, bool upheld);
     event EthPoolWithdrawn(address indexed to, uint256 amount);
+    event AttestCooldownChanged(uint64 cooldown);
 
     error NoSuchCompletion();
     error AlreadyChallenged();
@@ -94,16 +108,44 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     error NotCounterparty();
     error NothingToWithdraw();
     error ZeroAddress();
+    error CooldownActive(uint64 readyAt);
 
     constructor() Ownable(msg.sender) {}
+
+    // --- v0.3 pause (circuit breaker) ---
+    // Pauses state-changing protocol actions only. Owner withdrawals and
+    // user exits (`revokeReceipt`, `withdrawEthPool`) are NEVER paused so funds
+    // can always be recovered.
+
+    /// @notice Pause protocol actions (owner/Timelock).
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice Unpause protocol actions (owner/Timelock).
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /// @notice Set the per-address attestation cooldown in seconds (0 = off).
+    function setAttestCooldown(uint64 cooldown) external onlyOwner {
+        attestCooldown = cooldown;
+        emit AttestCooldownChanged(cooldown);
+    }
 
     /// @notice An agent self-attests a completed task. Returns the new
     ///         completionId (unique per attestation, so each can be challenged).
     function attestCompletion(bytes32 taskType, string calldata resultCID_)
         external
         nonReentrant
+        whenNotPaused
         returns (uint256 completionId)
     {
+        if (attestCooldown != 0) {
+            uint64 readyAt = lastAttestation[msg.sender] + attestCooldown;
+            if (block.timestamp < readyAt) revert CooldownActive(readyAt);
+        }
+        lastAttestation[msg.sender] = uint64(block.timestamp);
         completionId = ++nextCompletionId;
         completions[completionId] = Completion({
             agent: msg.sender,
@@ -125,7 +167,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     ///         One receipt per completion; the agent cannot receipt itself, and a
     ///         completion under a pending challenge or already disputed cannot be
     ///         confirmed.
-    function attestReceipt(uint256 completionId, string calldata receiptCID_) external {
+    function attestReceipt(uint256 completionId, string calldata receiptCID_) external whenNotPaused {
         Completion storage c = completions[completionId];
         if (c.agent == address(0)) revert NoSuchCompletion();
         if (msg.sender == c.agent) revert ReceiptNotAllowed();
@@ -137,6 +179,11 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
         c.receiptTimestamp = uint64(block.timestamp);
         receiptCID[completionId] = receiptCID_;
         confirmedCount[c.agent] += 1;
+        // v0.3: track diversity (a self-dealing pair contributes one counterparty).
+        if (counterpartyConfirmations[c.agent][msg.sender] == 0) {
+            distinctCounterparties[c.agent] += 1;
+        }
+        counterpartyConfirmations[c.agent][msg.sender] += 1;
         lastActivity[c.agent] = uint64(block.timestamp);
         emit ReceiptAttested(completionId, c.agent, msg.sender);
     }
@@ -152,14 +199,29 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
         c.receiptTimestamp = 0;
         delete receiptCID[completionId];
         confirmedCount[c.agent] -= 1;
+        _decrementCounterparty(c.agent, msg.sender);
         emit ReceiptRevoked(completionId, msg.sender);
+    }
+
+    /// @dev Decrement per-counterparty confirmations and the distinct count when a
+    ///      counterparty's last confirmation is removed.
+    function _decrementCounterparty(address agent, address counterparty) private {
+        uint64 n = counterpartyConfirmations[agent][counterparty];
+        if (n <= 1) {
+            delete counterpartyConfirmations[agent][counterparty];
+            if (n == 1 && distinctCounterparties[agent] > 0) {
+                distinctCounterparties[agent] -= 1;
+            }
+        } else {
+            counterpartyConfirmations[agent][counterparty] = n - 1;
+        }
     }
 
     /// @notice Anyone can challenge a completion by posting CHALLENGE_BOND in ETH.
     ///         The agent then has CHALLENGE_WINDOW to contest; otherwise the
     ///         challenge can be finalized optimistically. The bond is refunded if
     ///         the challenge is upheld, forfeited to the protocol pool if not.
-    function challengeCompletion(uint256 completionId, string calldata evidenceCID) external payable nonReentrant {
+    function challengeCompletion(uint256 completionId, string calldata evidenceCID) external payable nonReentrant whenNotPaused {
         Completion storage c = completions[completionId];
         if (c.agent == address(0)) revert NoSuchCompletion();
         if (c.challenged) revert AlreadyChallenged();
@@ -180,7 +242,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     /// @notice v0.2: the agent (and only the agent) rebuts a challenge within the
     ///         window with counter-evidence. A contested challenge must be
     ///         resolved by the owner; it can no longer be finalized optimistically.
-    function contestChallenge(uint256 completionId, string calldata rebuttalCID_) external {
+    function contestChallenge(uint256 completionId, string calldata rebuttalCID_) external whenNotPaused {
         Completion storage c = completions[completionId];
         Challenge storage ch = challenges[completionId];
         if (c.agent == address(0)) revert NoSuchCompletion();
@@ -197,7 +259,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
     /// @notice v0.2: anyone can finalize an uncontested challenge once the window
     ///         has closed. The challenge is upheld optimistically (the agent had
     ///         its chance to respond and did not).
-    function finalizeChallenge(uint256 completionId) external nonReentrant {
+    function finalizeChallenge(uint256 completionId) external nonReentrant whenNotPaused {
         Completion storage c = completions[completionId];
         Challenge storage ch = challenges[completionId];
         if (c.agent == address(0)) revert NoSuchCompletion();
@@ -237,10 +299,12 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
         c.disputed = true;
         disputeCount[c.agent] += 1;
         if (c.counterparty != address(0)) {
+            address cp = c.counterparty;
             delete receiptCID[completionId];
             c.counterparty = address(0);
             c.receiptTimestamp = 0;
             confirmedCount[c.agent] -= 1;
+            _decrementCounterparty(c.agent, cp);
         }
         (bool ok, ) = payable(ch.challenger).call{value: CHALLENGE_BOND}("");
         require(ok, "refund failed");
@@ -335,6 +399,28 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable {
         disputeCount_ = disputeCount[agent];
         lastActivity_ = lastActivity[agent];
         (score, decayBps) = _decayedScore(confirmedCount_, disputeCount_, lastActivity_);
+    }
+
+    /// @notice v0.3 credit score: diversity-adjusted ranking signal. Counts
+    ///         DISTINCT counterparties (not raw confirmations) minus disputes,
+    ///         with the same inactivity decay — so a self-dealing pair contributes
+    ///         at most one, while independent requesters each add one. Raw volume
+    ///         remains available via `getTwoSidedScore`.
+    function getCreditScore(address agent)
+        external
+        view
+        returns (
+            uint64 distinctCounterparties_,
+            uint64 disputeCount_,
+            uint64 score,
+            uint64 lastActivity_,
+            uint16 decayBps
+        )
+    {
+        distinctCounterparties_ = distinctCounterparties[agent];
+        disputeCount_ = disputeCount[agent];
+        lastActivity_ = lastActivity[agent];
+        (score, decayBps) = _decayedScore(distinctCounterparties_, disputeCount_, lastActivity_);
     }
 
     function getCompletion(uint256 completionId) external view returns (Completion memory) {

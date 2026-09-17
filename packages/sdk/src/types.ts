@@ -37,6 +37,18 @@ export interface TwoSidedScore {
   decayBps: number;
 }
 
+/** v0.3: diversity-adjusted credit score = distinct counterparties - disputes. */
+export interface CreditScore {
+  distinctCounterparties: bigint;
+  disputes: bigint;
+  score: bigint;
+  lastActivity: bigint;
+  decayBps: number;
+}
+
+/** Which signal a ranking score came from (best available on the deployment). */
+export type ScoreType = "credit" | "two-sided" | "self-attest";
+
 /** v0.1.2: full score view including decay inputs. */
 export interface ScoreDetails {
   completions: bigint;

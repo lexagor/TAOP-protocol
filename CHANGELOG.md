@@ -5,6 +5,34 @@ All notable changes to TAOP will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — v0.3 hardening (pause, cooldown, diversity score)
+
+> **Not yet deployed** — these contract changes require a redeploy to activate.
+> The live pilot remains v0.2.
+
+### Added
+- **Pausable circuit breaker** on both contracts (owner/Timelock). Pauses
+  protocol actions only; `revokeReceipt`, `withdrawBond`, `withdrawEthPool` and
+  `resolveChallenge` are **never** paused so users can always exit/recover funds.
+- **Attestation cooldown** (`attestCooldown`, default 0 = off) enforced per address
+  in `attestCompletion`, settable by owner/Timelock via `setAttestCooldown`.
+- **Diversity-adjusted credit score** — `getCreditScore(agent)` ranks on *distinct
+  counterparties* minus disputes (same decay), so a self-dealing pair contributes
+  at most one and independent requesters each add one. `distinctCounterparties`
+  and `counterpartyConfirmations` expose the underlying signal; `getTwoSidedScore`
+  stays for raw volume.
+- Backend: `POST /api/admin/{pause,unpause,attest-cooldown}` (owner via Timelock);
+  `/agents/:addr/score` now reports `rankingScoreType: "credit"`; the indexer
+  mirrors the diversity signal and ranks on it.
+- SDKs (TS + Python): `getCreditScore`, `pause/unpause/paused`,
+  `setAttestCooldown`, `distinctCounterparties`, and `getRankingScore` now prefers
+  **credit → two-sided → self-attest**.
+- 8 contract tests, an extended Foundry invariant (`distinct ≤ confirmed`), and
+  backend/indexer tests.
+
+### Changed
+- Discovery/ranking prefers the diversity score where the contract supports it.
+
 ## [0.2.0] - 2026-09-15
 
 **Live on Base Sepolia:**
