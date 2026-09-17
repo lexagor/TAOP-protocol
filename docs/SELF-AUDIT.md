@@ -88,7 +88,11 @@ New surface added after the review above — to be re-reviewed when deployed:
   `counterpartyConfirmations` tracking, with a new Foundry invariant
   (`distinct ≤ confirmed`) and contract tests (`test/V03Hardening.test.ts`).
 
-Tools should be re-run (Slither/Aderyn/Mythril/mutation) on the redeploy commit.
+Re-run on the v0.3 tree: **Slither clean** (`--fail-medium` exit 0; 9 low/info),
+**Mythril v0.24.8 clean** on both runtime bytecodes, and the **mutation spot-check
+16/16** (the four new mutants cover pause, cooldown, and diversity accounting).
+The Foundry invariant now also asserts `distinctCounterparties ≤ confirmedCount`.
+Re-run all tools again on the redeploy commit.
 
 ## 6. Reproduction
 

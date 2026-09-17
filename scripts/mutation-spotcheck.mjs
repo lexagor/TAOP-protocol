@@ -28,6 +28,11 @@ const MUTANTS = [
   { file: "contracts/CapabilityRegistry.sol", find: "capabilitiesByType[capabilityType].push(capabilityId);", replace: "// mutated: index push removed", label: "Registry register does not index" },
   { file: "contracts/CapabilityRegistry.sol", find: "if (end > len) end = len;", replace: "if (false) end = len;", label: "Registry paged view does not clamp" },
   { file: "contracts/CapabilityRegistry.sol", find: "if (msg.sender != c.creator) revert NotCreator();", replace: "if (false) revert NotCreator();", label: "Registry allows non-creator withdraw" },
+  // v0.3 hardening
+  { file: "contracts/ReputationOracleNetwork.sol", find: "nonReentrant\n        whenNotPaused\n        returns (uint256 completionId)", replace: "nonReentrant\n        returns (uint256 completionId)", label: "RON attestCompletion ignores pause" },
+  { file: "contracts/ReputationOracleNetwork.sol", find: "if (attestCooldown != 0) {", replace: "if (false) {", label: "RON attest cooldown ignored" },
+  { file: "contracts/ReputationOracleNetwork.sol", find: "if (counterpartyConfirmations[c.agent][msg.sender] == 0) {\n            distinctCounterparties[c.agent] += 1;\n        }", replace: "// mutated: diversity not tracked", label: "RON distinct counterparties not counted" },
+  { file: "contracts/ReputationOracleNetwork.sol", find: "confirmedCount[c.agent] -= 1;\n            _decrementCounterparty(c.agent, cp);", replace: "confirmedCount[c.agent] -= 1;", label: "RON does not decrement diversity on upheld dispute" },
 ];
 
 let caught = 0;
