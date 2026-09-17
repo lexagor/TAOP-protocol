@@ -5,7 +5,9 @@
 ## 1. Reporting a vulnerability
 
 Please use **GitHub → Security → "Report a vulnerability"** (private advisory) on
-`github.com/lexagor/TAOP-protocol`. Do **not** open a public issue for anything
+`github.com/lexagor/TAOP-protocol`. A machine-readable policy is published at
+<https://lexagor.github.io/TAOP-protocol/security.txt> (GitHub Pages does not
+serve `/.well-known/` on project sites, so a root copy is used). Do **not** open a public issue for anything
 that could move funds, forge attestations, or expose key material. Expect an
 initial response within 72 hours. There is no bug bounty at this stage.
 
