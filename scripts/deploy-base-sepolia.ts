@@ -1,7 +1,7 @@
 import { ethers, network } from "hardhat";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { assertNotTracked, assertNoKeyMaterial, backupFile } from "./lib/security";
+import { assertNotTracked, assertNoKeyMaterial, backupFile, readEnvVar } from "./lib/security";
 
 /**
  * Deploy the TAOP MVP contracts (works for Sepolia or mainnet).
@@ -203,6 +203,16 @@ async function main() {
     console.warn("! Fork detected: NOT writing AGENT_A_PK to .env (throwaway agent).");
   } else {
     assertNotTracked(envPath, ".env (key material)");
+    const prevPk = readEnvVar(envPath, "AGENT_A_PK");
+    if (/^0x[0-9a-fA-F]{64}$/.test(prevPk)) {
+      const prevAddr = new ethers.Wallet(prevPk).address;
+      if (prevAddr.toLowerCase() !== agentAAddr.toLowerCase()) {
+        console.warn(
+          `! Replacing existing AGENT_A_PK (${prevAddr}) with a new agent (${agentAAddr}). ` +
+            `The previous .env is backed up as .env.bak-<timestamp>.`,
+        );
+      }
+    }
     backupFile(envPath);
     upsertEnvVar(envPath, "AGENT_A_PK", agentAPk);
   }

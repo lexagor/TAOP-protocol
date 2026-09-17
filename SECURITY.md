@@ -66,6 +66,15 @@ Git. Remediation applied:
    (https://support.github.com → "Remove sensitive data from repository")
    asking for a cache/GC pass. Until that is done, treat that key as exposed.
 
+**2026-09-17 (demo agent key overwritten).** A fork-rehearsal run of the deploy
+script unconditionally wrote `AGENT_A_PK` to `.env`, overwriting the live demo
+agent key (`0xc4E87c…`). Testnet-only: ~0.05 Sepolia ETH stranded, **no
+owner/admin key affected**, no capability registered. Remediation: rehearsals and
+fork deploys never write `.env`; real deploys back up `.env` to `.env.bak-<ts>`
+first; the deploy target is detected by chainId; and `npm run verify:deployment`
+fails on an `AGENT_A_PK`/`deployments.json` mismatch. Redeployed with a fresh
+agent (`0x14dB7D…`).
+
 Treat any key that ever appeared in Git (or in a screenshot, chat, or CI log) as
 public forever.
 

@@ -34,6 +34,9 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - **CodeQL** code scanning (default setup) on JS/TS + Python.
 - **SBOM** (CycloneDX) generated in CI and uploaded as an artifact.
 - Lockfiles committed; `npm ci` used everywhere.
+- **Python deps are hash-pinned** (`packages/python-sdk/requirements-dev.txt`,
+  `pip-compile --generate-hashes`); CI installs with `--require-hashes`.
+  Regenerate with `cd packages/python-sdk && pip-compile --generate-hashes --extra dev --output-file requirements-dev.txt pyproject.toml`.
 
 ## Runtime / operations
 

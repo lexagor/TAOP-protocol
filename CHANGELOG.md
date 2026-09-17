@@ -8,10 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2026-09-17
 
 **Live on Base Sepolia:**
-RON `0xCD45B416ba36FC3C1375D15e2ae763FbD5889cbA`,
-Registry `0xE3a525A60C3AfFa24f0965f3B08f4F915171eA55`,
-Timelock `0x145Cd7bdeBbc7bfB273C4757a34e34455E536aE8` (0-delay pilot, policy frozen),
-Agent A `0xc4E87c0b30f63Ddcfadc41fBbF565F48ef7b1d50`.
+RON `0x0F7f2924e362C2C5aF6FF72c7a3f0a17766783B2`,
+Registry `0x16C3439BbE38d0EE9E2756dc043e102dc6308511`,
+Timelock `0x044978e089c360e609A586194873851D995004ca` (0-delay pilot, policy frozen),
+Agent A `0x14dB7D98431C3DaCF44ed12a3a142aBaf3B431ac`.
 
 ### Added
 - **Pausable circuit breaker** on both contracts (owner/Timelock). Pauses

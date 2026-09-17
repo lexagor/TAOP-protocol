@@ -50,3 +50,16 @@ export function assertNoKeyMaterial(text: string, label: string): void {
     process.exit(1);
   }
 }
+
+/** Read a KEY=value from a dotenv-style file (last occurrence wins). */
+export function readEnvVar(file: string, key: string): string {
+  try {
+    let value = "";
+    for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
+      if (line.trim().startsWith(`${key}=`)) value = line.split("=").slice(1).join("=").trim();
+    }
+    return value;
+  } catch {
+    return "";
+  }
+}

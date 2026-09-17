@@ -57,13 +57,13 @@ The demo page proves the loop:
 
 | Contract | Address | Basescan |
 |---|---|---|
-| ReputationOracleNetwork | `0xCD45B416ba36FC3C1375D15e2ae763FbD5889cbA` | [view](https://sepolia.basescan.org/address/0xCD45B416ba36FC3C1375D15e2ae763FbD5889cbA) |
-| CapabilityRegistry | `0xE3a525A60C3AfFa24f0965f3B08f4F915171eA55` | [view](https://sepolia.basescan.org/address/0xE3a525A60C3AfFa24f0965f3B08f4F915171eA55) |
-| TimelockController | `0x145Cd7bdeBbc7bfB273C4757a34e34455E536aE8` | [view](https://sepolia.basescan.org/address/0x145Cd7bdeBbc7bfB273C4757a34e34455E536aE8) |
+| ReputationOracleNetwork | `0x0F7f2924e362C2C5aF6FF72c7a3f0a17766783B2` | [view](https://sepolia.basescan.org/address/0x0F7f2924e362C2C5aF6FF72c7a3f0a17766783B2) |
+| CapabilityRegistry | `0x16C3439BbE38d0EE9E2756dc043e102dc6308511` | [view](https://sepolia.basescan.org/address/0x16C3439BbE38d0EE9E2756dc043e102dc6308511) |
+| TimelockController | `0x044978e089c360e609A586194873851D995004ca` | [view](https://sepolia.basescan.org/address/0x044978e089c360e609A586194873851D995004ca) |
 
 **Validator / Deployer:** `0x37374FD4f27c2b46Fd5d1a9BAFdc709315E51120`
 
-**Agent A:** `0xc4E87c0b30f63Ddcfadc41fBbF565F48ef7b1d50` (fresh key, v0.3 redeploy 2026-09-17 — the previously published agent key is retired)
+**Agent A:** `0x14dB7D98431C3DaCF44ed12a3a142aBaf3B431ac` (fresh key, v0.3 redeploy 2026-09-17 — the previously published agent key is retired)
 
 **Redeploy / refresh:**  
 If you need to redeploy again: `npm run deploy:sepolia` (we lowered the Agent A fund amount to 0.02 ETH).
@@ -157,7 +157,7 @@ import { ethers } from "ethers";
 
 const provider = new ethers.JsonRpcProvider("https://base-sepolia.infura.io/v3/...");
 
-const ron = new ReputationOracleNetworkClient("0xCD45B416ba36FC3C1375D15e2ae763FbD5889cbA", provider); // live on Base Sepolia
+const ron = new ReputationOracleNetworkClient("0x0F7f2924e362C2C5aF6FF72c7a3f0a17766783B2", provider); // live on Base Sepolia
 const score = await ron.getSelfAttestScore("0x...");
 console.log(score); // { completions, disputes, score }
 ```
@@ -214,7 +214,7 @@ from taop import ReputationOracleNetworkClient, CapabilityRegistryClient
 from web3 import Web3
 
 w3 = Web3(Web3.HTTPProvider("https://sepolia.base.org"))
-ron = ReputationOracleNetworkClient(w3, "0xCD45B416ba36FC3C1375D15e2ae763FbD5889cbA")
+ron = ReputationOracleNetworkClient(w3, "0x0F7f2924e362C2C5aF6FF72c7a3f0a17766783B2")
 score = ron.get_self_attest_score("0xAgent...")
 print(score)
 ```
@@ -230,8 +230,8 @@ from taop import connect, CapabilityRegistryClient, ReputationOracleNetworkClien
 from taop.integrations.langchain import TaopDiscoverTool
 
 w3 = connect("https://sepolia.base.org", 84532)
-ron = ReputationOracleNetworkClient("0xCD45B416ba36FC3C1375D15e2ae763FbD5889cbA", w3)
-reg = CapabilityRegistryClient("0xE3a525A60C3AfFa24f0965f3B08f4F915171eA55", w3)
+ron = ReputationOracleNetworkClient("0x0F7f2924e362C2C5aF6FF72c7a3f0a17766783B2", w3)
+reg = CapabilityRegistryClient("0x16C3439BbE38d0EE9E2756dc043e102dc6308511", w3)
 tool = TaopDiscoverTool(reg, ron)
 print(tool._run(capabilityType="LoRA", minScore=1))  # best LoRA agents
 
