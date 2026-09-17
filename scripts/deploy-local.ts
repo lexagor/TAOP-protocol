@@ -1,6 +1,7 @@
 import { ethers } from "hardhat";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { assertNotTracked, assertNoKeyMaterial } from "./lib/security";
 
 /**
  * Deploy the TAOP contracts to a local hardhat node (chainId 31337) and write
@@ -20,6 +21,29 @@ function resolveOutPath(): string {
   return process.env.DEPLOYMENTS_PATH
     ? path.resolve(process.env.DEPLOYMENTS_PATH)
     : path.resolve(__dirname, "..", "deployments.json");
+}
+
+/**
+ * Refuse to clobber an existing non-local deployment file. Running `deploy:local`
+ * in a checkout that also holds a live `deployments.json` (chainId 84532/8453)
+ * would otherwise silently overwrite the live addresses with local ones.
+ */
+function assertSafeOverwrite(outPath: string): void {
+  if (process.env.DEPLOYMENTS_PATH) return; // explicit path = explicit intent
+  if (process.env.ALLOW_OVERWRITE_DEPLOYMENTS === "true") return;
+  if (!fs.existsSync(outPath)) return;
+  try {
+    const existing = JSON.parse(fs.readFileSync(outPath, "utf8")) as { chainId?: number };
+    if (existing.chainId && existing.chainId !== 31337) {
+      console.error(
+        `\n❌ REFUSING TO OVERWRITE ${outPath}: it holds a chainId ${existing.chainId} deployment (not local).`,
+      );
+      console.error("   Use DEPLOYMENTS_PATH=/tmp/local.json, or set ALLOW_OVERWRITE_DEPLOYMENTS=true to override.\n");
+      process.exit(1);
+    }
+  } catch {
+    /* unreadable/partial file — allow */
+  }
 }
 
 async function main() {
@@ -78,7 +102,11 @@ async function main() {
     deployedBlock: deployStartBlock,
   };
   const outPath = resolveOutPath();
-  fs.writeFileSync(outPath, JSON.stringify(deployment, null, 2) + "\n");
+  assertSafeOverwrite(outPath);
+  assertNotTracked(outPath, "deployments output");
+  const json = JSON.stringify(deployment, null, 2) + "\n";
+  assertNoKeyMaterial(json, outPath);
+  fs.writeFileSync(outPath, json);
 
   console.log("TAOP deployed to localhost (chainId 31337, ETH-only mode):");
   console.log(JSON.stringify(deployment, null, 2));

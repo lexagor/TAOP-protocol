@@ -1,7 +1,7 @@
 import { ethers, network } from "hardhat";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { execFileSync } from "node:child_process";
+import { assertNotTracked, assertNoKeyMaterial } from "./lib/security";
 
 /**
  * Deploy the TAOP MVP contracts (works for Sepolia or mainnet).
@@ -31,31 +31,6 @@ function upsertEnvVar(file: string, key: string, value: string): void {
   }
   fs.writeFileSync(file, lines.join("\n"), { mode: 0o600 });
   fs.chmodSync(file, 0o600);
-}
-
-/** Refuse to write secret material into a path git would track. */
-function assertNotTracked(p: string, label: string): void {
-  let root: string;
-  try {
-    root = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
-  } catch {
-    console.warn(`! Not a git repo — cannot verify ${label} is ignored (${p}). Proceed with care.`);
-    return;
-  }
-  const rel = path.relative(root, p);
-  const insideRepo = rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
-  if (!insideRepo) return; // outside the repo — cannot be committed
-
-  try {
-    execFileSync("git", ["check-ignore", "-q", rel], { cwd: root, stdio: "ignore" });
-  } catch (e) {
-    if ((e as { status?: number }).status === 1) {
-      console.error(`\n❌ REFUSING TO WRITE ${label}: ${p} is inside the repo but NOT gitignored.`);
-      console.error("   Add it to .gitignore — key material must never be committed.\n");
-      process.exit(1);
-    }
-    console.warn(`! Could not verify .gitignore for ${p}.`);
-  }
 }
 
 async function main() {
@@ -225,7 +200,9 @@ async function main() {
     ? path.resolve(process.env.DEPLOYMENTS_PATH)
     : path.resolve(__dirname, "..", "deployments.json");
   assertNotTracked(outPath, "deployments output");
-  fs.writeFileSync(outPath, JSON.stringify(deployment, null, 2) + "\n");
+  const json = JSON.stringify(deployment, null, 2) + "\n";
+  assertNoKeyMaterial(json, outPath);
+  fs.writeFileSync(outPath, json);
 
   const explorerBase = isMainnet ? "https://basescan.org" : "https://sepolia.basescan.org";
   console.log("\n=== TAOP MVP deployed (network from hardhat) ===");

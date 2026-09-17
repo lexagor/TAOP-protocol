@@ -28,6 +28,9 @@ Rules:
    `agentAPk` in `deployments.json`, it warns loudly and asks you to migrate.
 4. CI must never need secrets; do not add them to GitHub Actions unless the job
    cannot run without them (prefer read-only public RPC).
+5. CI runs a tracked-file secret scan (`npm run scan:secrets`), and the deploy
+   scripts refuse to write key material into any non-ignored path. See
+   [`docs/HARDENING.md`](docs/HARDENING.md).
 
 ## 3. Incident history (disclosure)
 

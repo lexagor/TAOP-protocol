@@ -11,7 +11,14 @@ typechain-types/
 .env
 .env.local
 .env.*.local
+.env.*
 !.env.example
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+.secrets*
+secrets.json
 
 # Logs
 *.log
