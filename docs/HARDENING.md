@@ -23,6 +23,9 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
   file fails the build, not just the known filenames.
 - **GitHub secret scanning + push protection** are enabled (blocks pushing
   secrets). A past incident is documented in [`../SECURITY.md`](../SECURITY.md).
+- **Full git-history scan** (`secrets-history` CI job) with pinned,
+  checksum-verified gitleaks; `.gitleaks.toml` allowlists only documented
+  placeholders and Hardhat's public dev keys.
 - **CI token is least-privilege**: `permissions: contents: read`.
 
 ## Supply chain
