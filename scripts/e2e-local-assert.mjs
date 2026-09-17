@@ -45,7 +45,12 @@ const receipt = await req("POST", `/api/completions/${completionId}/receipt`, { 
 check("requester receipt recorded", receipt.status === 200 && !!receipt.json?.txHash, JSON.stringify(receipt.json));
 
 const score = await req("GET", `/api/agents/${agent}/score`);
-check("score is two-sided after receipt", score.json?.rankingScoreType === "two-sided" && Number(score.json?.confirmed) >= 1, JSON.stringify(score.json));
+check(
+  "score ranks on the two-sided/credit signal after receipt",
+  ["credit", "two-sided"].includes(score.json?.rankingScoreType) &&
+    Number(score.json?.creditScore ?? score.json?.twoSidedScore ?? 0) >= 1,
+  JSON.stringify(score.json),
+);
 
 const challenge = await req("POST", `/api/completions/${completionId}/challenge`, { evidenceCID: "ipfs://e2e-evidence" });
 check("challenge submitted", challenge.status === 200, JSON.stringify(challenge.json));

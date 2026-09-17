@@ -9,6 +9,12 @@ import { ethers } from "hardhat";
 describe("EIP-170 contract size guard", () => {
   const MAX_DEPLOYED_BYTES = 24_576;
 
+  // solidity-coverage instruments the bytecode, which inflates it far beyond the
+  // real size; skip there (the guard runs in the normal, uninstrumented suite).
+  beforeEach(function () {
+    if (process.env.SKIP_SIZE_CHECK === "true") this.skip();
+  });
+
   it("ReputationOracleNetwork stays deployable", async () => {
     const RON = await ethers.getContractFactory("ReputationOracleNetwork");
     const ron = await RON.deploy();
