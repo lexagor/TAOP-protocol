@@ -72,8 +72,8 @@ jobs:
         run: |
           # Capture first: piping into `grep -q` closes the pipe and (with
           # `bash -o pipefail`) kills npm pack mid-build.
-          npm pack -w @taopp/sdk --dry-run > /tmp/sdk-pack.txt
-          npm pack -w @taopp/mcp-server --dry-run > /tmp/mcp-pack.txt
+          npm pack -w @taopp/sdk --dry-run > /tmp/sdk-pack.txt 2>&1
+          npm pack -w @taopp/mcp-server --dry-run > /tmp/mcp-pack.txt 2>&1
           grep -q 'dist/index.cjs' /tmp/sdk-pack.txt
           grep -q 'dist/index.js' /tmp/mcp-pack.txt
 
