@@ -6,7 +6,7 @@
 #   - DEMO_READ_ONLY=true -> public read-only demo (writes return 503)
 # Provide secrets at runtime (fly secrets / docker -e), never in the image.
 
-FROM node:22-bookworm-slim AS build
+FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS build
 WORKDIR /app
 COPY package.json package-lock.json tsconfig.json tsconfig.base.json tsconfig.hardhat.json hardhat.config.ts ./
 COPY packages/sdk/package.json packages/sdk/
@@ -29,7 +29,7 @@ RUN rm -f packages/sdk/src/*.js packages/sdk/src/*.js.map packages/sdk/src/*.d.t
  && npm run demo:build \
  && npm run backend:build
 
-FROM node:22-bookworm-slim AS run
+FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS run
 WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \

@@ -12,7 +12,7 @@
     "contracts:test": "hardhat test",
     "contracts:test:gas": "REPORT_GAS=true hardhat test",
     "contracts:test:foundry": "forge test -vv",
-    "contracts:coverage": "SKIP_SIZE_CHECK=true hardhat coverage",
+    "contracts:coverage": "SKIP_SENSITIVE_CHECKS=true hardhat coverage",
     "slither": "slither . --config-file slither.config.json --fail-medium",
     "lint": "eslint .",
     "lint:sol": "solhint 'contracts/**/*.sol' --max-warnings 0",
@@ -40,7 +40,8 @@
     "verify:deployment": "node scripts/verify-deployment.mjs",
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "coverage:check": "node scripts/check-coverage.mjs",
-    "rehearse:mainnet-fork": "REHEARSAL=true FORK_BASE_MAINNET=true DEPLOYMENTS_PATH=/tmp/taop-fork-rehearsal.json hardhat run scripts/deploy-base-sepolia.ts"
+    "rehearse:mainnet-fork": "REHEARSAL=true FORK_BASE_MAINNET=true DEPLOYMENTS_PATH=/tmp/taop-fork-rehearsal.json hardhat run scripts/deploy-base-sepolia.ts",
+    "gas:snapshot": "UPDATE_GAS_SNAPSHOT=true hardhat test test/GasSnapshot.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

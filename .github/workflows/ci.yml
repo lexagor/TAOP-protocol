@@ -130,7 +130,15 @@ jobs:
         run: pip install -q slither-analyzer==0.11.5
 
       - name: Slither (fail on high/medium in our contracts)
-        run: npm run slither
+        run: slither . --config-file slither.config.json --fail-medium --json /tmp/slither.json
+
+      - name: Upload Slither report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: slither-report
+          path: /tmp/slither.json
+          if-no-files-found: ignore
 
       # Second-opinion analyzer (Cyfrin Aderyn). Non-blocking: Slither is the hard
       # gate; this surfaces additional low/informational findings as an artifact.

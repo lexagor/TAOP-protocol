@@ -1,0 +1,6 @@
+# Vulnerability disclosure policy — https://securitytxt.org/ (RFC 9116)
+Contact: https://github.com/lexagor/TAOP-protocol/security/advisories/new
+Expires: 2027-09-17T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://lexagor.github.io/TAOP-protocol/.well-known/security.txt
+Policy: https://github.com/lexagor/TAOP-protocol/blob/main/SECURITY.md

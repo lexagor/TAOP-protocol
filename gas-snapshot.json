@@ -1,0 +1,11 @@
+{
+  "registerCapabilityEth": 305621,
+  "certifyCapability": 54229,
+  "withdrawBond": 73980,
+  "attestCompletion": 212186,
+  "attestReceipt": 152606,
+  "challengeCompletion": 105920,
+  "contestChallenge": 59591,
+  "resolveChallenge": 84060,
+  "finalizeChallenge": 68476
+}
