@@ -56,6 +56,22 @@ npx hardhat test test/TimelockDelay.test.ts
 
 ## Running an admin action through the Timelock
 
+**Easiest path — generate the Safe batches:**
+
+```bash
+npm run timelock:tx -- --action pause --delay 3600
+npm run timelock:tx -- --action cooldown --seconds 3600
+npm run timelock:tx -- --action resolve --completion 1 --upheld true
+npm run timelock:tx -- --action setCertifier --certifier 0xYourSafe
+npm run timelock:tx -- --action withdrawRon --to 0xAddr --amount-eth 0.01
+```
+
+It writes `timelock-batch-schedule.json` and `timelock-batch-execute.json` for
+<https://app.safe.global/apps/transaction-builder> (same salt in both) and prints
+the raw calldata. It never sends anything.
+
+### Manually
+
 `resolveChallenge`, `withdrawEthPool` and `setCertifier` are `onlyOwner`, and the
 owner is the Timelock. To execute one:
 

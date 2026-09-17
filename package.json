@@ -41,7 +41,8 @@
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "coverage:check": "node scripts/check-coverage.mjs",
     "rehearse:mainnet-fork": "REHEARSAL=true FORK_BASE_MAINNET=true DEPLOYMENTS_PATH=/tmp/taop-fork-rehearsal.json hardhat run scripts/deploy-base-sepolia.ts",
-    "gas:snapshot": "UPDATE_GAS_SNAPSHOT=true hardhat test test/GasSnapshot.test.ts"
+    "gas:snapshot": "UPDATE_GAS_SNAPSHOT=true hardhat test test/GasSnapshot.test.ts",
+    "timelock:tx": "node scripts/timelock-tx.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
