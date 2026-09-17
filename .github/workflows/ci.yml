@@ -68,6 +68,17 @@ jobs:
       - name: Build API docs (TypeDoc)
         run: npm run docs:api
 
+      - name: Package contents (npm pack dry-run must ship dist)
+        run: |
+          npm pack -w @taopp/sdk --dry-run | grep -q 'dist/index.cjs'
+          npm pack -w @taopp/mcp-server --dry-run | grep -q 'dist/index.js'
+
+      - name: Python wheel ships the bundled ABIs
+        working-directory: packages/python-sdk
+        run: |
+          python -m pip wheel -q --no-deps -w /tmp/wheels .
+          python check_wheel.py /tmp/wheels/*.whl
+
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -112,7 +123,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install Slither
-        run: pip install slither-analyzer
+        run: pip install -q slither-analyzer==0.11.5
 
       - name: Slither (fail on high/medium in our contracts)
         run: npm run slither
@@ -123,6 +134,7 @@ jobs:
         run: |
           curl -sL -o /tmp/aderyn.tar.xz \
             https://github.com/Cyfrin/aderyn/releases/download/aderyn-v0.6.8/aderyn-x86_64-unknown-linux-gnu.tar.xz
+          echo "ffd6ca658962e211a3ac821c646f69c8e14bf1b1001cbfe091bcd4535a691e46  /tmp/aderyn.tar.xz" | sha256sum -c -
           tar -xf /tmp/aderyn.tar.xz -C /tmp
           /tmp/aderyn-x86_64-unknown-linux-gnu/aderyn . || echo "aderyn finished with findings (see artifact)"
 
@@ -278,6 +290,19 @@ jobs:
 
       - name: Rehearse mainnet deploy on a Base fork (no funds)
         run: npm run rehearse:mainnet-fork
+
+  # Fails a PR that introduces a high-severity dependency.
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
 
   docker:
     runs-on: ubuntu-latest

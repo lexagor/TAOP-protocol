@@ -6,7 +6,10 @@
  */
 import { readFileSync } from "node:fs";
 
+// Absolute floors, plus a ratchet against the recorded baseline so coverage can
+// only go up. Raise `coverage-baseline.json` when coverage improves.
 const MIN = { statements: 95, functions: 90, lines: 95, branches: 70 };
+const baseline = JSON.parse(readFileSync(new URL("../coverage-baseline.json", import.meta.url), "utf8"));
 
 const cov = JSON.parse(readFileSync("coverage.json", "utf8"));
 
@@ -42,12 +45,18 @@ for (const [file, node] of Object.entries(cov)) {
 }
 
 let failed = false;
-console.log("Coverage totals (min):");
+console.log("Coverage totals (floor / baseline):");
 for (const key of Object.keys(MIN)) {
   const value = pct(totals[key][0], totals[key][1]);
-  const ok = value >= MIN[key];
-  if (!ok) failed = true;
-  console.log(`  ${ok ? "PASS" : "FAIL"} ${key}: ${value.toFixed(2)}% (min ${MIN[key]}%)`);
+  const floorOk = value >= MIN[key];
+  const ratchetOk = value >= baseline[key];
+  if (!floorOk || !ratchetOk) failed = true;
+  console.log(
+    `  ${floorOk && ratchetOk ? "PASS" : "FAIL"} ${key}: ${value.toFixed(2)}% (floor ${MIN[key]}%, baseline ${baseline[key]}%)`,
+  );
+}
+if (!failed) {
+  console.log("\nRaise coverage-baseline.json when coverage improves (ratchet).");
 }
 
 if (failed) {

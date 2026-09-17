@@ -30,10 +30,15 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - Dependabot (npm, pip, github-actions, docker) + Dependabot security updates.
 - All GitHub Actions are **pinned to commit SHAs**, and GitHub now **enforces**
   full-length SHA pinning (`sha_pinning_required: true`).
-- Nightly `npm audit` + `pip-audit` report (`.github/workflows/nightly.yml`).
+- Nightly `npm audit` + `pip-audit` report (`.github/workflows/nightly.yml`);
+  `dependency-review-action` fails a PR that adds a high-severity dependency.
+- Analysis tool versions are pinned (Slither 0.11.5) and the Aderyn download is
+  **checksum-verified** in CI.
 - **CodeQL** code scanning (default setup) on JS/TS + Python.
 - **SBOM** (CycloneDX) generated in CI and uploaded as an artifact.
 - Lockfiles committed; `npm ci` used everywhere.
+- **Publishability is CI-checked**: `npm pack --dry-run` must ship `dist`, and the
+  Python wheel must contain the bundled ABIs and exclude tests (`check_wheel.py`).
 - **Python deps are hash-pinned** (`packages/python-sdk/requirements-dev.txt`,
   `pip-compile --generate-hashes`); CI installs with `--require-hashes`.
   Regenerate with `cd packages/python-sdk && pip-compile --generate-hashes --extra dev --output-file requirements-dev.txt pyproject.toml`.
@@ -58,6 +63,9 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 ## Contracts
 
 - Slither (blocking), Aderyn, and Mythril (symbolic) clean on our contracts.
+- **Coverage ratchet**: `npm run coverage:check` enforces floors (stmts/lines 95,
+  funcs 90, branches 70) *and* the recorded `coverage-baseline.json` — coverage can
+  only go up.
 - Foundry fuzz + invariants (ETH conservation, receipt/dispute consistency,
   score bounds, index integrity).
 - Mutation spot-check (12/12 critical mutants caught).
