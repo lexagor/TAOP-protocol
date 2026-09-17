@@ -30,7 +30,9 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 
 ## Supply chain
 
-- Dependabot (npm, pip, github-actions, docker) + Dependabot security updates.
+- Dependabot (npm, pip, github-actions, docker) + Dependabot security updates,
+  with a **7-day release cooldown** (30 for majors) so brand-new versions aren't
+  adopted immediately.
 - All GitHub Actions are **pinned to commit SHAs**, and GitHub now **enforces**
   full-length SHA pinning (`sha_pinning_required: true`).
 - Nightly `npm audit` + `pip-audit` report (`.github/workflows/nightly.yml`);
@@ -59,7 +61,9 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - **API key is memory-only** in the demo UI (never in localStorage/sessionStorage);
   a public demo must run read-only, since a build-time `VITE_TAOP_API_KEY` is
   embedded in the JS bundle.
-- SPA fallback (serves `index.html`) is rate-limited like the API.
+- SPA fallback (serves `index.html`) is rate-limited like the API; **`/api/admin/*`
+  writes have a tighter limit (10 / 5 min) and `Cache-Control: no-store`**, and the
+  security headers (CSP, nosniff, HSTS) are asserted by tests.
 - Indexer: confirmation depth + reorg rebuild.
 - Key management + emergency playbooks in [`EMERGENCY.md`](EMERGENCY.md).
 

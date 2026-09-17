@@ -174,6 +174,12 @@ describe("backend API — v0.2 routes (authorized)", () => {
     expect(actions).toContain("pause");
   });
 
+  it("admin responses are not cacheable", async () => {
+    const res = await request(app).get("/api/admin/audit");
+    expect(res.status).toBe(200);
+    expect(res.headers["cache-control"]).toBe("no-store");
+  });
+
   it("admin routes require the API key", async () => {
     const res = await request(app).post("/api/admin/pause").send({});
     expect(res.status).toBe(401);
@@ -184,4 +190,14 @@ describe("backend API — v0.2 routes (authorized)", () => {
     expect(res.status).toBe(200);
     expect(res.body.certified).toBe(true);
   });
+
+  it("admin writes are rate-limited (429 after the burst)", async () => {
+    let sawTooMany = false;
+    for (let i = 0; i < 20 && !sawTooMany; i++) {
+      const res = await post("/api/admin/pause");
+      if (res.status === 429) sawTooMany = true;
+    }
+    expect(sawTooMany, "expected a 429 within 20 admin writes").toBe(true);
+  });
+
 });

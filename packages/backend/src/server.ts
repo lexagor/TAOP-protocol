@@ -87,6 +87,16 @@ const writeLimiter = rateLimit({
   message: { error: "Too many write requests — this endpoint spends ETH; slow down." },
 });
 
+// Admin routes are rarer and higher-impact: tighter limit + never cache.
+const adminLimiter = rateLimit({
+  windowMs: 5 * 60_000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip: (req) => !isWriteRequest(req), // reads keep the standard read limiter
+  message: { error: "Too many admin requests — slow down." },
+});
+
 // The SPA fallback serves a file (index.html); rate-limit it too (static assets
 // are handled by express.static). Generous so a normal page load is never throttled.
 const spaFallbackLimiter = rateLimit({
@@ -445,6 +455,11 @@ api.post("/completions/:id/resolve", async (req, res) => {
 });
 
 // --- v0.3 admin controls (owner-only; routed through the Timelock when present) ---
+api.use("/admin", adminLimiter, (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
+
 
 async function ownerTx(fnName: string, args: unknown[], direct: () => Promise<{ hash?: string } | null>) {
   state.oracleRunner?.reset?.();

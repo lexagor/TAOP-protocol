@@ -6,6 +6,10 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    # Don't adopt brand-new releases immediately (supply-chain guard).
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
     groups:
       npm-minor-patch:
         patterns: ["*"]
@@ -17,15 +21,26 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
 
   # Keep our GitHub Actions themselves up to date (supply-chain hygiene).
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      actions-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   # Backend/demo image.
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7

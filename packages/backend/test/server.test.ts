@@ -50,6 +50,14 @@ describe("backend API — write gate + health (keyed loopback)", () => {
     expect(res.body.contracts).toEqual({ ronPaused: false, registryPaused: false });
   });
 
+  it("sets security headers (CSP, nosniff, HSTS)", async () => {
+    const res = await request(app).get("/api/healthz");
+    expect(res.headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+    expect(res.headers["content-security-policy"]).toContain("object-src 'none'");
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+    expect(res.headers["strict-transport-security"]).toBeTruthy();
+  });
+
   it("rejects a write without the API key (401)", async () => {
     const res = await request(app).post("/api/completions/999/challenge").send({});
     expect(res.status).toBe(401);
