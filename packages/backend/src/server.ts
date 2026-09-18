@@ -256,6 +256,8 @@ api.get("/healthz", async (_req, res) => {
       reorgsDetected: ix.reorgsDetected,
       twoSided: ix.useTwoSided,
       credit: ix.useCredit,
+      alertsPruned: ix.alertsPruned,
+      markersPruned: ix.markersPruned,
       lastError: ix.lastError,
     },
     webhooks: webhookStatus(),

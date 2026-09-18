@@ -27,7 +27,10 @@ import {
   recordAlert,
   bumpCounterparty,
   getReceiptCounterparty,
+  pruneAlerts,
+  pruneIndexedLogs,
 } from "./index_db.js";
+import { lastDeliveredId, loadWebhookConfig } from "./webhooks.js";
 
 /**
  * F10 — minimal off-chain indexer.
@@ -79,6 +82,9 @@ export interface IndexerStatus {
   lag: number;
   /** Number of chain reorganizations detected and rebuilt from logs. */
   reorgsDetected: number;
+  /** Retention counters (rows dropped to bound SQLite growth). */
+  alertsPruned: number;
+  markersPruned: number;
   lastError: string | null;
 }
 
@@ -92,6 +98,8 @@ const status: IndexerStatus = {
   safeHead: 0,
   lag: 0,
   reorgsDetected: 0,
+  alertsPruned: 0,
+  markersPruned: 0,
   lastError: null,
 };
 
@@ -458,6 +466,22 @@ export async function pollOnce(state: BackendState, opts: PollOptions): Promise<
   status.lag = Math.max(0, head - status.lastBlock);
   status.lastError = null;
   status.ready = true;
+
+  // Retention: bound the alerts and idempotency tables so a long-running
+  // instance can't fill the disk. Never prune alerts the webhook dispatcher has
+  // not delivered yet (its cursor protects them), and only prune log markers
+  // when explicitly enabled — a reorg rebuild clears them anyway.
+  try {
+    const alertsKeep = Number(process.env.DB_RETENTION_ALERTS ?? "5000");
+    const markerBlocks = Number(process.env.DB_RETENTION_LOG_MARKERS_BLOCKS ?? "0");
+    const protectedId = loadWebhookConfig() ? lastDeliveredId() : Number.MAX_SAFE_INTEGER;
+    status.alertsPruned += pruneAlerts(alertsKeep, protectedId);
+    if (markerBlocks > 0) {
+      status.markersPruned += pruneIndexedLogs(status.lastBlock, markerBlocks);
+    }
+  } catch (e) {
+    logger.warn(`[indexer] retention failed: ${String((e as Error).message ?? e)}`);
+  }
 }
 
 export async function startIndexer(state: BackendState): Promise<void> {

@@ -195,6 +195,41 @@ export function markIndexed(txHash: string, logIndex: number, blockNumber: numbe
     .run(txHash, logIndex, blockNumber);
 }
 
+// --- retention (disk-exhaustion hardening) ---
+
+/**
+ * Keep only the newest `keep` alerts. Rows with an id greater than
+ * `keepAboveId` are never removed — the webhook dispatcher passes its delivery
+ * cursor here so an undelivered alert can't be pruned away. Returns the number
+ * of rows deleted.
+ */
+export function pruneAlerts(keep: number, keepAboveId = Number.MAX_SAFE_INTEGER): number {
+  if (!Number.isFinite(keep) || keep <= 0) return 0;
+  // OFFSET keep gives the first row *older* than the N newest; deleting id <= it
+  // leaves exactly the newest N.
+  const cutoffRow = db()
+    .prepare("SELECT id FROM alerts ORDER BY id DESC LIMIT 1 OFFSET ?")
+    .get(Math.floor(keep)) as { id: number } | undefined;
+  if (!cutoffRow) return 0;
+  const cutoff = Math.min(cutoffRow.id, keepAboveId);
+  if (cutoff <= 0) return 0;
+  const info = db().prepare("DELETE FROM alerts WHERE id <= ?").run(cutoff);
+  return Number(info.changes);
+}
+
+/**
+ * Drop idempotency markers for blocks older than `currentBlock - keepBlocks`.
+ * The indexer cursor guarantees those ranges are never re-scanned, and a reorg
+ * rebuild clears the table anyway.
+ */
+export function pruneIndexedLogs(currentBlock: number, keepBlocks: number): number {
+  if (!Number.isFinite(keepBlocks) || keepBlocks <= 0) return 0;
+  const cutoff = currentBlock - Math.floor(keepBlocks);
+  if (cutoff <= 0) return 0;
+  const info = db().prepare("DELETE FROM indexed_logs WHERE block_number < ?").run(cutoff);
+  return Number(info.changes);
+}
+
 // --- capability mutations ---
 
 export function upsertIndexedCapability(c: {

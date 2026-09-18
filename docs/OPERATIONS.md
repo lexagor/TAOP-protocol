@@ -149,6 +149,21 @@ const ok =
   crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received));
 ```
 
+## 4d. SQLite retention
+
+The indexer prunes its own tables every poll so a long-running instance cannot
+fill the disk:
+
+| Env | Default | Effect |
+|---|---|---|
+| `DB_RETENTION_ALERTS` | 5000 | Keep only the newest N alerts (0 = unlimited). Alerts the webhook dispatcher has not delivered yet are **never** pruned — its cursor protects them. |
+| `DB_RETENTION_LOG_MARKERS_BLOCKS` | 0 (off) | Drop idempotency markers older than N blocks. The indexer cursor already prevents re-scanning those ranges; a reorg rebuild clears the table regardless. |
+
+Counters are visible at `GET /api/indexer` and in `/api/healthz`
+(`indexer.alertsPruned`, `indexer.markersPruned`). Pruned alerts disappear from
+`GET /api/alerts`; that is expected history truncation, not data loss for
+consumers that persist webhook deliveries.
+
 ## 5. Key rotation
 
 - `DEPLOYER_PK` (owner/proposer ⇒ full control): rotate only via a controlled

@@ -83,6 +83,10 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
   security headers (CSP, nosniff, HSTS) are asserted by tests.
 - Indexer: confirmation depth + reorg rebuild; `ChallengeCancelled` surfaces in
   the alert stream (no dispute recorded — there was no ruling).
+- **Bounded SQLite growth**: the alerts table keeps its newest
+  `DB_RETENTION_ALERTS` (default 5000) rows — never pruning alerts the webhook
+  dispatcher has not delivered — and idempotency markers can be trimmed with
+  `DB_RETENTION_LOG_MARKERS_BLOCKS` (default off).
 - **Scheduled deployment healthcheck**: every 6 hours, retried read-only
   `verify:deployment` against the live Base Sepolia addresses.
 - Key management + emergency playbooks in [`EMERGENCY.md`](EMERGENCY.md).

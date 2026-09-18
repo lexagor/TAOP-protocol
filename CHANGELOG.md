@@ -74,6 +74,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `hardhat-gas-reporter` likewise. Stage 0 applied now: dropped the unused
   TypeChain/Ignition meta-toolbox for explicit plugins, removing 4 dev
   advisories (27 → 23, 0 high) with all suites green.
+- **SQLite retention**: `DB_RETENTION_ALERTS` (default 5000) bounds the alerts
+  table and `DB_RETENTION_LOG_MARKERS_BLOCKS` (default off) bounds idempotency
+  markers, so a long-running indexer cannot fill the disk. Alerts not yet
+  delivered to webhooks are never pruned (cursor-protected); prune counters are
+  exposed on `/api/indexer` and `/api/healthz`.
 
 ## [0.3.0] - 2026-09-17
 
