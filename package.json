@@ -56,7 +56,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "better-sqlite3": "^13.0.3",
     "cors": "^2.8.6",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.4.2",
     "ethers": "^6.13.5",
     "express": "^4.22.3",
     "express-rate-limit": "^8.7.0",
