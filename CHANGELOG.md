@@ -57,7 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   disabled by default): ordered at-least-once delivery with an `x-taop-delivery`
   de-dupe id, HMAC-SHA256 `x-taop-signature` when a secret is set, per-delivery
   timeout, and exponential backoff on failure. `GET /api/healthz` reports the
-  dispatcher status. Tests: `packages/backend/test/webhooks.test.ts`.
+  dispatcher status. Unit tests plus an end-to-end assertion in `e2e:local`
+  (signed delivery, unique ids, alert kinds).
 
 ## [0.3.0] - 2026-09-17
 

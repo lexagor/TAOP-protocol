@@ -12,6 +12,9 @@ cd "$(dirname "$0")/.."
 TMP="$(mktemp -d)"
 HH_PORT="${E2E_HH_PORT:-8545}"
 APP_PORT="${E2E_APP_PORT:-4100}"
+WEBHOOK_PORT="${E2E_WEBHOOK_PORT:-4199}"
+WEBHOOK_OUT="$TMP/webhooks.jsonl"
+WEBHOOK_SECRET="e2e-webhook-secret"
 
 # Ignore the repo .env for this run: its DEPLOYER_PK (a real testnet key with no
 # local balance) would otherwise be used for local signers. Everything the run
@@ -31,12 +34,22 @@ export INDEXER_ENABLED=true
 export INDEXER_START_BLOCK=0
 export INDEXER_POLL_MS=1000
 export LOG_LEVEL=warn
+# v0.4: signed outbound webhooks, drained fast for the test.
+export TAOP_WEBHOOK_URL="http://127.0.0.1:${WEBHOOK_PORT}/hook"
+export TAOP_WEBHOOK_SECRET="$WEBHOOK_SECRET"
+export TAOP_WEBHOOK_POLL_MS=300
+export TAOP_WEBHOOK_TIMEOUT_MS=5000
 
 NODE_PID=""
 APP_PID=""
+WEBHOOK_PID=""
 cleanup() {
-  [ -n "$APP_PID" ] && kill "$APP_PID" 2>/dev/null || true
-  [ -n "$NODE_PID" ] && kill "$NODE_PID" 2>/dev/null || true
+  for pid in "$WEBHOOK_PID" "$APP_PID" "$NODE_PID"; do
+    if [ -n "$pid" ]; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+    fi
+  done
   rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -65,6 +78,12 @@ npx hardhat run scripts/deploy-local.ts --network localhost >"$TMP/deploy.log" 2
   exit 1
 }
 
+echo "== starting webhook receiver on :$WEBHOOK_PORT =="
+E2E_WEBHOOK_PORT="$WEBHOOK_PORT" E2E_WEBHOOK_OUT="$WEBHOOK_OUT" E2E_WEBHOOK_SECRET="$WEBHOOK_SECRET" \
+  node scripts/e2e-webhook-receiver.mjs >"$TMP/webhook-receiver.log" 2>&1 &
+WEBHOOK_PID=$!
+wait_for "http://127.0.0.1:${WEBHOOK_PORT}/healthz" "webhook receiver"
+
 echo "== starting backend on :$APP_PORT =="
 npx tsx packages/backend/src/server.ts >"$TMP/app.log" 2>&1 &
 APP_PID=$!
@@ -74,6 +93,9 @@ wait_for "http://${HOST}:${APP_PORT}/api/healthz" "backend" || {
 }
 
 echo "== driving the v0.2 flow =="
-E2E_BASE="http://${HOST}:${APP_PORT}" node scripts/e2e-local-assert.mjs
+E2E_BASE="http://${HOST}:${APP_PORT}" \
+E2E_WEBHOOK_OUT="$WEBHOOK_OUT" \
+E2E_WEBHOOK_SECRET="$WEBHOOK_SECRET" \
+  node scripts/e2e-local-assert.mjs
 
 echo "E2E OK"
