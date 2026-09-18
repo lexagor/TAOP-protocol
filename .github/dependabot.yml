@@ -15,10 +15,6 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
     ignore:
-      # plugin-react v6 peers vite ^8; the repo is on vite 6. Revisit when Vite
-      # is upgraded (tracked with the demo toolchain, not a standalone bump).
-      - dependency-name: "@vitejs/plugin-react"
-        update-types: ["version-update:semver-major"]
       # Hardhat 3 is a project, not a bump: the coverage gate has no HH3 path and
       # scripts/tests need the connection API migration. Tracked in issue #33 —
       # remove these ignores when the migration lands.
