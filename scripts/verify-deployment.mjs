@@ -33,7 +33,10 @@ const ron = new ethers.Contract(
   dep.ron,
   [
     "function owner() view returns (address)",
+    "function pendingOwner() view returns (address)",
     "function CHALLENGE_WINDOW() view returns (uint256)",
+    "function CHALLENGE_TIMEOUT() view returns (uint256)",
+    "function MAX_URI_LEN() view returns (uint256)",
     "function getTwoSidedScore(address) view returns (uint64,uint64,uint64,uint64,uint16)",
     "function paused() view returns (bool)",
     "function attestCooldown() view returns (uint64)",
@@ -45,7 +48,9 @@ const registry = new ethers.Contract(
   dep.registry,
   [
     "function owner() view returns (address)",
+    "function pendingOwner() view returns (address)",
     "function certifier() view returns (address)",
+    "function MAX_URI_LEN() view returns (uint256)",
     "function countCapabilitiesByType(bytes32) view returns (uint256)",
     "function paused() view returns (bool)",
   ],
@@ -128,7 +133,62 @@ try {
 } catch {
   v3 = false;
 }
-console.log(`INFO  feature level: ${v2 ? (v3 ? "v0.3" : "v0.2") : "pre-v0.2"}`);
+
+// v0.4 features (challenge liveness, Ownable2Step, URI caps). Absence is INFO
+// (the v0.3 pilot predates them); on a v0.4 redeploy they must be present and
+// correctly parameterized, so any mismatch fails the run.
+const selectorIn = (code, signature) =>
+  code.toLowerCase().includes(ethers.id(signature).slice(2, 10).toLowerCase());
+const ronHasV4 =
+  selectorIn(ronCode, "CHALLENGE_TIMEOUT()") || selectorIn(ronCode, "cancelChallenge(uint256)");
+let v4 = false;
+if (ronHasV4) {
+  v4 = true;
+  try {
+    const timeout = await ron.CHALLENGE_TIMEOUT();
+    check("v0.4 CHALLENGE_TIMEOUT is 90 days", timeout === 7_776_000n, `${timeout}s`);
+  } catch {
+    check("v0.4 CHALLENGE_TIMEOUT callable", false, "selector present but the call reverted");
+  }
+  try {
+    const maxRon = await ron.MAX_URI_LEN();
+    check("v0.4 RON MAX_URI_LEN is 200", maxRon === 200n, `${maxRon} bytes`);
+  } catch {
+    check("v0.4 RON MAX_URI_LEN callable", false);
+  }
+  try {
+    const maxReg = await registry.MAX_URI_LEN();
+    check("v0.4 Registry MAX_URI_LEN is 200", maxReg === 200n, `${maxReg} bytes`);
+  } catch {
+    check("v0.4 Registry MAX_URI_LEN callable", false);
+  }
+  check(
+    "v0.4 cancelChallenge selector present",
+    selectorIn(ronCode, "cancelChallenge(uint256)"),
+  );
+  check(
+    "v0.4 acceptOwnership selector present on both contracts",
+    selectorIn(ronCode, "acceptOwnership()") && selectorIn(regCode, "acceptOwnership()"),
+  );
+  try {
+    const [pendingRon, pendingReg] = await Promise.all([ron.pendingOwner(), registry.pendingOwner()]);
+    if (pendingRon !== ethers.ZeroAddress || pendingReg !== ethers.ZeroAddress) {
+      console.log(
+        `WARN  ownership handover pending (RON=${pendingRon}, Registry=${pendingReg}) — execute acceptOwnership() via the Timelock`,
+      );
+    }
+  } catch {
+    /* pendingOwner is optional for the check */
+  }
+} else {
+  console.log(
+    "INFO  v0.4 surface absent (pre-v0.4 deployment): cancelChallenge, CHALLENGE_TIMEOUT, MAX_URI_LEN, Ownable2Step",
+  );
+}
+
+console.log(
+  `INFO  feature level: ${v4 ? "v0.4" : v3 ? "v0.3" : v2 ? "v0.2" : "pre-v0.2"}`,
+);
 
 try {
   const delay = await timelock.getMinDelay();

@@ -38,14 +38,15 @@ it (`attestReceipt`); the requester can `revokeReceipt`. Challenges now open a
 3-day `CHALLENGE_WINDOW`: the agent can `contestChallenge` with a rebuttal, and an
 uncontested challenge is finalized optimistically by anyone after the window
 (`finalizeChallenge`); contested challenges fall back to the owner
-(`resolveChallenge`). If a pending challenge is never resolved, the challenger
-reclaims the bond after a 90-day `CHALLENGE_TIMEOUT` (`cancelChallenge`), so no
-bond is locked forever. Ownership is two-step (`Ownable2Step`:
-`transferOwnership` + `acceptOwnership`), and every on-chain URI field is capped
-at `MAX_URI_LEN = 200` bytes. `getTwoSidedScore` is the raw two-sided signal; **v0.3 (code, pending redeploy)**
-adds a `Pausable` circuit breaker, a settable attestation cooldown, and
-`getCreditScore` — a diversity-adjusted ranking score (distinct counterparties −
-disputes), which `getRankingScore` prefers when available. See `CHANGELOG.md`.
+(`resolveChallenge`). `getTwoSidedScore` is the raw two-sided signal; **v0.3 (live
+on Base Sepolia)** adds a `Pausable` circuit breaker, a settable attestation
+cooldown, and `getCreditScore` — a diversity-adjusted ranking score (distinct
+counterparties − disputes), which `getRankingScore` prefers when available.
+**v0.4 (code, pending redeploy)** adds a challenge-liveness exit (`cancelChallenge`
+after a 90-day `CHALLENGE_TIMEOUT`, so no bond is locked forever), two-step
+ownership (`Ownable2Step`), a 200-byte cap on every on-chain URI field
+(`MAX_URI_LEN`), and signed outbound webhooks for the alert stream
+(`TAOP_WEBHOOK_URL`, HMAC-SHA256, ordered at-least-once). See `CHANGELOG.md`.
 
 The demo page proves the loop:
 
@@ -344,30 +345,40 @@ See [`docs/README.md`](docs/README.md) for the full documentation index
 ## Verify
 
 ```bash
-# Contract tests (70 passing: self-attest + two-sided + ETH bonds + regressions)
+# Contract tests (93 passing: self-attest + two-sided + ETH bonds + hardening)
 npm run contracts:test
 
-# Python SDK tests (6 passing, against Base Sepolia)
-cd packages/python-sdk && . .venv/bin/activate && python -m pytest tests/ -v
+# Python SDK tests (offline suite; hash-pinned dev deps)
+cd packages/python-sdk && python -m pytest tests/ -q -m "not network"
 
 # Backend health
 curl localhost:4000/api/healthz
 
-# Discovery (returns agents ranked by completions - disputes)
+# Discovery (ranked by the diversity/credit signal when available)
 curl localhost:4000/api/discover
 
 # OpenAPI docs
 open http://localhost:4000/api/docs/
 
-# Slither static analysis (no high/medium findings in our contracts)
-slither . --filter "high,medium"
+# Slither static analysis (blocking: no high/medium in our contracts)
+npm run slither
+
+# Mythril symbolic analysis on both runtime bytecodes (local or digest-pinned Docker)
+bash scripts/mythril-scan.sh
 
 # Foundry fuzz + invariants (needs `forge` + the forge-std submodule)
 npm run contracts:test:foundry
 
+# Gaming-resistance benchmark (deterministic; fails on seed-42 baseline drift)
+npm run benchmark:run
+npm run benchmark:test
+
 # Full local E2E: boots a Hardhat node + backend and drives the v0.2 HTTP flow
 # (no keys/funds needed — IPFS/inference fall back to mock/local)
 npm run e2e:local
+
+# Verify a deployment descriptor: owners, feature level (v0.2–v0.4), parameters
+npm run verify:deployment
 
 # Read-only checks against the live Base Sepolia deployment
 npm run test:live
@@ -383,7 +394,13 @@ npm run test:live
   `X-TAOP-Key: <TAOP_API_KEY>` whenever `TAOP_API_KEY` is set, and the server
   **refuses to start** on a non-loopback `HOST` without one.
 - **Rate limiting:** 240 req/min overall, 20 writes / 5 min (`express-rate-limit`).
-- **Slither:** no high or medium findings in our contracts.
+- **Slither:** no high or medium findings in our contracts. Aderyn 0.6.8: 0
+  high / 6 low (accepted); Mythril: `CapabilityRegistry` clean, one
+  compiler-generated false positive on `ReputationOracleNetwork` triaged in
+  [`docs/SELF-AUDIT.md`](docs/SELF-AUDIT.md).
+- **Outbound webhooks are opt-in and signed:** HMAC-SHA256
+  (`x-taop-signature`), ordered at-least-once with an `x-taop-delivery` de-dupe
+  id, per-delivery timeout and exponential backoff.
 - **Challenge resolver:** owner-only (centralized trust boundary, documented in
   TRD.md Appendix). Upgradeable to DAO/optimistic in v2.
 - **Bonds:** in ETH on Base. No protocol token in v0.1.
