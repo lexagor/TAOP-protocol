@@ -79,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   markers, so a long-running indexer cannot fill the disk. Alerts not yet
   delivered to webhooks are never pruned (cursor-protected); prune counters are
   exposed on `/api/indexer` and `/api/healthz`.
+- Python SDK offline tests now pin the v0.4 ABI surface (cancelChallenge,
+  CHALLENGE_TIMEOUT, MAX_URI_LEN, acceptOwnership, pendingOwner,
+  ChallengeCancelled, URITooLong/NotChallenger/ChallengeNotTimedOut) and the
+  corresponding client methods; verified locally under Python 3.12 (8 passing).
 
 ## [0.3.0] - 2026-09-17
 

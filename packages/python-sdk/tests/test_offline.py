@@ -117,3 +117,29 @@ def test_discover_min_score_filter():
     ron = _FakeRon({"0xA": (1, 1, 0, "self-attest")})
     assert discover(registry, ron, LORA_CAPABILITY_TYPE, min_score=0)
     assert discover(registry, ron, LORA_CAPABILITY_TYPE, min_score=5) == []
+
+
+# --- v0.4 ABI surface -------------------------------------------------------
+
+_PKG = Path(__file__).resolve().parents[1]
+_RON_ABI = json.loads((_PKG / "taop" / "ron_abi.json").read_text())
+
+
+def _abi_names(entries, kind):
+    return {e.get("name") for e in entries if e.get("type") == kind}
+
+
+def test_v04_abi_surface_is_bundled():
+    funcs = _abi_names(_RON_ABI, "function")
+    events = _abi_names(_RON_ABI, "event")
+    errors = _abi_names(_RON_ABI, "error")
+    assert {"cancelChallenge", "CHALLENGE_TIMEOUT", "MAX_URI_LEN", "acceptOwnership", "pendingOwner"} <= funcs
+    assert "ChallengeCancelled" in events
+    assert {"ChallengeNotTimedOut", "NotChallenger", "URITooLong"} <= errors
+
+
+def test_v04_client_methods_exist():
+    from taop.clients import ReputationOracleNetworkClient
+
+    for name in ("cancel_challenge", "challenge_timeout", "max_uri_len"):
+        assert callable(getattr(ReputationOracleNetworkClient, name))
