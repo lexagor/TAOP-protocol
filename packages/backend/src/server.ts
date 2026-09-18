@@ -14,11 +14,14 @@ import { LORA_CAPABILITY_TYPE } from "@taopp/sdk";
 import { listCapabilities, listCompletions, markCompletionChallenged, markCompletionResolved, recordAdminAction, listAdminActions } from "./db.js";
 import { startIndexer, queryIndexedDiscovery, isIndexerReady, indexedCount, indexerStatus } from "./indexer.js";
 import { startWebhookDispatcher, stopWebhookDispatcher, webhookStatus } from "./webhooks.js";
+import { metricsMiddleware, renderPrometheus } from "./metrics.js";
 import { listAlerts } from "./index_db.js";
 import { openApiSpec } from "./openapi.js";
 
 export const app = express();
 app.use(express.json({ limit: "256kb" }));
+// Count every response (including rate-limit rejections) for /api/metrics.
+app.use(metricsMiddleware);
 // Security headers. CSP is enabled (it was previously off) with `unsafe-inline`
 // for scripts/styles only because Swagger UI bootstraps with an inline script and
 // React/Tailwind may inject styles; external script origins and framing stay blocked.
@@ -734,6 +737,12 @@ api.get("/admin/audit", (req, res) => {
 
 api.get("/indexer", (_req, res) => {
   res.json(indexerStatus());
+});
+
+/** Prometheus metrics (read-only, same public policy as /healthz). */
+api.get("/metrics", (_req, res) => {
+  res.setHeader("content-type", "text/plain; version=0.0.4; charset=utf-8");
+  res.send(renderPrometheus());
 });
 
 /** F12: recent protocol alerts (challenges, slashing, pool withdrawals). */

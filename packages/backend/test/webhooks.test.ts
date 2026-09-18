@@ -89,7 +89,9 @@ describe("outbound webhooks (v0.4)", () => {
     const second = await wh.pollWebhooksOnce({ config: cfg(url, "s3cret"), fetchImpl: fetch });
     expect(second.delivered).toBe(0);
     expect(received).toHaveLength(2);
-    expect(wh.webhookStatus({ TAOP_WEBHOOK_URL: url }).pending).toBe(0);
+    const status = wh.webhookStatus({ TAOP_WEBHOOK_URL: url, TAOP_WEBHOOK_ALLOW_PRIVATE: "true" });
+    expect(status.enabled).toBe(true);
+    expect(status.pending).toBe(0);
   });
 
   it("retries the same alert after a failure, with backoff, without losing order", async () => {
@@ -130,5 +132,52 @@ describe("outbound webhooks (v0.4)", () => {
     expect(received).toHaveLength(1);
     expect(received[0].headers["x-taop-signature"]).toBeUndefined();
     expect(received[0].headers["content-type"]).toBe("application/json");
+  });
+});
+
+describe("webhook URL validation (SSRF hygiene)", () => {
+  it("accepts a public https URL and normalizes it", () => {
+    const url = wh.validateWebhookUrl("https://hooks.example.com/taop");
+    expect(url).toBe("https://hooks.example.com/taop");
+  });
+
+  it("rejects non-http(s) schemes and embedded credentials", () => {
+    expect(() => wh.validateWebhookUrl("ftp://example.com/hook")).toThrow(/http\(s\)/);
+    expect(() => wh.validateWebhookUrl("file:///etc/passwd")).toThrow(/http\(s\)/);
+    expect(() => wh.validateWebhookUrl("https://user:pass@example.com/hook")).toThrow(/credentials/);
+    expect(() => wh.validateWebhookUrl("not a url")).toThrow(/valid URL/);
+  });
+
+  it("refuses plaintext http to public hosts unless explicitly allowed", () => {
+    expect(() => wh.validateWebhookUrl("http://hooks.example.com/taop")).toThrow(/plaintext/);
+    expect(wh.validateWebhookUrl("http://hooks.example.com/taop", { TAOP_WEBHOOK_ALLOW_HTTP: "true" })).toBe(
+      "http://hooks.example.com/taop",
+    );
+  });
+
+  it("refuses loopback/private/link-local targets unless explicitly allowed", () => {
+    const targets = [
+      "http://127.0.0.1:4199/hook",
+      "http://localhost/hook",
+      "http://10.0.0.5/hook",
+      "http://172.16.0.9/hook",
+      "http://192.168.1.1/hook",
+      "http://169.254.1.1/hook",
+      "http://0.0.0.0/hook",
+      "http://[::1]/hook",
+      "http://printer.local/hook",
+    ];
+    for (const target of targets) {
+      expect(() => wh.validateWebhookUrl(target), target).toThrow(/private\/loopback/);
+    }
+    expect(
+      wh.validateWebhookUrl("http://127.0.0.1:4199/hook", { TAOP_WEBHOOK_ALLOW_PRIVATE: "true" }),
+    ).toBe("http://127.0.0.1:4199/hook");
+  });
+
+  it("reports a rejected configuration through webhookStatus instead of throwing", () => {
+    const status = wh.webhookStatus({ TAOP_WEBHOOK_URL: "http://169.254.169.254/latest/meta-data" });
+    expect(status.enabled).toBe(false);
+    expect(status.configError).toMatch(/private\/loopback/);
   });
 });

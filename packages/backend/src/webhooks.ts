@@ -12,6 +12,8 @@
  *   TAOP_WEBHOOK_POLL_MS      poll interval (default 5000)
  *   TAOP_WEBHOOK_TIMEOUT_MS   per-delivery timeout (default 10000)
  *   TAOP_WEBHOOK_MAX_PER_POLL max alerts per poll (default 25)
+ *   TAOP_WEBHOOK_ALLOW_PRIVATE allow loopback/private targets (default false)
+ *   TAOP_WEBHOOK_ALLOW_HTTP   allow plaintext http to public hosts (default false)
  */
 
 import crypto from "node:crypto";
@@ -38,6 +40,8 @@ interface AlertRecord {
 
 export interface WebhookStatus {
   enabled: boolean;
+  /** Set when TAOP_WEBHOOK_URL is present but rejected by validation. */
+  configError: string | null;
   lastDeliveredId: number;
   pending: number;
   delivered: number;
@@ -61,11 +65,64 @@ const intEnv = (value: string | undefined, fallback: number): number => {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 };
 
+/**
+ * Loopback / private / link-local / mDNS hostnames. Delivery to these is
+ * refused unless explicitly allowed — an operator typo (or a compromised env
+ * file) should not turn the backend into an SSRF probe of its own network.
+ */
+export function isPrivateHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
+  if (host === "0.0.0.0" || host === "::" || host === "::1") return true;
+  if (host.startsWith("::ffff:")) return isPrivateHost(host.slice("::ffff:".length));
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    if (a === 0 || a === 127 || a === 10) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    return false;
+  }
+  if (/^f[cd][0-9a-f]{2}:/.test(host)) return true; // fc00::/7 unique-local
+  if (/^fe[89ab][0-9a-f]:/.test(host)) return true; // fe80::/10 link-local
+  return false;
+}
+
+/** Validate a subscriber URL; throws with an actionable message on refusal. */
+export function validateWebhookUrl(raw: string, env: NodeJS.ProcessEnv = process.env): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`TAOP_WEBHOOK_URL is not a valid URL: ${raw}`);
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`TAOP_WEBHOOK_URL must be http(s), got ${url.protocol}`);
+  }
+  if (url.username || url.password) {
+    throw new Error("TAOP_WEBHOOK_URL must not embed credentials");
+  }
+  const privateHost = isPrivateHost(url.hostname);
+  if (privateHost && env.TAOP_WEBHOOK_ALLOW_PRIVATE !== "true") {
+    throw new Error(
+      `refusing private/loopback webhook target '${url.hostname}': ` +
+        "set TAOP_WEBHOOK_ALLOW_PRIVATE=true if this is intentional",
+    );
+  }
+  if (url.protocol === "http:" && !privateHost && env.TAOP_WEBHOOK_ALLOW_HTTP !== "true") {
+    throw new Error(
+      "refusing plaintext http:// webhook target: use https, or set TAOP_WEBHOOK_ALLOW_HTTP=true",
+    );
+  }
+  return url.toString();
+}
+
 export function loadWebhookConfig(env: NodeJS.ProcessEnv = process.env): WebhookConfig | null {
   const url = (env.TAOP_WEBHOOK_URL ?? "").trim();
   if (!url) return null;
   return {
-    url,
+    url: validateWebhookUrl(url, env),
     secret: (env.TAOP_WEBHOOK_SECRET ?? "").trim() || null,
     pollMs: intEnv(env.TAOP_WEBHOOK_POLL_MS, 5_000),
     timeoutMs: intEnv(env.TAOP_WEBHOOK_TIMEOUT_MS, 10_000),
@@ -136,8 +193,27 @@ export function lastDeliveredId(): number {
   return Number(getMeta(LAST_ID_KEY) ?? "0") || 0;
 }
 
+/**
+ * Delivery cursor for retention: the id of the newest delivered alert when
+ * webhooks are enabled, otherwise MAX_SAFE_INTEGER (no protection needed). An
+ * invalid configuration also returns MAX (nothing is being delivered).
+ */
+export function lastDeliveredIdIfEnabled(): number {
+  try {
+    return loadWebhookConfig() ? lastDeliveredId() : Number.MAX_SAFE_INTEGER;
+  } catch {
+    return Number.MAX_SAFE_INTEGER;
+  }
+}
+
 export function webhookStatus(env: NodeJS.ProcessEnv = process.env): WebhookStatus {
-  const config = loadWebhookConfig(env);
+  let config: WebhookConfig | null = null;
+  let configError: string | null = null;
+  try {
+    config = loadWebhookConfig(env);
+  } catch (e) {
+    configError = String((e as Error).message ?? e);
+  }
   const lastId = lastDeliveredId();
   // The index schema may not exist yet (indexer disabled / early boot).
   let pending = 0;
@@ -148,6 +224,7 @@ export function webhookStatus(env: NodeJS.ProcessEnv = process.env): WebhookStat
   }
   return {
     enabled: config !== null,
+    configError,
     lastDeliveredId: lastId,
     pending,
     delivered: Number(getMeta(DELIVERED_KEY) ?? "0") || 0,

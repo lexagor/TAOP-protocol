@@ -37,9 +37,11 @@ export INDEXER_ENABLED=true
 export INDEXER_START_BLOCK=0
 export INDEXER_POLL_MS=1000
 export LOG_LEVEL=warn
-# v0.4: signed outbound webhooks, drained fast for the test.
+# v0.4: signed outbound webhooks, drained fast for the test. The receiver is
+# loopback, so the SSRF guard needs an explicit opt-in.
 export TAOP_WEBHOOK_URL="http://127.0.0.1:${WEBHOOK_PORT}/hook"
 export TAOP_WEBHOOK_SECRET="$WEBHOOK_SECRET"
+export TAOP_WEBHOOK_ALLOW_PRIVATE=true
 export TAOP_WEBHOOK_POLL_MS=300
 export TAOP_WEBHOOK_TIMEOUT_MS=5000
 

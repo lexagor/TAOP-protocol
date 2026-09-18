@@ -88,6 +88,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Dependabot ignores unresolvable single-package pip bumps (`parsimonious`,
   `pydantic-core` — exact-pinned by `eth-abi`/`pydantic`) and
   `@vitejs/plugin-react` majors (v6 peers Vite ^8; repo is on Vite 6).
+- **Observability**: `GET /api/metrics` exposes Prometheus text metrics
+  (indexer lag/reorgs/retention, webhook backlog/failures, alert/capability
+  gauges, bounded-label HTTP counters); documented scrape config + suggested
+  alerts in `docs/OPERATIONS.md` §4e.
+- **Webhook target validation (SSRF hygiene)**: http(s) only, no embedded
+  credentials, public hosts must be https, loopback/private/link-local targets
+  refused unless `TAOP_WEBHOOK_ALLOW_PRIVATE=true`; invalid configs surface as
+  `webhooks.configError` instead of crashing health checks.
+- OpenAPI refreshed: `/metrics`, `/agents/{address}/identity`,
+  `/agents/register`, and the healthz/indexer schemas now cover webhooks and
+  retention counters.
 
 ## [0.3.0] - 2026-09-17
 

@@ -133,6 +133,12 @@ raw body is HMAC-SHA256 signed and sent as `x-taop-signature: sha256=<hex>`.
 | `TAOP_WEBHOOK_POLL_MS` | 5000 | Poll interval |
 | `TAOP_WEBHOOK_TIMEOUT_MS` | 10000 | Per-delivery timeout |
 | `TAOP_WEBHOOK_MAX_PER_POLL` | 25 | Max alerts delivered per poll |
+| `TAOP_WEBHOOK_ALLOW_PRIVATE` | false | Permit loopback/private/link-local targets (loopback/`10.x`/`172.16-31.x`/`192.168.x`/`169.254.x`/`[::1]`/`.local`) |
+| `TAOP_WEBHOOK_ALLOW_HTTP` | false | Permit plaintext `http://` to public hosts (https is enforced otherwise) |
+
+Invalid configurations are refused at startup (the URL is validated: http(s)
+only, no embedded credentials, public hosts must be https) and surfaced as
+`webhooks.configError` in `/api/healthz` and `/api/metrics`.
 
 On failure the same alert is retried (exponential backoff up to 5 minutes) so
 order is preserved; `GET /api/healthz` reports `webhooks.pending`,
@@ -163,6 +169,28 @@ Counters are visible at `GET /api/indexer` and in `/api/healthz`
 (`indexer.alertsPruned`, `indexer.markersPruned`). Pruned alerts disappear from
 `GET /api/alerts`; that is expected history truncation, not data loss for
 consumers that persist webhook deliveries.
+
+## 4e. Prometheus metrics
+
+`GET /api/metrics` exposes Prometheus text metrics (read-only, no auth, bounded
+labels). Scrape config:
+
+```yaml
+scrape_configs:
+  - job_name: taop
+    metrics_path: /api/metrics
+    static_configs:
+      - targets: ["127.0.0.1:4000"]
+```
+
+Series: `taop_uptime_seconds`, `taop_writes_disabled`,
+`taop_indexer_{enabled,ready,last_block,head_block,lag_blocks,reorgs_total,
+alerts_pruned_total,log_markers_pruned_total}`, `taop_webhooks_{enabled,pending,
+last_delivered_id,delivered_total,failed_total}`, `taop_alerts_stored`,
+`taop_capabilities_indexed`, and `taop_http_requests_total{method,status}`.
+Suggested alerts: `taop_indexer_lag_blocks > 50`, `taop_webhooks_pending > 100`,
+`rate(taop_webhooks_failed_total[5m]) > 0`, `taop_writes_disabled == 0` on a
+public read-only instance.
 
 ## 5. Key rotation
 

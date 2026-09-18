@@ -20,7 +20,8 @@ export const openApiSpec = {
           ok: { type: "boolean" }, service: { type: "string" }, chainId: { type: "integer" },
           uptimeSec: { type: "integer" }, writes: { type: "string", enum: ["disabled", "keyed", "open-loopback"] },
           rpc: { type: "object", properties: { ok: { type: "boolean" }, latencyMs: { type: "integer" }, blockNumber: { type: "integer", nullable: true }, error: { type: "string", nullable: true } } },
-          indexer: { type: "object", properties: { enabled: { type: "boolean" }, ready: { type: "boolean" }, lag: { type: "integer" }, lastBlock: { type: "integer" }, headBlock: { type: "integer" }, twoSided: { type: "boolean" }, lastError: { type: "string", nullable: true } } },
+          indexer: { type: "object", properties: { enabled: { type: "boolean" }, ready: { type: "boolean" }, lag: { type: "integer" }, lastBlock: { type: "integer" }, headBlock: { type: "integer" }, twoSided: { type: "boolean" }, credit: { type: "boolean" }, alertsPruned: { type: "integer" }, markersPruned: { type: "integer" }, lastError: { type: "string", nullable: true } } },
+          webhooks: { type: "object", properties: { enabled: { type: "boolean" }, configError: { type: "string", nullable: true }, lastDeliveredId: { type: "integer" }, pending: { type: "integer" }, delivered: { type: "integer" }, failed: { type: "integer" }, lastError: { type: "string", nullable: true }, lastDeliveredAt: { type: "string", nullable: true } } },
         } } } } } },
       },
     },
@@ -192,6 +193,25 @@ export const openApiSpec = {
         },
       },
     },
+    "/agents/{address}/identity": {
+      get: {
+        summary: "Get an agent's on-chain identity metadata CID",
+        parameters: [{ name: "address", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "Identity", content: { "application/json": { schema: { type: "object", properties: { metadataCID: { type: "string" } } } } } },
+        },
+      },
+    },
+    "/agents/register": {
+      post: {
+        summary: "Register/update the demo agent's on-chain identity (Agent A key)",
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["metadataCID"], properties: { metadataCID: { type: "string" } } } } } },
+        responses: {
+          "200": { description: "Registered", content: { "application/json": { schema: { type: "object", properties: { txHash: { type: "string", nullable: true }, simulated: { type: "boolean" } } } } } },
+          "400": { description: "metadataCID required" },
+        },
+      },
+    },
     "/admin/audit": {
       get: {
         summary: "Admin action audit log (pause/unpause/cooldown/resolve)",
@@ -247,14 +267,24 @@ export const openApiSpec = {
           "200": { description: "Indexer status", content: { "application/json": { schema: { type: "object", properties: {
             enabled: { type: "boolean" }, ready: { type: "boolean" }, useTwoSided: { type: "boolean" }, useCredit: { type: "boolean" },
             lastBlock: { type: "integer" }, headBlock: { type: "integer" }, safeHead: { type: "integer" },
-            lag: { type: "integer" }, reorgsDetected: { type: "integer" }, lastError: { type: "string", nullable: true },
+            lag: { type: "integer" }, reorgsDetected: { type: "integer" },
+            alertsPruned: { type: "integer" }, markersPruned: { type: "integer" },
+            lastError: { type: "string", nullable: true },
           } } } } },
+        },
+      },
+    },
+    "/metrics": {
+      get: {
+        summary: "Prometheus metrics (text exposition format; read-only, no auth)",
+        responses: {
+          "200": { description: "Metrics", content: { "text/plain": { schema: { type: "string" } } } },
         },
       },
     },
     "/alerts": {
       get: {
-        summary: "Recent protocol alerts — challenges, slashing, pool withdrawals (F12)",
+        summary: "Recent protocol alerts — challenges/cancellations, slashing, pool withdrawals (F12)",
         parameters: [{ name: "limit", in: "query", schema: { type: "integer", default: 50, maximum: 500 } }],
         responses: {
           "200": { description: "Alerts, newest first", content: { "application/json": { schema: { type: "array", items: { type: "object", properties: {

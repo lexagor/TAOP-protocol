@@ -30,7 +30,7 @@ import {
   pruneAlerts,
   pruneIndexedLogs,
 } from "./index_db.js";
-import { lastDeliveredId, loadWebhookConfig } from "./webhooks.js";
+import { lastDeliveredIdIfEnabled } from "./webhooks.js";
 
 /**
  * F10 — minimal off-chain indexer.
@@ -474,8 +474,7 @@ export async function pollOnce(state: BackendState, opts: PollOptions): Promise<
   try {
     const alertsKeep = Number(process.env.DB_RETENTION_ALERTS ?? "5000");
     const markerBlocks = Number(process.env.DB_RETENTION_LOG_MARKERS_BLOCKS ?? "0");
-    const protectedId = loadWebhookConfig() ? lastDeliveredId() : Number.MAX_SAFE_INTEGER;
-    status.alertsPruned += pruneAlerts(alertsKeep, protectedId);
+    status.alertsPruned += pruneAlerts(alertsKeep, lastDeliveredIdIfEnabled());
     if (markerBlocks > 0) {
       status.markersPruned += pruneIndexedLogs(status.lastBlock, markerBlocks);
     }
