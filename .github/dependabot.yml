@@ -19,6 +19,13 @@ updates:
       # is upgraded (tracked with the demo toolchain, not a standalone bump).
       - dependency-name: "@vitejs/plugin-react"
         update-types: ["version-update:semver-major"]
+      # Hardhat 3 is a project, not a bump: the coverage gate has no HH3 path and
+      # scripts/tests need the connection API migration. Tracked in issue #33 —
+      # remove these ignores when the migration lands.
+      - dependency-name: "hardhat"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nomicfoundation/hardhat-*"
+        update-types: ["version-update:semver-major"]
 
   # Python SDK.
   - package-ecosystem: "pip"
