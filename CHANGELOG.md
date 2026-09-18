@@ -68,6 +68,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the subscriber URL.
 - CI `foundry` job runs deeper campaigns (2000 fuzz runs, 256 invariant runs ×
   depth 64).
+- **Hardhat 3 migration assessed** (`docs/hardhat3-assessment.md`): feasible
+  (spike compiles and tests the repo unmodified) but **deferred** — the coverage
+  gate has no Hardhat 3 path (`solidity-coverage@0.8.17` peers `hardhat ^2.11`)
+  and `hardhat-gas-reporter` likewise. Stage 0 applied now: dropped the unused
+  TypeChain/Ignition meta-toolbox for explicit plugins, removing 4 dev
+  advisories (27 → 23, 0 high) with all suites green.
 
 ## [0.3.0] - 2026-09-17
 

@@ -1,6 +1,16 @@
 import "dotenv/config";
-import "@nomicfoundation/hardhat-toolbox";
+// Explicit plugins instead of @nomicfoundation/hardhat-toolbox: the meta-package
+// pulls in TypeChain and Hardhat Ignition, neither of which this repo uses.
+// Dropping them removes the unfixable @typechain/hardhat advisory and keeps the
+// dev tree smaller (see docs/hardhat3-assessment.md, Stage 0).
+import "@nomicfoundation/hardhat-ethers";
+import "@nomicfoundation/hardhat-chai-matchers";
+import "@nomicfoundation/hardhat-network-helpers";
+import "@nomicfoundation/hardhat-verify";
 import "hardhat-gas-reporter";
+// The toolbox used to pull solidity-coverage in as a peer; import it explicitly
+// so `hardhat coverage` keeps working without the meta-package.
+import "solidity-coverage";
 
 /** @type import("hardhat/config").HardhatUserConfig */
 const config = {
