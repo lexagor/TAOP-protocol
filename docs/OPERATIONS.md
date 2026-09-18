@@ -84,6 +84,7 @@ first). Kinds and suggested responses:
 |---|---|---|
 | `ChallengeSubmitted` | Someone posted a 0.01 ETH bond alleging fraud | Informational; watch for spam (rate-limit writes) |
 | `ChallengeResolved` | Owner/Timelock resolved a challenge (`upheld` flag) | If unexpected, check who holds the proposer/executor role |
+| `ChallengeCancelled` | v0.4: the challenger reclaimed a stuck bond after the 90-day timeout | Informational; indicates governance left a challenge unresolved |
 | `CapabilitySlashed` | A capability bond was slashed | Confirm the certifier acted intentionally |
 | `BondWithdrawn` | A creator reclaimed a bond (NFT burned) | Expected churn; confirm it isn't a rug |
 | `EthPoolWithdrawn` | Owner withdrew protocol fees/slashed bonds | Investigate immediately — owners only move funds deliberately |
@@ -117,6 +118,36 @@ curl -s 'localhost:4000/api/admin/audit?limit=20' | jq
 ```
 
 Treat an unexpected entry as an incident (see [`EMERGENCY.md`](EMERGENCY.md)).
+
+## 4c. Signed outbound webhooks
+
+Set `TAOP_WEBHOOK_URL` to POST every alert to a subscriber (disabled by
+default). Deliveries are ordered and **at-least-once**: de-duplicate on the
+`x-taop-delivery` header (the alert id). When `TAOP_WEBHOOK_SECRET` is set, the
+raw body is HMAC-SHA256 signed and sent as `x-taop-signature: sha256=<hex>`.
+
+| Env | Default | Effect |
+|---|---|---|
+| `TAOP_WEBHOOK_URL` | — | Subscriber endpoint; setting it enables the dispatcher |
+| `TAOP_WEBHOOK_SECRET` | — | HMAC-SHA256 signing secret (recommended) |
+| `TAOP_WEBHOOK_POLL_MS` | 5000 | Poll interval |
+| `TAOP_WEBHOOK_TIMEOUT_MS` | 10000 | Per-delivery timeout |
+| `TAOP_WEBHOOK_MAX_PER_POLL` | 25 | Max alerts delivered per poll |
+
+On failure the same alert is retried (exponential backoff up to 5 minutes) so
+order is preserved; `GET /api/healthz` reports `webhooks.pending`,
+`webhooks.lastError`, and `webhooks.lastDeliveredId`. Verify signatures in
+constant time:
+
+```js
+import crypto from "node:crypto";
+const expected =
+  "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+const received = req.headers["x-taop-signature"] ?? "";
+const ok =
+  expected.length === received.length &&
+  crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received));
+```
 
 ## 5. Key rotation
 

@@ -53,6 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skips the Agent A capability bootstrap (`registerCapabilityEth`), so a public
   read-only deployment on any network boots cleanly and never spends gas.
   Test: `packages/backend/test/readonly.bootstrap.test.ts`.
+- **Signed outbound webhooks** for the alert stream (`TAOP_WEBHOOK_URL`,
+  disabled by default): ordered at-least-once delivery with an `x-taop-delivery`
+  de-dupe id, HMAC-SHA256 `x-taop-signature` when a secret is set, per-delivery
+  timeout, and exponential backoff on failure. `GET /api/healthz` reports the
+  dispatcher status. Tests: `packages/backend/test/webhooks.test.ts`.
 
 ## [0.3.0] - 2026-09-17
 

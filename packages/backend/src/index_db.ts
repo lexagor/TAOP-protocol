@@ -102,6 +102,42 @@ export function listAlerts(limit = 50): Array<{
   }));
 }
 
+/** Alerts newer than `afterId`, oldest first, for the webhook dispatcher. */
+export function listAlertsAfter(afterId: number, limit = 50): ReturnType<typeof listAlerts> {
+  const rows = db()
+    .prepare("SELECT * FROM alerts WHERE id > ? ORDER BY id ASC LIMIT ?")
+    .all(afterId, Math.min(Math.max(limit, 1), 500)) as Array<{
+    id: number;
+    kind: string;
+    block_number: number;
+    tx_hash: string;
+    payload: string;
+    created_at: string;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    blockNumber: r.block_number,
+    txHash: r.tx_hash,
+    payload: (() => {
+      try {
+        return JSON.parse(r.payload);
+      } catch {
+        return r.payload;
+      }
+    })(),
+    createdAt: r.created_at,
+  }));
+}
+
+/** Number of alerts newer than `afterId` (webhook backlog). */
+export function countAlertsAfter(afterId: number): number {
+  const row = db().prepare("SELECT COUNT(*) AS n FROM alerts WHERE id > ?").get(afterId) as {
+    n: number;
+  };
+  return row.n;
+}
+
 // --- indexer cursor ---
 
 export function getIndexerLastBlock(): number | null {

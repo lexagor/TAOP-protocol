@@ -13,6 +13,7 @@ import { runDemo } from "./demo.js";
 import { LORA_CAPABILITY_TYPE } from "@taopp/sdk";
 import { listCapabilities, listCompletions, markCompletionChallenged, markCompletionResolved, recordAdminAction, listAdminActions } from "./db.js";
 import { startIndexer, queryIndexedDiscovery, isIndexerReady, indexedCount, indexerStatus } from "./indexer.js";
+import { startWebhookDispatcher, stopWebhookDispatcher, webhookStatus } from "./webhooks.js";
 import { listAlerts } from "./index_db.js";
 import { openApiSpec } from "./openapi.js";
 
@@ -257,6 +258,7 @@ api.get("/healthz", async (_req, res) => {
       credit: ix.useCredit,
       lastError: ix.lastError,
     },
+    webhooks: webhookStatus(),
   });
 });
 
@@ -781,6 +783,16 @@ async function main() {
     logger.warn(`[indexer] failed to start: ${String((e as Error).message ?? e)}`);
   }
 
+  // v0.4: signed outbound webhooks for the alert stream (TAOP_WEBHOOK_URL).
+  try {
+    const webhooksOn = startWebhookDispatcher();
+    logger.info(
+      `Webhooks: ${webhooksOn ? `on (${process.env.TAOP_WEBHOOK_URL})` : "off (set TAOP_WEBHOOK_URL to enable)"}`,
+    );
+  } catch (e) {
+    logger.warn(`[webhooks] failed to start: ${String((e as Error).message ?? e)}`);
+  }
+
   const server = app.listen(PORT, HOST, () => {
     const origin = isLoopbackHost(HOST) ? `http://127.0.0.1:${PORT}` : `http://${HOST}:${PORT}`;
     logger.info(`TAOP backend listening on ${origin}/api`);
@@ -800,8 +812,14 @@ async function main() {
   // Slowloris / resource-exhaustion hardening (Node defaults are 60s / 300s).
   server.headersTimeout = 20_000;
   server.requestTimeout = 30_000;
-  process.on("SIGINT", () => server.close(() => process.exit(0)));
-  process.on("SIGTERM", () => server.close(() => process.exit(0)));
+  process.on("SIGINT", () => {
+    stopWebhookDispatcher();
+    server.close(() => process.exit(0));
+  });
+  process.on("SIGTERM", () => {
+    stopWebhookDispatcher();
+    server.close(() => process.exit(0));
+  });
 }
 
 // Auto-start unless a test harness sets TAOP_NO_AUTOSTART (see test/).

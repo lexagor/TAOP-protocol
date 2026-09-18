@@ -65,6 +65,9 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - **Read-only instances never write**: `DEMO_READ_ONLY=true` also skips the
   startup Agent A capability bootstrap, so a public read-only deployment sends
   no transactions at all.
+- **Signed outbound webhooks** (opt-in via `TAOP_WEBHOOK_URL`): HMAC-SHA256
+  `x-taop-signature` over the raw body, ordered at-least-once delivery with an
+  `x-taop-delivery` de-dupe id, per-delivery timeout, and exponential backoff.
 - **Security headers**: helmet with a Content-Security-Policy (external scripts,
   framing, and objects blocked; `unsafe-inline` only for Swagger UI's bootstrap
   and injected styles), plus `frame-ancestors 'none'`.
