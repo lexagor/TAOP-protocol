@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Hardhat 2 toolchain (0 high). Docker runtime stage now runs
   `npm prune --omit=dev` and CI boots the image read-only to assert
   `/api/healthz`.
+- **Read-only instances no longer write at startup**: `DEMO_READ_ONLY=true`
+  skips the Agent A capability bootstrap (`registerCapabilityEth`), so a public
+  read-only deployment on any network boots cleanly and never spends gas.
+  Test: `packages/backend/test/readonly.bootstrap.test.ts`.
 
 ## [0.3.0] - 2026-09-17
 

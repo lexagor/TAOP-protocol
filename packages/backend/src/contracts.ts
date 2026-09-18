@@ -215,7 +215,14 @@ export async function initState(): Promise<BackendState> {
     agentARunner,
   };
   _state = state;
-  await ensureCapability(state);
+  // Hardening: a read-only instance must never send transactions at startup.
+  // The Agent A capability bootstrap is a write (registerCapabilityEth), so a
+  // public read-only deployment skips it and serves whatever is already indexed.
+  if (process.env.DEMO_READ_ONLY === "true") {
+    logger.info("[backend] read-only mode: skipping the Agent A capability bootstrap (no startup writes)");
+  } else {
+    await ensureCapability(state);
+  }
   return state;
 }
 

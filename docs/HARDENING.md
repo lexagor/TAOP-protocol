@@ -62,6 +62,9 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - Backend: loopback by default, `X-TAOP-Key` write gate (constant-time), rate
   limits, `DEMO_READ_ONLY`, refuses a public bind without a key; structured logs
   with secret redaction; enriched `/api/healthz` + `/api/alerts`.
+- **Read-only instances never write**: `DEMO_READ_ONLY=true` also skips the
+  startup Agent A capability bootstrap, so a public read-only deployment sends
+  no transactions at all.
 - **Security headers**: helmet with a Content-Security-Policy (external scripts,
   framing, and objects blocked; `unsafe-inline` only for Swagger UI's bootstrap
   and injected styles), plus `frame-ancestors 'none'`.
