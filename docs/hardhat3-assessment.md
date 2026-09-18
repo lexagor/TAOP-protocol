@@ -2,7 +2,7 @@
 
 **Assessed:** 2026-09-18 · **Decision: deferred** until the coverage plugin ships
 Hardhat 3 support. **Stage 0 is already applied** (dropped the unused
-TypeChain/Ignition meta-toolbox) — see below.
+TypeChain/Ignition meta-toolbox) — see below. **Tracking: [#33](https://github.com/lexagor/TAOP-protocol/issues/33).**
 
 Scope: `hardhat.config.ts`, 13 TypeScript test files (~93 tests), 2 deploy
 scripts, the coverage/mutation/gas CI gates, and the dev-dependency advisory
