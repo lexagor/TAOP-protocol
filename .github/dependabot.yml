@@ -14,6 +14,11 @@ updates:
       npm-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    ignore:
+      # plugin-react v6 peers vite ^8; the repo is on vite 6. Revisit when Vite
+      # is upgraded (tracked with the demo toolchain, not a standalone bump).
+      - dependency-name: "@vitejs/plugin-react"
+        update-types: ["version-update:semver-major"]
 
   # Python SDK.
   - package-ecosystem: "pip"
@@ -24,6 +29,13 @@ updates:
     cooldown:
       default-days: 7
       semver-major-days: 30
+    ignore:
+      # These are exact-pinned by their parents in the hash-pinned compiled
+      # requirements (eth-abi -> parsimonious<0.11; pydantic -> pydantic-core==x).
+      # A single-package bump is unresolvable; they move via pip-compile when the
+      # parents move.
+      - dependency-name: "parsimonious"
+      - dependency-name: "pydantic-core"
 
   # Keep our GitHub Actions themselves up to date (supply-chain hygiene).
   - package-ecosystem: "github-actions"

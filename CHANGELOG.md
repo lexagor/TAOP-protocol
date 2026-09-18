@@ -83,6 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   CHALLENGE_TIMEOUT, MAX_URI_LEN, acceptOwnership, pendingOwner,
   ChallengeCancelled, URITooLong/NotChallenger/ChallengeNotTimedOut) and the
   corresponding client methods; verified locally under Python 3.12 (8 passing).
+- Dependabot triage: the Docker build stage now installs `python3 make g++` so
+  native modules without prebuilds (better-sqlite3 13) compile there too;
+  Dependabot ignores unresolvable single-package pip bumps (`parsimonious`,
+  `pydantic-core` — exact-pinned by `eth-abi`/`pydantic`) and
+  `@vitejs/plugin-react` majors (v6 peers Vite ^8; repo is on Vite 6).
 
 ## [0.3.0] - 2026-09-17
 

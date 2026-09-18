@@ -8,6 +8,12 @@
 
 FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS build
 WORKDIR /app
+# Native modules (e.g. better-sqlite3) compile with node-gyp when no prebuilt
+# binary exists for the platform; the build stage is discarded from the runtime
+# image, so the toolchain costs build time only.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json tsconfig.json tsconfig.base.json tsconfig.hardhat.json hardhat.config.ts ./
 COPY packages/sdk/package.json packages/sdk/
 COPY packages/backend/package.json packages/backend/
