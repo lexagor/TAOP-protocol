@@ -86,7 +86,7 @@ GET /api/discover?capabilityType=LoRA&minScore=2
 | Verifiability | Anyone can check a score on BaseScan — no API key, no platform subscription |
 | Immutability | Scores can't be retroactively altered or deleted |
 | Economic finality | ETH bonds and challenge bonds settle on-chain — real value moves |
-| Composable | NFTs integrate with any ERC-721 marketplace, wallet, or protocol |
+| Composable | NFTs integrate with any ERC-721 wallet or protocol |
 | Trust-minimized | No platform vouches for an agent — the open, bonded challenge process does |
 
 ---
@@ -254,7 +254,6 @@ v0.1 is **ETH-only and intentionally generates zero protocol revenue at launch.*
 - Cross-chain reputation via LayerZero
 - ZK-proof score verification
 - Reputation-based credit default swaps ("insurance" for agent hiring)
-- Capability NFT marketplace with royalties
 - Governance token + DAO transition
 
 ---
@@ -289,7 +288,7 @@ v0.1 is **ETH-only and intentionally generates zero protocol revenue at launch.*
 1. **The agent economy exists but trust doesn't.** Thousands of agents are being built, but there's no standard way to verify them.
 2. **Base is the right home.** $8B+ TVL, MCP support, active AI grants program, Coinbase distribution.
 3. **The window is open but closing.** Olas shipped their Agent Reputation Score in June. AgentSafe launched June 10. If TAOP doesn't ship mainnet in the next 30 days, the first-mover advantage evaporates.
-4. **We're not building a marketplace.** We're building infrastructure — the credit bureau that every agent platform, framework, and protocol needs.
+4. **We're not building another platform.** We're building infrastructure — the credit bureau that every agent platform, framework, and protocol needs.
 
 ---
 

@@ -101,7 +101,7 @@ On-chain reputation solves three problems that off-chain systems cannot:
 
 2. **Economic finality:** ETH bonds represent real value. When a creator registers a fake capability, their bond can be slashed. When someone challenges a fraudulent self-attestation, they post a 0.01 ETH bond that they forfeit if the challenge is rejected. This economic commitment is impossible to replicate off-chain.
 
-3. **Composability:** On-chain reputation data composes with NFTs (capability marketplaces), DAOs (governance weight), and identity protocols (EAS attestations).
+3. **Composability:** On-chain reputation data composes with NFTs (capability registries), DAOs (governance weight), and identity protocols (EAS attestations).
 
 ### 2.3 The Chicken-and-Egg Problem
 
@@ -978,7 +978,6 @@ AgentSafe launched June 10, 2026 on Base testnet:
 - Optional validator-staking + protocol-token model (ETH-native rewrite — §4.3/§6.2)
 - Cross-chain reputation (LayerZero)
 - ZK-proof score verification
-- Capability NFT marketplace with royalties
 
 ### 13.6 Funding Strategy
 

@@ -237,7 +237,7 @@ npm run contracts:test
 ---
 
 ## Out of Scope (per TRD / current docs)
-- Full A2A Hiring Exchange / task marketplace / escrow
+- Full A2A Hiring Exchange / escrow
 - Cross-chain (beyond future notes)
 - DAO / full governance at launch
 - Protocol token at v0.1

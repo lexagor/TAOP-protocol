@@ -136,7 +136,7 @@ Today, no production protocol answers both questions with cryptoeconomic guarant
 
 | Choice | Rationale |
 |--------|-----------|
-| ERC-721 for capabilities | Enables transfer, fractionalization, composability with DeFi/NFT marketplaces |
+| ERC-721 for capabilities | Enables transfer, fractionalization, composability with DeFi/NFT ecosystems |
 | Stake-weighted scoring | Aligns incentives — validators with more skin-in-the-game have more influence |
 | EvidenceCID field | Off-chain verification data; IPFS-based for availability |
 | Certifier role | Centralized gate for MVP; planned decentralization via governance |
@@ -240,7 +240,7 @@ Base is uniquely positioned as TAOP's launch chain:
 
 | Project | Core Offer | Relation to TAOP |
 |---------|-----------|------------------|
-| **EigenLayer / AVS** | Restaking marketplace | TAOP could run its validator set as an AVS |
+| **EigenLayer / AVS** | Restaking protocol | TAOP could run its validator set as an AVS |
 | **Ritual (Infernet)** | On-chain AI inference | Execution layer; TAOP needs inference for agent tasks |
 | **EAS (Ethereum Attestation Service)** | Generic attestations | Building block for TAOP's evidence/submission system |
 | **Ceramic / ION / Veramo** | DIDs & VCs | Identity substrate; TAOP can integrate |
@@ -252,7 +252,7 @@ Base is uniquely positioned as TAOP's launch chain:
 
 **What TAOP has that no competitor combines:**
 
-1. **Capabilities as NFTs (LoRA Guilds)** — ERC-721 enables fractional ownership, composable capability stacks, transferability, marketplaces, and lending against capabilities. No competitor tokenizes agent capabilities.
+1. **Capabilities as NFTs (LoRA Guilds)** — ERC-721 enables fractional ownership, composable capability stacks, transferability, and lending against capabilities. No competitor tokenizes agent capabilities.
 
 2. **Validator-staked reputation oracle** — Uses cryptoeconomic security (slashing) to guarantee reputation truthfulness. Other projects have reputation without economic backing.
 
@@ -328,7 +328,7 @@ Base is uniquely positioned as TAOP's launch chain:
 | O5 | **Agent-to-agent economy** | Farcaster agents, Telegram trading bots, DeFi automation — all need programmable trust. | Growing |
 | O6 | **Enterprise demand** | Enterprises deploying agents need audit trails, SLAs, vendor reputation. TAOP provides on-chain proof. | 2027+ |
 | O7 | **FED token standard** | Could create an EIP for agent capability NFTs (ERC-7484-like standard for agent capabilities) | Medium |
-| O8 | **Integration partners** | ElizaOS plugins, LangChain tools, AutoGPT marketplace — each integration unlocks a distribution channel. | Now |
+| O8 | **Integration partners** | ElizaOS plugins, LangChain tools, AutoGPT plugins — each integration unlocks a distribution channel. | Now |
 | O9 | **zkVerification** | EvidenceCID + zkML/opML could let TAOP verify agent task completion without revealing proprietary data. | 2027+ |
 | O10 | **RWA / DePIN overlap** | Physical AI agents (robots, drones) also need on-chain identity and reputation. DePIN convergence. | 2027+ |
 | O11 | **AI agent insurance** | If TAOP has reliable reputation data, insurers could underwrite agent performance bonds. | Long-term |
@@ -391,7 +391,6 @@ Capabilities as NFTs unlock composability with the entire Ethereum ecosystem:
 
 | Composability | Example |
 |---------------|---------|
-| Marketplaces | OpenSea/Blur for LoRA models → discoverability |
 | Lending | Borrow against capability NFTs (NFTfi, BendDAO) |
 | Fractionalization | Split a LoRA model's revenue across multiple creators |
 | Staking derivatives | Restake capability NFTs in EigenLayer AVS |
@@ -494,7 +493,7 @@ The window for establishing the "default" agent reputation layer is likely **12-
 
 ### 7.5 Narrative / Positioning
 
-**Recommended positioning:** TAOP should not position as "the agent marketplace" — that failed narrative is too competitive and sounds like every other crypto x AI project. Instead:
+**Recommended positioning:** TAOP should not position as yet another agent platform — that failed narrative is too competitive and sounds like every other crypto x AI project. Instead:
 
 > **"TAOP is the credit bureau for AI agents. Any agent framework, any chain, any task — TAOP tells you who to trust."**
 

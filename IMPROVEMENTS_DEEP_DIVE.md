@@ -790,11 +790,7 @@ Then use generated types instead of hand-written ABIs. This prevents ABI drift b
 
 **Future:** Allow stakers to buy "reputation insurance" on agents — if an agent's score drops below a threshold, the insurer pays out. This is the DeFi-native version of a credit default swap, and it's exactly what the name "Credit Bureau for AI agents" implies.
 
-### P3-4: Capability NFT marketplace
-
-**Current:** Capabilities are ERC-721 NFTs but aren't tradeable (no marketplace integration). Add royalty support so creators earn on secondary sales of capability NFTs.
-
-### P3-5: On-chain agent verification via EAS attestations
+### P3-4: On-chain agent verification via EAS attestations
 
 Integrate with Ethereum Attestation Service (EAS) so agents can receive attestations from multiple verifiers, not just the single `certifier`. This makes the capability registry trust-minimized.
 

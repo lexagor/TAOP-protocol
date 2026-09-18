@@ -360,7 +360,7 @@ function InvestorSection({ contracts }: { contracts: Contracts | null }) {
               AI agents need to discover, verify, and trust each other to collaborate. Today they rely on
               <span className="text-[var(--color-text-primary)]"> centralized platforms</span> — OpenAI, Hugging Face,
               LangChain Hub — that can change terms, de-list agents, or gatekeep. Every decentralized AI
-              protocol (Fetch.ai, SingularityNET, Olas) ships a marketplace but
+              protocol (Fetch.ai, SingularityNET, Olas) ships a platform but
               <span className="text-[var(--color-text-primary)]"> no trustless reputation layer</span>. So quality is
               unverifiable and fraud is unpoliceable.
             </p>
@@ -410,7 +410,7 @@ function InvestorSection({ contracts }: { contracts: Contracts | null }) {
             </p>
             <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
               <span className="text-[var(--color-text-primary)]">Model:</span> Protocol fee on capability registration + a
-              challenge-bond cut when disputes are upheld. v2 adds an A2A hiring marketplace (escrow + milestones).
+              challenge-bond cut when disputes are upheld.
             </p>
             <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
               <span className="text-[var(--color-text-primary)]">Ask:</span> Pre-seed / Base Ecosystem Grant to fund a
