@@ -214,8 +214,16 @@ export function webhookStatus(env: NodeJS.ProcessEnv = process.env): WebhookStat
   } catch (e) {
     configError = String((e as Error).message ?? e);
   }
-  const lastId = lastDeliveredId();
-  // The index schema may not exist yet (indexer disabled / early boot).
+  // Status must never throw: the DB may be unwritable (read-only rootfs, full
+  // disk) and /healthz + /metrics have to keep answering.
+  const meta = (key: string): string | null => {
+    try {
+      return getMeta(key);
+    } catch {
+      return null;
+    }
+  };
+  const lastId = Number(meta(LAST_ID_KEY) ?? "0") || 0;
   let pending = 0;
   try {
     pending = countAlertsAfter(lastId);
@@ -227,10 +235,10 @@ export function webhookStatus(env: NodeJS.ProcessEnv = process.env): WebhookStat
     configError,
     lastDeliveredId: lastId,
     pending,
-    delivered: Number(getMeta(DELIVERED_KEY) ?? "0") || 0,
-    failed: Number(getMeta(FAILED_KEY) ?? "0") || 0,
-    lastError: getMeta(ERROR_KEY) || null,
-    lastDeliveredAt: getMeta(DELIVERED_AT_KEY) || null,
+    delivered: Number(meta(DELIVERED_KEY) ?? "0") || 0,
+    failed: Number(meta(FAILED_KEY) ?? "0") || 0,
+    lastError: meta(ERROR_KEY) || null,
+    lastDeliveredAt: meta(DELIVERED_AT_KEY) || null,
   };
 }
 

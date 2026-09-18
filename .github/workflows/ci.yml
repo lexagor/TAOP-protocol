@@ -395,7 +395,7 @@ jobs:
           # Same boot on a read-only root filesystem with all capabilities
           # dropped: SQLite lives on tmpfs, so the image needs no writable layer.
           docker run -d --name taop-smoke-ro -p 4001:4000 \
-            --read-only --tmpfs /tmp --tmpfs /app/data \
+            --read-only --tmpfs /tmp:rw,mode=1777 --tmpfs /app/data:rw,uid=1000,gid=1000,mode=755 \
             --cap-drop=ALL --security-opt=no-new-privileges \
             -e TAOP_API_KEY=smoke-test-key \
             -e DEMO_READ_ONLY=true \
