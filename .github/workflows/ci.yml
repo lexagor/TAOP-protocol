@@ -365,9 +365,12 @@ jobs:
 
       - name: Container smoke test (boots read-only, answers /api/healthz)
         run: |
+          # Hardhat's public account #0 key (allowlisted in scan-secrets/gitleaks);
+          # the backend requires an Agent A key even in read-only mode.
           docker run -d --name taop-smoke -p 4000:4000 \
             -e TAOP_API_KEY=smoke-test-key \
             -e DEMO_READ_ONLY=true \
+            -e AGENT_A_PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
             taop-demo:ci
           ok=0
           for i in $(seq 1 30); do
