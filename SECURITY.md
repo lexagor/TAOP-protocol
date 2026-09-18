@@ -99,6 +99,8 @@ The backend holds signing keys and can spend ETH, so:
   ngrok, Vercel, or any tunnel without `TAOP_API_KEY`.
 - Run the write-enabled instance on a machine you control, with a dedicated
   testnet wallet, never a mainnet key.
+- The production image runs as the unprivileged `node` user (uid 1000) with only
+  `/app/data` writable; API errors are JSON (no HTML pages or stack traces).
 
 ## 5. Smart-contract trust assumptions (v0.1, pilot)
 

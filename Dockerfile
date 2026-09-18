@@ -45,12 +45,16 @@ FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3e
 WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
-    PORT=4000
+    PORT=4000 \
+    DB_PATH=/app/data/taop.db
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages ./packages
 COPY --from=build /app/apps/demo/dist ./apps/demo/dist
 # Runtime deployment descriptor (addresses only — never keys).
 COPY deployments.json.example ./deployments.json
+# Run as the unprivileged `node` user; only the SQLite data dir is writable.
+RUN mkdir -p /app/data && chown -R node:node /app/data
+USER node
 EXPOSE 4000
 CMD ["node", "packages/backend/dist/server.cjs"]

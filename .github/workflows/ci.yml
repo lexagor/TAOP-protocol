@@ -362,6 +362,7 @@ jobs:
       - name: Verify image artifacts (no chain/keys needed)
         run: |
           docker run --rm --entrypoint sh taop-demo:ci -c '
+            test "$(id -u)" = "1000" &&
             node --version &&
             node --check packages/backend/dist/server.cjs &&
             test -f apps/demo/dist/index.html &&

@@ -77,6 +77,13 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - **Prometheus metrics** at `/api/metrics`: indexer lag/reorgs/retention,
   webhook backlog/failures, alert/capability gauges, and bounded-label HTTP
   counters (`taop_http_requests_total{method,status}`).
+- **JSON-only error surface**: unknown `/api` paths return a JSON 404 and
+  body-parser failures return JSON 400/413 — never Express's HTML error page or
+  a stack trace. Shutdown (`SIGINT`/`SIGTERM`) stops the indexer and the webhook
+  dispatcher before closing the server.
+- **Container runs unprivileged**: the runtime image uses the `node` user
+  (uid 1000) with only `/app/data` (SQLite) writable; CI asserts the uid and
+  boots the image read-only.
 - **Security headers**: helmet with a Content-Security-Policy (external scripts,
   framing, and objects blocked; `unsafe-inline` only for Swagger UI's bootstrap
   and injected styles), plus `frame-ancestors 'none'`.

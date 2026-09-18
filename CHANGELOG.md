@@ -99,6 +99,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OpenAPI refreshed: `/metrics`, `/agents/{address}/identity`,
   `/agents/register`, and the healthz/indexer schemas now cover webhooks and
   retention counters.
+- **Runtime hardening**: the production container runs as the unprivileged
+  `node` user (uid 1000) with only `/app/data` writable (CI asserts the uid);
+  unknown `/api` paths and body-parser failures return JSON (404/400/413) with
+  no HTML or stack traces; `SIGINT`/`SIGTERM` also stop the indexer.
 
 ## [0.3.0] - 2026-09-17
 

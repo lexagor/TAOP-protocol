@@ -12,7 +12,7 @@ import { initState, type BackendState } from "./contracts.js";
 import { runDemo } from "./demo.js";
 import { LORA_CAPABILITY_TYPE } from "@taopp/sdk";
 import { listCapabilities, listCompletions, markCompletionChallenged, markCompletionResolved, recordAdminAction, listAdminActions } from "./db.js";
-import { startIndexer, queryIndexedDiscovery, isIndexerReady, indexedCount, indexerStatus } from "./indexer.js";
+import { startIndexer, stopIndexer, queryIndexedDiscovery, isIndexerReady, indexedCount, indexerStatus } from "./indexer.js";
 import { startWebhookDispatcher, stopWebhookDispatcher, webhookStatus } from "./webhooks.js";
 import { metricsMiddleware, renderPrometheus } from "./metrics.js";
 import { listAlerts } from "./index_db.js";
@@ -774,6 +774,9 @@ api.get("/docs", (_req, res) => {
   res.send(html);
 });
 
+// Unknown API paths get a JSON 404 (never Express's HTML default).
+api.use((_req, res) => res.status(404).json({ error: "Not found" }));
+
 // Serve the built demo app (apps/demo/dist) as static files.
 const demoDist = path.resolve(process.cwd(), "apps", "demo", "dist");
 if (fs.existsSync(demoDist)) {
@@ -783,6 +786,22 @@ if (fs.existsSync(demoDist)) {
     res.sendFile(path.join(demoDist, "index.html"));
   });
 }
+
+// Final error handler: body-parser failures and unexpected errors stay JSON —
+// never Express's HTML error page or a stack trace — and are logged.
+const requestErrorHandler: express.ErrorRequestHandler = (err, _req, res, next) => {
+  if (res.headersSent) return next(err);
+  const type = (err as { type?: string } | null)?.type;
+  if (type === "entity.parse.failed") {
+    return res.status(400).json({ error: "Invalid JSON body" });
+  }
+  if (type === "entity.too.large") {
+    return res.status(413).json({ error: "Payload too large" });
+  }
+  logger.error({ err }, "unhandled request error");
+  return res.status(500).json({ error: "Internal server error" });
+};
+app.use(requestErrorHandler);
 
 async function main() {
   state = await initState();
@@ -825,10 +844,12 @@ async function main() {
   server.requestTimeout = 30_000;
   process.on("SIGINT", () => {
     stopWebhookDispatcher();
+    stopIndexer();
     server.close(() => process.exit(0));
   });
   process.on("SIGTERM", () => {
     stopWebhookDispatcher();
+    stopIndexer();
     server.close(() => process.exit(0));
   });
 }
