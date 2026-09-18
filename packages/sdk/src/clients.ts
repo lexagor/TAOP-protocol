@@ -75,6 +75,27 @@ export class ReputationOracleNetworkClient {
   async resolveChallenge(completionId: number | bigint, upheld: boolean): Promise<ContractTransactionReceipt | null> {
     return (await (await this.c.resolveChallenge(completionId, upheld)).wait()) ?? null;
   }
+  /** v0.4 liveness: after CHALLENGE_TIMEOUT, the challenger reclaims the bond on
+   *  a pending challenge that was never resolved (challenger-only). */
+  async cancelChallenge(completionId: number | bigint): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.cancelChallenge(completionId)).wait()) ?? null;
+  }
+  /** Seconds a challenger must wait before `cancelChallenge` is allowed. */
+  challengeTimeout(): Promise<bigint> {
+    return this.c.CHALLENGE_TIMEOUT() as Promise<bigint>;
+  }
+  /** Maximum byte length of any on-chain URI field. */
+  maxUriLen(): Promise<bigint> {
+    return this.c.MAX_URI_LEN() as Promise<bigint>;
+  }
+  /** Current owner (TimelockController in production). */
+  owner(): Promise<string> {
+    return this.c.owner() as Promise<string>;
+  }
+  /** Pending owner for the two-step handover (Ownable2Step). */
+  pendingOwner(): Promise<string> {
+    return this.c.pendingOwner() as Promise<string>;
+  }
   async getSelfAttestScore(agent: string): Promise<SelfAttestScore> {
     const r = (await this.c.getSelfAttestScore(agent)) as [bigint, bigint, bigint];
     return { completions: r[0], disputes: r[1], score: r[2] };

@@ -1,0 +1,92 @@
+header:
+  schema-version: 2.0.0
+  last-updated: "2026-09-18"
+  last-reviewed: "2026-09-18"
+  url: https://github.com/lexagor/TAOP-protocol/blob/main/security-insights.yml
+  comment: |
+    Security Insights for the TAOP monorepo (Agent Credit Bureau + Capability
+    Registry on Base).
+
+project:
+  name: TAOP — Agent Credit Bureau on Base
+  homepage: https://github.com/lexagor/TAOP-protocol
+  administrators:
+    - name: lexagor
+      primary: true
+  repositories:
+    - url: https://github.com/lexagor/TAOP-protocol
+      comment: |
+        Monorepo: Solidity contracts (contracts/), TypeScript SDK (packages/sdk),
+        Python SDK (packages/python-sdk), MCP server (packages/mcp-server),
+        backend/indexer (packages/backend), demos (apps/), and the
+        gaming-resistance benchmark (packages/benchmark).
+  license:
+    - name: MIT
+      url: https://github.com/lexagor/TAOP-protocol/blob/main/LICENSE
+  lifecycle: active
+  release:
+    name: v0.3.0
+    url: https://github.com/lexagor/TAOP-protocol/releases/tag/v0.3.0
+    date: "2026-09-17"
+
+security-contacts:
+  - type: policy
+    value: https://github.com/lexagor/TAOP-protocol/security/policy
+    primary: true
+
+vulnerability-reporting:
+  reports-accepted: true
+  bug-bounty-available: false
+  contact:
+    policy: https://github.com/lexagor/TAOP-protocol/security/policy
+    advisory: https://github.com/lexagor/TAOP-protocol/security/advisories/new
+  comment: |
+    Report privately via GitHub Security Advisories. See SECURITY.md for the
+    documented, accepted risks (owner/Timelock centralization during the pilot)
+    and the trust boundaries that are out of scope.
+
+documentation:
+  detailed-guide:
+    - url: https://github.com/lexagor/TAOP-protocol/blob/main/docs/architecture.md
+    - url: https://github.com/lexagor/TAOP-protocol/blob/main/TRD.md
+  api:
+    - url: https://github.com/lexagor/TAOP-protocol/blob/main/packages/sdk/README.md
+  security:
+    - url: https://github.com/lexagor/TAOP-protocol/blob/main/docs/THREAT_MODEL.md
+    - url: https://github.com/lexagor/TAOP-protocol/blob/main/docs/SELF-AUDIT.md
+    - url: https://github.com/lexagor/TAOP-protocol/blob/main/docs/EMERGENCY.md
+    - url: https://github.com/lexagor/TAOP-protocol/blob/main/docs/OPERATIONS.md
+  reviewers-listing:
+    - url: https://github.com/lexagor/TAOP-protocol/blob/main/SECURITY.md
+
+security-testing:
+  - type: unit
+    comment: >-
+      93 Hardhat contract tests, 11 Foundry tests (fuzzing + invariants),
+      40 backend tests, an MCP stdio integration test, and 15 benchmark
+      rubric/determinism/baseline tests.
+  - type: static-analysis
+    comment: >-
+      Solhint and ESLint; Slither and Aderyn in CI (fail on high/medium);
+      Mythril run manually against both runtime bytecodes; gitleaks scans the
+      full git history on every push.
+  - type: supply-chain
+    comment: >-
+      Dependabot with cooldown, dependency review on PRs, OpenSSF Scorecard,
+      GitHub Actions pinned to commit SHAs behind an allowlist, CycloneDX SBOM
+      per CI run.
+  - type: provenance
+    comment: |
+      Publish workflows are manual-dispatch only and use OIDC: npm trusted
+      publishing with --provenance and PyPI trusted publishing, so no registry
+      token is stored.
+  - type: fuzzing
+    comment: >-
+      Foundry fuzz tests on the registry and reputation contracts plus
+      invariants over randomized call sequences (ETH conservation, score
+      accounting).
+  - type: coverage
+    comment: >-
+      solidity-coverage with enforced floors (statements/lines 95%, functions
+      90%, branches 70%) and a committed baseline ratchet, plus a mutation
+      spot-check of critical lines.

@@ -29,9 +29,15 @@ Companion docs: [`redeploy-v0.2.md`](redeploy-v0.2.md),
 - [x] Zero-address guards; indexed address events.
 - [x] Reorg-safe indexer (confirmation depth + rebuild).
 - [x] Manual review of every privileged path (`SECURITY-REVIEW.md`).
+- [x] Mythril (v0.24.8) on both runtime bytecodes: `CapabilityRegistry` clean;
+      `ReputationOracleNetwork` has one compiler-generated Yul SWC-101 false
+      positive, triaged in `docs/SELF-AUDIT.md`. Re-runnable locally or in CI:
+      `bash scripts/mythril-scan.sh` / the `Mythril (symbolic)` workflow.
+- [ ] Attach the Mythril report artifact for the redeploy commit (dispatch the
+      `Mythril (symbolic)` workflow on the redeploy tag, download `mythril-report`).
 - [ ] Decide paid audit vs. free-only for mainnet value; fund if chosen.
 - [ ] Decide the **anti-sybil policy** (minimum attest bond, per-address rate limits, identity anchors). This is the credibility gap, not a code bug.
-- [ ] Decide whether to add a **pause / circuit breaker** (there is none today).
+- [x] Pause / circuit breaker shipped (v0.3; exits stay open).
 
 ## 3. Infrastructure & funding
 
@@ -44,7 +50,7 @@ Companion docs: [`redeploy-v0.2.md`](redeploy-v0.2.md),
 
 ## 4. Deployment & verification
 
-- [ ] Redeploy **v0.2** (two-sided receipts, paged discovery) — addresses + `deployedBlock` land in `deployments.json`.
+- [ ] Redeploy **v0.4** (v0.3 features + challenge liveness `cancelChallenge`, two-step ownership, URI caps) — addresses + `deployedBlock` land in `deployments.json`.
 - [ ] Verify all 3 contracts on Basescan.
 - [ ] Update `deployments.json.example`, README contract table, `CHANGELOG.md`, SDK examples.
 - [ ] Point the read-only demo (`apps/static-demo`) and the SDK/MCP at mainnet addresses.

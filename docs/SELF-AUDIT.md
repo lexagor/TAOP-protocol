@@ -87,11 +87,43 @@ New surface added after the review above — to be re-reviewed when deployed:
 - Diversity-adjusted `getCreditScore` + `distinctCounterparties` /
   `counterpartyConfirmations` tracking, with a new Foundry invariant
   (`distinct ≤ confirmed`) and contract tests (`test/V03Hardening.test.ts`).
+- Challenge liveness: `cancelChallenge` (challenger-only, never pausable) refunds
+  a pending challenge's bond after a 90-day `CHALLENGE_TIMEOUT` when it is never
+  resolved, so a contested challenge cannot lock funds forever
+  (`test/ChallengeLiveness.test.ts`).
+- Two-step ownership (`Ownable2Step`) on both contracts — a typo'd
+  `transferOwnership` leaves the current owner in place until the pending owner
+  accepts (`test/Ownable2StepUri.test.ts`). Deploy scripts auto-accept on the
+  0-delay pilot Timelock; the Safe path uses
+  `timelock-tx.mjs --action acceptOwnership`.
+- URI length cap `MAX_URI_LEN = 200` on all on-chain URI fields, reverting
+  `URITooLong(length)` (`test/Ownable2StepUri.test.ts`).
 
-Re-run on the v0.3 tree: **Slither clean** (`--fail-medium` exit 0; 9 low/info),
-**Mythril v0.24.8 clean** on both runtime bytecodes, and the **mutation spot-check
-16/16** (the four new mutants cover pause, cooldown, and diversity accounting).
-The Foundry invariant now also asserts `distinctCounterparties ≤ confirmedCount`.
+Re-run on the v0.4 tree: **Slither clean** (`--fail-medium` exit 0; 11
+timestamp/low-level-call info findings only), **Aderyn 0.6.8: 0 high / 6 low**
+(centralization risk — documented pilot owner; costly loop — view-only paged
+getter; large literal; PUSH0; `^0.8` pragma; unused `TimelockController` import
+kept so the artifact is emitted for deploys), **mutation spot-check 21/21** (new
+mutants cover the cancel timeout, refund, challenger check, and URI caps), 93
+Hardhat + 13 Foundry + 41 backend tests, and the Foundry invariant now also
+exercises `cancelChallenge` (ETH conservation holds with cancelled challenges:
+`balance == pending × CHALLENGE_BOND + slashedEthPool`).
+
+**Mythril v0.24.8** on the v0.4 RON runtime bytecode (via the official Docker
+image, since this environment only has Python 3.14 and Mythril's `coincurve`
+dependency does not build there) reports one SWC-101 "possible underflow" at
+PC `0x2d4d`, reachable through the `registerAgent(string)` selector. Decoding
+the source map shows that PC maps to source id 33 — beyond the 33 input sources,
+i.e. solc's generated `#utility.yul` ABI-coder utility, not our Solidity. Triaged
+**non-exploitable**: the contract has no `unchecked` blocks (Solidity 0.8 checked
+arithmetic reverts on any violation), the ABI decoder's subtraction is
+bounds-guarded by the surrounding `LT`/`JUMPI`, and the 200-byte `registerAgent`
+test exercises that path without a panic. **CapabilityRegistry: clean** ("No
+issues were detected"). Both runs are reproducible via `scripts/mythril-scan.sh`
+(local Python 3.12.14 with `setuptools<81` for `pkg_resources`, or the
+digest-pinned `mythril/myth` image) and the weekly/dispatchable
+`Mythril (symbolic)` workflow, which uploads the reports as an artifact — run it
+on the redeploy commit and attach the artifact to the redeploy evidence.
 Re-run all tools again on the redeploy commit.
 
 ## 6. Reproduction
@@ -100,7 +132,7 @@ Re-run all tools again on the redeploy commit.
 npm run slither                                   # --fail-medium, deps excluded
 npm run contracts:test:foundry                    # fuzz + invariants
 FOUNDRY_FUZZ_RUNS=2000 FOUNDRY_INVARIANT_RUNS=256 FOUNDRY_INVARIANT_DEPTH=64 npm run contracts:test:foundry
-npm run mutation:spotcheck                        # 12/12 critical mutants
+npm run mutation:spotcheck                        # 21/21 critical mutants
 npm test && npm run backend:test && npm run mcp:test && npm run test:live
 
 # Mythril (symbolic execution over compiled runtime bytecode)

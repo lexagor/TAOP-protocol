@@ -30,6 +30,12 @@ describe("CapabilityRegistry — ETH bonds (MVP)", () => {
       return tx;
     }
 
+    // Ownable2Step: complete the handover so owner-only calls go through the Timelock.
+    await executeAsOwner(
+      await registry.getAddress(),
+      registry.interface.encodeFunctionData("acceptOwnership"),
+    );
+
     return { registry, owner, creator, certifier, other, timelock, executeAsOwner };
   }
 

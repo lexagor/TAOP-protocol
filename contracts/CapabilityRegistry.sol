@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 // Kept so Hardhat/Foundry emit the Timelock artifact used by tests/deploy.
@@ -20,8 +21,11 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
  *   is fraudulent or underperforms. Certification is recorded on-chain by a
  *   designated certifier. No protocol token in v1.
  */
-contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard, Pausable {
+contract CapabilityRegistry is ERC721Enumerable, Ownable2Step, ReentrancyGuard, Pausable {
     address public certifier;
+
+    /// @notice Maximum byte length of a capability metadata URI.
+    uint256 public constant MAX_URI_LEN = 200;
 
     struct Capability {
         address creator;
@@ -53,6 +57,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard, Pausa
     error NotCreator();
     error BondStillSlashed();
     error NothingToWithdraw();
+    error URITooLong(uint256 length);
 
     constructor(address _certifier) ERC721("TAOP Capability", "TAOP-CAP") Ownable(msg.sender) {
         if (_certifier == address(0)) revert ZeroAddress();
@@ -85,6 +90,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard, Pausa
         whenNotPaused
         returns (uint256 capabilityId)
     {
+        _requireUri(metadataCID);
         uint256 bond = msg.value;
         if (bond == 0) revert ZeroBond();
         capabilityId = ++_nextTokenId;
@@ -203,5 +209,10 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable, ReentrancyGuard, Pausa
         for (uint256 i = offset; i < end; i++) {
             page[i - offset] = list[i];
         }
+    }
+
+    /// @dev Bound on-chain metadata storage (IPFS CIDs are ~60 bytes).
+    function _requireUri(string calldata uri) private pure {
+        if (bytes(uri).length > MAX_URI_LEN) revert URITooLong(bytes(uri).length);
     }
 }

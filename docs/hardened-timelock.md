@@ -23,6 +23,24 @@ instantly.
 `admin` is always `address(0)` (no lingering admin role after setup), and both
 contracts transfer ownership to the Timelock.
 
+## Ownership handover is two-step (Ownable2Step)
+
+Both contracts use `Ownable2Step`: `transferOwnership(newOwner)` only starts the
+handover and `acceptOwnership()` must be called by the new owner. This prevents a
+typo'd address from bricking the owner role.
+
+- When `TIMELOCK_DELAY=0` **and** the deployer is both proposer and executor
+  (the pilot default), the deploy script schedules and executes
+  `acceptOwnership()` immediately.
+- Otherwise the handover stays **pending** until the Timelock executes it. Add
+  `acceptOwnership()` to the first Safe batch per contract:
+  ```bash
+  node scripts/timelock-tx.mjs --action acceptOwnership --target ron
+  node scripts/timelock-tx.mjs --action acceptOwnership --target registry
+  ```
+  Verify with `pendingOwner()` (should clear to `0x0`) and `owner()` (should be
+  the Timelock).
+
 ## Local rehearsal (no keys, no funds)
 
 ```bash
@@ -53,6 +71,8 @@ npx hardhat test test/TimelockDelay.test.ts
    ```
 3. Confirm `getMinDelay() == 3600` and that `hasRole(PROPOSER_ROLE, safe)`,
    `hasRole(EXECUTOR_ROLE, safe)` are true, and no one retains `DEFAULT_ADMIN_ROLE`.
+4. Execute `acceptOwnership()` for RON and the Registry through the Safe
+   (see the two-step handover section above) before any admin action.
 
 ## Running an admin action through the Timelock
 

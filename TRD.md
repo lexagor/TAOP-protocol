@@ -317,7 +317,7 @@ ships what it tests, and tests what it ships.
 
 1. **Register** — Agent A registers a LoRA capability with a 0.01 ETH bond via `registerCapabilityEth`. Owner certifies it via `certifyCapability`.
 2. **Self-attest** — Agent A calls `attestCompletion(taskType, resultCID)`. A unique `completionId` is minted on-chain. `completionCount[agentA]` increments.
-3. **Challenge (optional)** — Anyone calls `challengeCompletion(completionId, evidenceCID)` with a 0.01 ETH bond. Owner resolves via `resolveChallenge(completionId, upheld)`. Upheld → `disputeCount[agentA]++`, challenger refunded. Rejected → challenger forfeits bond.
+3. **Challenge (optional)** — Anyone calls `challengeCompletion(completionId, evidenceCID)` with a 0.01 ETH bond. Owner resolves via `resolveChallenge(completionId, upheld)`. Upheld → `disputeCount[agentA]++`, challenger refunded. Rejected → challenger forfeits bond. If a pending challenge is never resolved, the challenger reclaims the bond after a 90-day `CHALLENGE_TIMEOUT` via `cancelChallenge` (liveness; the completion stays challenged and is not re-challengeable).
 4. **Discover** — Agent B queries `/api/discover` → gets ranked list of certified agents with `score = completions − disputes`, capability proof, and ETH bond status. No platform in the middle.
 
 ### Contract calls wired to the demo

@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 // Kept so Hardhat/Foundry emit the Timelock artifact used by tests/deploy.
 // solhint-disable-next-line no-unused-import
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol"; // ensure artifact is available for deploys/tests
@@ -33,13 +34,22 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
  *   v2 may add a validator set + protocol-fee hooks; that design is documented
  *   in TRD.md Appendix but is NOT in this bytecode.
  */
-contract ReputationOracleNetwork is ReentrancyGuard, Ownable, Pausable {
+contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
     /// @notice ETH bond required to challenge a completion.
     uint256 public constant CHALLENGE_BOND = 0.01 ether;
+
+    /// @notice Maximum byte length of any URI field stored on-chain (result,
+    ///         receipt, evidence, rebuttal, profile metadata).
+    uint256 public constant MAX_URI_LEN = 200;
 
     /// @notice Time an agent has to contest a challenge before it can be
     ///         finalized optimistically in the challenger's favour.
     uint256 public constant CHALLENGE_WINDOW = 3 days;
+
+    /// @notice After this long, a challenger can reclaim its bond when a pending
+    ///         challenge is never resolved (e.g. a contested challenge the owner
+    ///         never ruled on). Liveness guard: no bond is locked forever.
+    uint256 public constant CHALLENGE_TIMEOUT = 90 days;
 
     /// @notice A completion record (self-attested, optionally countersigned).
     struct Completion {
@@ -92,6 +102,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable, Pausable {
     event ChallengeSubmitted(uint256 completionId, address indexed challenger);
     event ChallengeContested(uint256 completionId, address indexed agent, string rebuttalCID);
     event ChallengeResolved(uint256 completionId, bool upheld);
+    event ChallengeCancelled(uint256 completionId, address indexed challenger);
     event EthPoolWithdrawn(address indexed to, uint256 amount);
     event AttestCooldownChanged(uint64 cooldown);
 
@@ -102,6 +113,9 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable, Pausable {
     error ChallengeWindowOpen();
     error ChallengeWindowClosed();
     error ChallengeAlreadyContested();
+    error ChallengeNotTimedOut(uint64 readyAt);
+    error NotChallenger();
+    error URITooLong(uint256 length);
     error NotAgent();
     error ReceiptNotAllowed();
     error AlreadyReceipted();
@@ -141,6 +155,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable, Pausable {
         whenNotPaused
         returns (uint256 completionId)
     {
+        _requireUri(resultCID_);
         if (attestCooldown != 0) {
             uint64 readyAt = lastAttestation[msg.sender] + attestCooldown;
             if (block.timestamp < readyAt) revert CooldownActive(readyAt);
@@ -168,6 +183,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable, Pausable {
     ///         completion under a pending challenge or already disputed cannot be
     ///         confirmed.
     function attestReceipt(uint256 completionId, string calldata receiptCID_) external whenNotPaused {
+        _requireUri(receiptCID_);
         Completion storage c = completions[completionId];
         if (c.agent == address(0)) revert NoSuchCompletion();
         if (msg.sender == c.agent) revert ReceiptNotAllowed();
@@ -222,6 +238,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable, Pausable {
     ///         challenge can be finalized optimistically. The bond is refunded if
     ///         the challenge is upheld, forfeited to the protocol pool if not.
     function challengeCompletion(uint256 completionId, string calldata evidenceCID) external payable nonReentrant whenNotPaused {
+        _requireUri(evidenceCID);
         Completion storage c = completions[completionId];
         if (c.agent == address(0)) revert NoSuchCompletion();
         if (c.challenged) revert AlreadyChallenged();
@@ -243,6 +260,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable, Pausable {
     ///         window with counter-evidence. A contested challenge must be
     ///         resolved by the owner; it can no longer be finalized optimistically.
     function contestChallenge(uint256 completionId, string calldata rebuttalCID_) external whenNotPaused {
+        _requireUri(rebuttalCID_);
         Completion storage c = completions[completionId];
         Challenge storage ch = challenges[completionId];
         if (c.agent == address(0)) revert NoSuchCompletion();
@@ -289,6 +307,26 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable, Pausable {
             slashedEthPool += CHALLENGE_BOND;
         }
         emit ChallengeResolved(completionId, upheld);
+    }
+
+    /// @notice Liveness exit: after CHALLENGE_TIMEOUT with no resolution (for
+    ///         example a contested challenge the owner never ruled on), the
+    ///         challenger — and only the challenger — reclaims the bond. The
+    ///         completion stays challenged so it cannot be re-challenged and no
+    ///         dispute is recorded. Never pausable: bonds can always exit.
+    function cancelChallenge(uint256 completionId) external nonReentrant {
+        Completion storage c = completions[completionId];
+        Challenge storage ch = challenges[completionId];
+        if (c.agent == address(0)) revert NoSuchCompletion();
+        if (!c.challenged || ch.resolved) revert ChallengeNotPending();
+        if (msg.sender != ch.challenger) revert NotChallenger();
+        uint64 readyAt = ch.timestamp + uint64(CHALLENGE_TIMEOUT);
+        if (block.timestamp < readyAt) revert ChallengeNotTimedOut(readyAt);
+
+        ch.resolved = true;
+        (bool ok, ) = payable(ch.challenger).call{value: CHALLENGE_BOND}("");
+        require(ok, "refund failed");
+        emit ChallengeCancelled(completionId, ch.challenger);
     }
 
     /// @dev Upholds a pending challenge: marks the completion disputed, refunds
@@ -438,11 +476,18 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable, Pausable {
     ///         (e.g. IPFS CID pointing to JSON with name, description, avatar, links).
     ///         This is self-sovereign and optional. Future versions may add verification.
     function registerAgent(string calldata metadataCID) external {
+        _requireUri(metadataCID);
         agentMetadataCID[msg.sender] = metadataCID;
         emit AgentRegistered(msg.sender, metadataCID);
     }
 
     function getAgentMetadata(address agent) external view returns (string memory) {
         return agentMetadataCID[agent];
+    }
+
+    /// @dev Bound on-chain URI storage: long strings cost gas for everyone and
+    ///      have no legitimate use here (IPFS CIDs are ~60 bytes).
+    function _requireUri(string calldata uri) private pure {
+        if (bytes(uri).length > MAX_URI_LEN) revert URITooLong(bytes(uri).length);
     }
 }

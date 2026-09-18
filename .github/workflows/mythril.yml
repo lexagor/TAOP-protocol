@@ -1,0 +1,45 @@
+name: Mythril (symbolic)
+
+# Report-only symbolic analysis of both deployed runtime bytecodes. Dispatch
+# this workflow on the redeploy commit/tag before deploying and attach the
+# report artifact to the redeploy evidence; the known compiler-generated
+# SWC-101 false positive is triaged in docs/SELF-AUDIT.md.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 2" # weekly, Tuesday 04:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Runtime-bytecode analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build contracts
+        run: npm run contracts:build
+
+      # Uses the digest-pinned mythril/myth image (same result locally/CI).
+      - name: Mythril on both runtime bytecodes
+        run: bash scripts/mythril-scan.sh artifacts/mythril
+
+      - name: Upload Mythril reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: mythril-report
+          path: artifacts/mythril/*.txt
+          retention-days: 90

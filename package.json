@@ -42,7 +42,11 @@
     "coverage:check": "node scripts/check-coverage.mjs",
     "rehearse:mainnet-fork": "REHEARSAL=true FORK_BASE_MAINNET=true DEPLOYMENTS_PATH=/tmp/taop-fork-rehearsal.json hardhat run scripts/deploy-base-sepolia.ts",
     "gas:snapshot": "UPDATE_GAS_SNAPSHOT=true hardhat test test/GasSnapshot.test.ts",
-    "timelock:tx": "node scripts/timelock-tx.mjs"
+    "timelock:tx": "node scripts/timelock-tx.mjs",
+    "benchmark:run": "npm run start -w @taopp/benchmark --",
+    "benchmark:sensitivity": "npm run sensitivity -w @taopp/benchmark",
+    "benchmark:test": "npm run test -w @taopp/benchmark",
+    "benchmark:baseline": "npm run baseline -w @taopp/benchmark"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

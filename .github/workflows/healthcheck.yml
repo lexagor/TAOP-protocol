@@ -1,0 +1,40 @@
+name: Deployment healthcheck
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Read-only deployment check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Public RPC endpoints rate-limit shared CI IPs; retry transient failures
+      # so a scheduled healthcheck only fails for real drift.
+      - name: Verify the live deployment (Base Sepolia)
+        run: |
+          for attempt in 1 2 3; do
+            if DEPLOYMENTS_PATH=deployments.json.example npm run verify:deployment; then
+              exit 0
+            fi
+            echo "attempt ${attempt} failed; retrying in 15s"
+            sleep 15
+          done
+          echo "deployment verification failed after 3 attempts"
+          exit 1

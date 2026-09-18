@@ -38,7 +38,11 @@ it (`attestReceipt`); the requester can `revokeReceipt`. Challenges now open a
 3-day `CHALLENGE_WINDOW`: the agent can `contestChallenge` with a rebuttal, and an
 uncontested challenge is finalized optimistically by anyone after the window
 (`finalizeChallenge`); contested challenges fall back to the owner
-(`resolveChallenge`). `getTwoSidedScore` is the raw two-sided signal; **v0.3 (code, pending redeploy)**
+(`resolveChallenge`). If a pending challenge is never resolved, the challenger
+reclaims the bond after a 90-day `CHALLENGE_TIMEOUT` (`cancelChallenge`), so no
+bond is locked forever. Ownership is two-step (`Ownable2Step`:
+`transferOwnership` + `acceptOwnership`), and every on-chain URI field is capped
+at `MAX_URI_LEN = 200` bytes. `getTwoSidedScore` is the raw two-sided signal; **v0.3 (code, pending redeploy)**
 adds a `Pausable` circuit breaker, a settable attestation cooldown, and
 `getCreditScore` — a diversity-adjusted ranking score (distinct counterparties −
 disputes), which `getRankingScore` prefers when available. See `CHANGELOG.md`.

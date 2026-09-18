@@ -1,0 +1,15 @@
+{
+  "name": "@taopp/benchmark",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open gaming-resistance benchmark for TAOP Base: Sybil farming, slow-burn harvest, and collusive rings",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/run.ts",
+    "sensitivity": "tsx src/sensitivity.ts",
+    "baseline": "tsx scripts/make-baseline.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  }
+}

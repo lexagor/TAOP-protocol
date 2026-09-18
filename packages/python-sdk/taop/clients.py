@@ -170,6 +170,14 @@ class ReputationOracleNetworkClient:
         """v0.2: seconds the agent has to contest a challenge."""
         return self.contract.functions.CHALLENGE_WINDOW().call()
 
+    def challenge_timeout(self) -> int:
+        """v0.4: seconds before a challenger may reclaim a stuck challenge bond."""
+        return self.contract.functions.CHALLENGE_TIMEOUT().call()
+
+    def max_uri_len(self) -> int:
+        """v0.4: maximum byte length of any on-chain URI field."""
+        return self.contract.functions.MAX_URI_LEN().call()
+
     def _send_tx(self, tx):
         if self.account is None:
             raise ValueError("No account set — cannot send transactions")
@@ -280,6 +288,18 @@ class ReputationOracleNetworkClient:
     def finalize_challenge(self, completion_id: int) -> dict:
         """Anyone finalizes an uncontested challenge after the window (upheld)."""
         fn = self.contract.functions.finalizeChallenge(completion_id)
+        tx = fn.build_transaction({
+            "from": self.account.address,
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
+            "gas": 200_000,
+            "gasPrice": self.w3.eth.gas_price,
+            "chainId": self.w3.eth.chain_id,
+        })
+        return self._send_tx(tx)
+
+    def cancel_challenge(self, completion_id: int) -> dict:
+        """v0.4 liveness: the challenger reclaims the bond after CHALLENGE_TIMEOUT."""
+        fn = self.contract.functions.cancelChallenge(completion_id)
         tx = fn.build_transaction({
             "from": self.account.address,
             "nonce": self.w3.eth.get_transaction_count(self.account.address),

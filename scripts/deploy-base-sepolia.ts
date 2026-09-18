@@ -147,6 +147,28 @@ async function main() {
   await ron.transferOwnership(timelockAddr);
   await registry.transferOwnership(timelockAddr);
 
+  // Ownable2Step: ownership is pending until the Timelock accepts. With a
+  // 0-delay Timelock and the deployer in both roles we finish the handover
+  // here; with a multisig/non-zero delay the operator executes
+  // acceptOwnership() from the Safe (see scripts/timelock-tx.mjs).
+  const deployerCanExecute =
+    minDelay === 0n && proposers.includes(deployerAddr) && executors.includes(deployerAddr);
+  if (deployerCanExecute) {
+    for (const contract of [ron, registry]) {
+      const target = await contract.getAddress();
+      const data = contract.interface.encodeFunctionData("acceptOwnership");
+      const salt = ethers.id(`accept-ownership-${target}`);
+      await timelock.schedule(target, 0, data, ethers.ZeroHash, salt, 0n);
+      await timelock.execute(target, 0, data, ethers.ZeroHash, salt);
+    }
+    console.log("Ownership accepted by the TimelockController (0-delay)");
+  } else {
+    console.log(
+      "Ownership is PENDING: execute acceptOwnership() for RON and Registry via the Timelock " +
+        "(node scripts/timelock-tx.mjs --action acceptOwnership --target ron|registry)",
+    );
+  }
+
   // --- Agent A: reuse the existing identity or mint a fresh one ---
   // REUSE_AGENT_A=true + AGENT_A_PK keeps the same agent address across
   // redeploys (per the 2026-09-15 decision to preserve the Agent A identity).

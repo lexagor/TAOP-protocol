@@ -56,6 +56,7 @@ const RON_EVENTS = [
   "event ReceiptRevoked(uint256 completionId, address indexed counterparty)",
   "event ChallengeSubmitted(uint256 completionId, address indexed challenger)",
   "event ChallengeResolved(uint256 completionId, bool upheld)",
+  "event ChallengeCancelled(uint256 completionId, address indexed challenger)",
   "event EthPoolWithdrawn(address indexed to, uint256 amount)",
   "event AgentRegistered(address indexed agent, string metadataCID)",
   "event Paused(address account)",
@@ -353,6 +354,18 @@ async function applyRonEvent(
           }
         }
       }
+      break;
+    }
+    case "ChallengeCancelled": {
+      // v0.4 liveness: the challenger reclaimed the bond after CHALLENGE_TIMEOUT.
+      // No dispute is recorded (there was no ruling); alert so operators can see
+      // challenges that governance left unresolved.
+      const completionId = parsed.args[0] as bigint;
+      const challenger = (parsed.args[1] as string).toLowerCase();
+      recordAlert("ChallengeCancelled", log.blockNumber, log.transactionHash, {
+        completionId: completionId.toString(),
+        challenger,
+      });
       break;
     }
     case "EthPoolWithdrawn":

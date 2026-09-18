@@ -1,0 +1,813 @@
+{
+  "metadata": {
+    "generatedAt": "baseline",
+    "seed": 42,
+    "nodeVersion": "v24.14.1",
+    "version": "0.1.0",
+    "scenarios": [
+      "sybil",
+      "slow-burn",
+      "collusion"
+    ]
+  },
+  "configs": {
+    "sybil": {
+      "sybils": 20,
+      "attestsPerSybil": 10,
+      "challengeProbability": 0.1,
+      "upheldProbability": 0.9,
+      "seed": 42
+    },
+    "slowBurn": {
+      "targetScore": 50,
+      "harvestValueWei": 5000000000000000000,
+      "attestsPerDay": 2,
+      "horizonDays": 180,
+      "accomplices": 64
+    },
+    "collusion": {
+      "ringSize": 10,
+      "ratingsPerPair": 1,
+      "reciprocityThreshold": 0.8,
+      "honestAgents": 30,
+      "honestRatings": 2,
+      "coreThreshold": 4,
+      "seed": 42
+    }
+  },
+  "params": {
+    "challengeBondWei": 10000000000000000,
+    "capabilityBondWei": 10000000000000000,
+    "decayGraceSecs": 2592000,
+    "decayHorizonSecs": 12960000
+  },
+  "reports": [
+    {
+      "mechanism": "base_taop_v03",
+      "description": "RON getCreditScore: distinct counterparties that confirmed at least one completion, score = max(0, distinct counterparties - disputes) with inactivity decay.",
+      "sybil": {
+        "scenario": "sybil_farming",
+        "mechanism": "base_taop_v03",
+        "config": {
+          "sybils": 20,
+          "attestsPerSybil": 10,
+          "challengeProbability": 0.1,
+          "upheldProbability": 0.9,
+          "seed": 42
+        },
+        "metrics": {
+          "sybilAgents": 20,
+          "totalAttestations": 200,
+          "totalReceipts": 200,
+          "totalScore": 170,
+          "spentWei": 4118336000000000,
+          "lockedWei": 0,
+          "capitalPerPointWei": 0,
+          "costPerPointWei": 24225505882352.94,
+          "honestCostPerPointWei": 20591680000000,
+          "efficiencyRatio": 0.85,
+          "challenges": 16,
+          "disputes": 15,
+          "costToThreshold": {
+            "10": "0.000114874 ETH",
+            "100": "0.001148744 ETH",
+            "1000": "0.011487440 ETH"
+          }
+        },
+        "findings": "Attacker commits 0.000024226 ETH per effective reputation point (0.000000000 ETH of it locked capital) versus 0.000020592 ETH for honest work (efficiency 0.85x). 15/16 challenges were upheld; 200 ring-internal receipts were funded. Self-attested work is indistinguishable from honest work at this challenge rate."
+      },
+      "slowBurn": {
+        "scenario": "slow_burn_harvest",
+        "mechanism": "base_taop_v03",
+        "config": {
+          "targetScore": 50,
+          "harvestValueWei": 5000000000000000000,
+          "attestsPerDay": 2,
+          "horizonDays": 180,
+          "accomplices": 64
+        },
+        "metrics": {
+          "reachable": true,
+          "daysToThreshold": 25,
+          "scoreAtHarvest": 50,
+          "spentWei": 1044808840000000,
+          "slashableWei": 10000000000000000,
+          "harvestValueWei": 5000000000000000000,
+          "slashCoverage": 0.002,
+          "netAttackerProfitWei": 4988955191160000000,
+          "scoreAfterSlash": 0
+        },
+        "findings": "Reached score 50 in 25 days for 0.001044809 ETH. Bonded capital (0.010000000 ETH) covers 0.2% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+      },
+      "collusion": {
+        "scenario": "collusive_ring",
+        "mechanism": "base_taop_v03",
+        "config": {
+          "ringSize": 10,
+          "ratingsPerPair": 1,
+          "reciprocityThreshold": 0.8,
+          "honestAgents": 30,
+          "honestRatings": 2,
+          "coreThreshold": 4,
+          "seed": 42
+        },
+        "metrics": {
+          "ringScorePerAgent": 9,
+          "ringCostWei": 1853251200000000,
+          "costPerRingPointWei": 20591680000000,
+          "honestCostPerPointWei": 20591680000000,
+          "efficiencyRatio": 1,
+          "detectorPrecision": 1,
+          "detectorRecall": 1,
+          "detectors": [
+            {
+              "name": "reciprocity",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            },
+            {
+              "name": "mutual_degree",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            },
+            {
+              "name": "k_core",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            },
+            {
+              "name": "ensemble",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            }
+          ]
+        },
+        "findings": "A ring of 10 accounts manufactures 9 points per member at 0.000020592 ETH per point, versus 0.000020592 ETH for a genuine rating. Best detector: reciprocity (precision 1.00, recall 1.00, F1 1.00) over a mixed graph of 40 accounts."
+      },
+      "scores": {
+        "composite": 2.6,
+        "sybilFarming": 7.5,
+        "slowBurnHarvest": 0.2,
+        "collusiveRing": 0
+      },
+      "weakSpots": [
+        "A funded ring can manufacture counterparties faster than watchers challenge them",
+        "Bonded capital does not cover a high-value harvest",
+        "Fabricated peer receipts are accepted at face value"
+      ]
+    },
+    {
+      "mechanism": "base_taop_twosided",
+      "description": "RON getTwoSidedScore: receipt-confirmed completions, score = max(0, confirmations - disputes) with inactivity decay.",
+      "sybil": {
+        "scenario": "sybil_farming",
+        "mechanism": "base_taop_twosided",
+        "config": {
+          "sybils": 20,
+          "attestsPerSybil": 10,
+          "challengeProbability": 0.1,
+          "upheldProbability": 0.9,
+          "seed": 42
+        },
+        "metrics": {
+          "sybilAgents": 20,
+          "totalAttestations": 200,
+          "totalReceipts": 200,
+          "totalScore": 170,
+          "spentWei": 4118336000000000,
+          "lockedWei": 0,
+          "capitalPerPointWei": 0,
+          "costPerPointWei": 24225505882352.94,
+          "honestCostPerPointWei": 20591680000000,
+          "efficiencyRatio": 0.85,
+          "challenges": 16,
+          "disputes": 15,
+          "costToThreshold": {
+            "10": "0.000114874 ETH",
+            "100": "0.001148744 ETH",
+            "1000": "0.011487440 ETH"
+          }
+        },
+        "findings": "Attacker commits 0.000024226 ETH per effective reputation point (0.000000000 ETH of it locked capital) versus 0.000020592 ETH for honest work (efficiency 0.85x). 15/16 challenges were upheld; 200 ring-internal receipts were funded. Self-attested work is indistinguishable from honest work at this challenge rate."
+      },
+      "slowBurn": {
+        "scenario": "slow_burn_harvest",
+        "mechanism": "base_taop_twosided",
+        "config": {
+          "targetScore": 50,
+          "harvestValueWei": 5000000000000000000,
+          "attestsPerDay": 2,
+          "horizonDays": 180,
+          "accomplices": 64
+        },
+        "metrics": {
+          "reachable": true,
+          "daysToThreshold": 25,
+          "scoreAtHarvest": 50,
+          "spentWei": 1044808840000000,
+          "slashableWei": 10000000000000000,
+          "harvestValueWei": 5000000000000000000,
+          "slashCoverage": 0.002,
+          "netAttackerProfitWei": 4988955191160000000,
+          "scoreAfterSlash": 0
+        },
+        "findings": "Reached score 50 in 25 days for 0.001044809 ETH. Bonded capital (0.010000000 ETH) covers 0.2% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+      },
+      "collusion": {
+        "scenario": "collusive_ring",
+        "mechanism": "base_taop_twosided",
+        "config": {
+          "ringSize": 10,
+          "ratingsPerPair": 1,
+          "reciprocityThreshold": 0.8,
+          "honestAgents": 30,
+          "honestRatings": 2,
+          "coreThreshold": 4,
+          "seed": 42
+        },
+        "metrics": {
+          "ringScorePerAgent": 9,
+          "ringCostWei": 1853251200000000,
+          "costPerRingPointWei": 20591680000000,
+          "honestCostPerPointWei": 20591680000000,
+          "efficiencyRatio": 1,
+          "detectorPrecision": 1,
+          "detectorRecall": 1,
+          "detectors": [
+            {
+              "name": "reciprocity",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            },
+            {
+              "name": "mutual_degree",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            },
+            {
+              "name": "k_core",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            },
+            {
+              "name": "ensemble",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            }
+          ]
+        },
+        "findings": "A ring of 10 accounts manufactures 9 points per member at 0.000020592 ETH per point, versus 0.000020592 ETH for a genuine rating. Best detector: reciprocity (precision 1.00, recall 1.00, F1 1.00) over a mixed graph of 40 accounts."
+      },
+      "scores": {
+        "composite": 2.6,
+        "sybilFarming": 7.5,
+        "slowBurnHarvest": 0.2,
+        "collusiveRing": 0
+      },
+      "weakSpots": [
+        "A funded ring can manufacture counterparties faster than watchers challenge them",
+        "Bonded capital does not cover a high-value harvest",
+        "Fabricated peer receipts are accepted at face value"
+      ]
+    },
+    {
+      "mechanism": "base_taop_self_attest",
+      "description": "RON getSelfAttestScore: self-attested completions, ETH challenge bonds, optimistic resolution, score = max(0, completions - disputes) with inactivity decay.",
+      "sybil": {
+        "scenario": "sybil_farming",
+        "mechanism": "base_taop_self_attest",
+        "config": {
+          "sybils": 20,
+          "attestsPerSybil": 10,
+          "challengeProbability": 0.1,
+          "upheldProbability": 0.9,
+          "seed": 42
+        },
+        "metrics": {
+          "sybilAgents": 20,
+          "totalAttestations": 200,
+          "totalReceipts": 0,
+          "totalScore": 185,
+          "spentWei": 2297488000000000,
+          "lockedWei": 0,
+          "capitalPerPointWei": 0,
+          "costPerPointWei": 12418854054054.055,
+          "honestCostPerPointWei": 11487440000000,
+          "efficiencyRatio": 0.9249999999999999,
+          "challenges": 16,
+          "disputes": 15,
+          "costToThreshold": {
+            "10": "0.000114874 ETH",
+            "100": "0.001148744 ETH",
+            "1000": "0.011487440 ETH"
+          }
+        },
+        "findings": "Attacker commits 0.000012419 ETH per effective reputation point (0.000000000 ETH of it locked capital) versus 0.000011487 ETH for honest work (efficiency 0.92x). 15/16 challenges were upheld. Self-attested work is indistinguishable from honest work at this challenge rate."
+      },
+      "slowBurn": {
+        "scenario": "slow_burn_harvest",
+        "mechanism": "base_taop_self_attest",
+        "config": {
+          "targetScore": 50,
+          "harvestValueWei": 5000000000000000000,
+          "attestsPerDay": 2,
+          "horizonDays": 180,
+          "accomplices": 64
+        },
+        "metrics": {
+          "reachable": true,
+          "daysToThreshold": 25,
+          "scoreAtHarvest": 50,
+          "spentWei": 589596840000000,
+          "slashableWei": 10000000000000000,
+          "harvestValueWei": 5000000000000000000,
+          "slashCoverage": 0.002,
+          "netAttackerProfitWei": 4989410403160000000,
+          "scoreAfterSlash": 0
+        },
+        "findings": "Reached score 50 in 25 days for 0.000589597 ETH. Bonded capital (0.010000000 ETH) covers 0.2% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+      },
+      "collusion": {
+        "scenario": "collusive_ring",
+        "mechanism": "base_taop_self_attest",
+        "config": {
+          "ringSize": 10,
+          "ratingsPerPair": 1,
+          "reciprocityThreshold": 0.8,
+          "honestAgents": 30,
+          "honestRatings": 2,
+          "coreThreshold": 4,
+          "seed": 42
+        },
+        "metrics": {
+          "ringScorePerAgent": 0,
+          "ringCostWei": 819381600000000,
+          "costPerRingPointWei": 819381600000000,
+          "honestCostPerPointWei": 9104240000000,
+          "efficiencyRatio": 0.011111111111111112,
+          "detectorPrecision": null,
+          "detectorRecall": null,
+          "detectors": []
+        },
+        "findings": "Peer feedback does not contribute to the score, so the ring manufactures nothing and there is no recorded rating graph to inspect. This is immunity by omission, not detection."
+      },
+      "scores": {
+        "composite": 34.7,
+        "sybilFarming": 3.8,
+        "slowBurnHarvest": 0.2,
+        "collusiveRing": 100
+      },
+      "weakSpots": [
+        "Self-attested completions have no verifier and can be manufactured cheaply",
+        "Bonded capital does not cover a high-value harvest"
+      ]
+    },
+    {
+      "mechanism": "naive_count",
+      "description": "Baseline: score = completions, no bonds, no disputes, no decay.",
+      "sybil": {
+        "scenario": "sybil_farming",
+        "mechanism": "naive_count",
+        "config": {
+          "sybils": 20,
+          "attestsPerSybil": 10,
+          "challengeProbability": 0.1,
+          "upheldProbability": 0.9,
+          "seed": 42
+        },
+        "metrics": {
+          "sybilAgents": 20,
+          "totalAttestations": 200,
+          "totalReceipts": 0,
+          "totalScore": 200,
+          "spentWei": 2297488000000000,
+          "lockedWei": 0,
+          "capitalPerPointWei": 0,
+          "costPerPointWei": 11487440000000,
+          "honestCostPerPointWei": 11487440000000,
+          "efficiencyRatio": 1,
+          "challenges": 16,
+          "disputes": 15,
+          "costToThreshold": {
+            "10": "0.000114874 ETH",
+            "100": "0.001148744 ETH",
+            "1000": "0.011487440 ETH"
+          }
+        },
+        "findings": "Attacker commits 0.000011487 ETH per effective reputation point (0.000000000 ETH of it locked capital) versus 0.000011487 ETH for honest work (efficiency 1.00x). 15/16 challenges were upheld. Self-attested work is indistinguishable from honest work at this challenge rate."
+      },
+      "slowBurn": {
+        "scenario": "slow_burn_harvest",
+        "mechanism": "naive_count",
+        "config": {
+          "targetScore": 50,
+          "harvestValueWei": 5000000000000000000,
+          "attestsPerDay": 2,
+          "horizonDays": 180,
+          "accomplices": 64
+        },
+        "metrics": {
+          "reachable": true,
+          "daysToThreshold": 25,
+          "scoreAtHarvest": 50,
+          "spentWei": 589596840000000,
+          "slashableWei": 10000000000000000,
+          "harvestValueWei": 5000000000000000000,
+          "slashCoverage": 0.002,
+          "netAttackerProfitWei": 4989410403160000000,
+          "scoreAfterSlash": 50
+        },
+        "findings": "Reached score 50 in 25 days for 0.000589597 ETH. Bonded capital (0.010000000 ETH) covers 0.2% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+      },
+      "collusion": {
+        "scenario": "collusive_ring",
+        "mechanism": "naive_count",
+        "config": {
+          "ringSize": 10,
+          "ratingsPerPair": 1,
+          "reciprocityThreshold": 0.8,
+          "honestAgents": 30,
+          "honestRatings": 2,
+          "coreThreshold": 4,
+          "seed": 42
+        },
+        "metrics": {
+          "ringScorePerAgent": 0,
+          "ringCostWei": 819381600000000,
+          "costPerRingPointWei": 819381600000000,
+          "honestCostPerPointWei": 9104240000000,
+          "efficiencyRatio": 0.011111111111111112,
+          "detectorPrecision": null,
+          "detectorRecall": null,
+          "detectors": []
+        },
+        "findings": "Peer feedback does not contribute to the score, so the ring manufactures nothing and there is no recorded rating graph to inspect. This is immunity by omission, not detection."
+      },
+      "scores": {
+        "composite": 33.4,
+        "sybilFarming": 0,
+        "slowBurnHarvest": 0.2,
+        "collusiveRing": 100
+      },
+      "weakSpots": [
+        "Self-attested completions have no verifier and can be manufactured cheaply",
+        "Bonded capital does not cover a high-value harvest"
+      ]
+    },
+    {
+      "mechanism": "completions_minus_disputes",
+      "description": "Baseline: score = max(0, completions - disputes), no inactivity decay.",
+      "sybil": {
+        "scenario": "sybil_farming",
+        "mechanism": "completions_minus_disputes",
+        "config": {
+          "sybils": 20,
+          "attestsPerSybil": 10,
+          "challengeProbability": 0.1,
+          "upheldProbability": 0.9,
+          "seed": 42
+        },
+        "metrics": {
+          "sybilAgents": 20,
+          "totalAttestations": 200,
+          "totalReceipts": 0,
+          "totalScore": 185,
+          "spentWei": 2297488000000000,
+          "lockedWei": 0,
+          "capitalPerPointWei": 0,
+          "costPerPointWei": 12418854054054.055,
+          "honestCostPerPointWei": 11487440000000,
+          "efficiencyRatio": 0.9249999999999999,
+          "challenges": 16,
+          "disputes": 15,
+          "costToThreshold": {
+            "10": "0.000114874 ETH",
+            "100": "0.001148744 ETH",
+            "1000": "0.011487440 ETH"
+          }
+        },
+        "findings": "Attacker commits 0.000012419 ETH per effective reputation point (0.000000000 ETH of it locked capital) versus 0.000011487 ETH for honest work (efficiency 0.92x). 15/16 challenges were upheld. Self-attested work is indistinguishable from honest work at this challenge rate."
+      },
+      "slowBurn": {
+        "scenario": "slow_burn_harvest",
+        "mechanism": "completions_minus_disputes",
+        "config": {
+          "targetScore": 50,
+          "harvestValueWei": 5000000000000000000,
+          "attestsPerDay": 2,
+          "horizonDays": 180,
+          "accomplices": 64
+        },
+        "metrics": {
+          "reachable": true,
+          "daysToThreshold": 25,
+          "scoreAtHarvest": 50,
+          "spentWei": 589596840000000,
+          "slashableWei": 10000000000000000,
+          "harvestValueWei": 5000000000000000000,
+          "slashCoverage": 0.002,
+          "netAttackerProfitWei": 4989410403160000000,
+          "scoreAfterSlash": 0
+        },
+        "findings": "Reached score 50 in 25 days for 0.000589597 ETH. Bonded capital (0.010000000 ETH) covers 0.2% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+      },
+      "collusion": {
+        "scenario": "collusive_ring",
+        "mechanism": "completions_minus_disputes",
+        "config": {
+          "ringSize": 10,
+          "ratingsPerPair": 1,
+          "reciprocityThreshold": 0.8,
+          "honestAgents": 30,
+          "honestRatings": 2,
+          "coreThreshold": 4,
+          "seed": 42
+        },
+        "metrics": {
+          "ringScorePerAgent": 0,
+          "ringCostWei": 819381600000000,
+          "costPerRingPointWei": 819381600000000,
+          "honestCostPerPointWei": 9104240000000,
+          "efficiencyRatio": 0.011111111111111112,
+          "detectorPrecision": null,
+          "detectorRecall": null,
+          "detectors": []
+        },
+        "findings": "Peer feedback does not contribute to the score, so the ring manufactures nothing and there is no recorded rating graph to inspect. This is immunity by omission, not detection."
+      },
+      "scores": {
+        "composite": 34.7,
+        "sybilFarming": 3.8,
+        "slowBurnHarvest": 0.2,
+        "collusiveRing": 100
+      },
+      "weakSpots": [
+        "Self-attested completions have no verifier and can be manufactured cheaply",
+        "Bonded capital does not cover a high-value harvest"
+      ]
+    },
+    {
+      "mechanism": "peer_ratings",
+      "description": "Baseline: score = distinct agents that rated you minus disputes (ERC-8004-style feedback).",
+      "sybil": {
+        "scenario": "sybil_farming",
+        "mechanism": "peer_ratings",
+        "config": {
+          "sybils": 20,
+          "attestsPerSybil": 10,
+          "challengeProbability": 0.1,
+          "upheldProbability": 0.9,
+          "seed": 42
+        },
+        "metrics": {
+          "sybilAgents": 20,
+          "totalAttestations": 200,
+          "totalReceipts": 0,
+          "totalScore": 0,
+          "spentWei": 2297488000000000,
+          "lockedWei": 0,
+          "capitalPerPointWei": null,
+          "costPerPointWei": 2297488000000000,
+          "honestCostPerPointWei": 114874400000000,
+          "efficiencyRatio": 0,
+          "challenges": 16,
+          "disputes": 15,
+          "costToThreshold": {
+            "10": "0.000114874 ETH",
+            "100": "0.001148744 ETH",
+            "1000": "0.011487440 ETH"
+          }
+        },
+        "findings": "No effective score could be manufactured for this configuration."
+      },
+      "slowBurn": {
+        "scenario": "slow_burn_harvest",
+        "mechanism": "peer_ratings",
+        "config": {
+          "targetScore": 50,
+          "harvestValueWei": 5000000000000000000,
+          "attestsPerDay": 2,
+          "horizonDays": 180,
+          "accomplices": 64
+        },
+        "metrics": {
+          "reachable": false,
+          "daysToThreshold": null,
+          "scoreAtHarvest": 0,
+          "spentWei": 4150703240000000,
+          "slashableWei": 10000000000000000,
+          "harvestValueWei": 5000000000000000000,
+          "slashCoverage": 0.002,
+          "netAttackerProfitWei": 0,
+          "scoreAfterSlash": 0
+        },
+        "findings": "Unreachable: score 50 was not reached at 2 attestations/day."
+      },
+      "collusion": {
+        "scenario": "collusive_ring",
+        "mechanism": "peer_ratings",
+        "config": {
+          "ringSize": 10,
+          "ratingsPerPair": 1,
+          "reciprocityThreshold": 0.8,
+          "honestAgents": 30,
+          "honestRatings": 2,
+          "coreThreshold": 4,
+          "seed": 42
+        },
+        "metrics": {
+          "ringScorePerAgent": 9,
+          "ringCostWei": 819381600000000,
+          "costPerRingPointWei": 9104240000000,
+          "honestCostPerPointWei": 9104240000000,
+          "efficiencyRatio": 1,
+          "detectorPrecision": 1,
+          "detectorRecall": 1,
+          "detectors": [
+            {
+              "name": "reciprocity",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            },
+            {
+              "name": "mutual_degree",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            },
+            {
+              "name": "k_core",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            },
+            {
+              "name": "ensemble",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            }
+          ]
+        },
+        "findings": "A ring of 10 accounts manufactures 9 points per member at 0.000009104 ETH per point, versus 0.000009104 ETH for a genuine rating. Best detector: reciprocity (precision 1.00, recall 1.00, F1 1.00) over a mixed graph of 40 accounts."
+      },
+      "scores": {
+        "composite": 66.7,
+        "sybilFarming": 100,
+        "slowBurnHarvest": 100,
+        "collusiveRing": 0
+      },
+      "weakSpots": [
+        "Fabricated peer receipts are accepted at face value"
+      ]
+    },
+    {
+      "mechanism": "stake_gated",
+      "description": "Baseline: score = min(completions - disputes, floor(stake / 0.01 ETH)), stake fully slashable.",
+      "sybil": {
+        "scenario": "sybil_farming",
+        "mechanism": "stake_gated",
+        "config": {
+          "sybils": 20,
+          "attestsPerSybil": 10,
+          "challengeProbability": 0.1,
+          "upheldProbability": 0.9,
+          "seed": 42
+        },
+        "metrics": {
+          "sybilAgents": 20,
+          "totalAttestations": 200,
+          "totalReceipts": 0,
+          "totalScore": 185,
+          "spentWei": 2400871200000000,
+          "lockedWei": 2000000000000000000,
+          "capitalPerPointWei": 10810810810810810,
+          "costPerPointWei": 10823788492972972,
+          "honestCostPerPointWei": 10012004356000000,
+          "efficiencyRatio": 0.925,
+          "challenges": 16,
+          "disputes": 15,
+          "costToThreshold": {
+            "10": "0.000114874 ETH",
+            "100": "0.001148744 ETH",
+            "1000": "0.011487440 ETH"
+          }
+        },
+        "findings": "Attacker commits 0.010823788 ETH per effective reputation point (2.000000000 ETH of it locked capital) versus 0.010012004 ETH for honest work (efficiency 0.93x). 15/16 challenges were upheld. Self-attested work is indistinguishable from honest work at this challenge rate."
+      },
+      "slowBurn": {
+        "scenario": "slow_burn_harvest",
+        "mechanism": "stake_gated",
+        "config": {
+          "targetScore": 50,
+          "harvestValueWei": 5000000000000000000,
+          "attestsPerDay": 2,
+          "horizonDays": 180,
+          "accomplices": 64
+        },
+        "metrics": {
+          "reachable": true,
+          "daysToThreshold": 25,
+          "scoreAtHarvest": 50,
+          "spentWei": 579541160000000,
+          "slashableWei": 500000000000000000,
+          "harvestValueWei": 5000000000000000000,
+          "slashCoverage": 0.1,
+          "netAttackerProfitWei": 4499420458840000000,
+          "scoreAfterSlash": 0
+        },
+        "findings": "Reached score 50 in 25 days for 0.000579541 ETH. Bonded capital (0.500000000 ETH) covers 10.0% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+      },
+      "collusion": {
+        "scenario": "collusive_ring",
+        "mechanism": "stake_gated",
+        "config": {
+          "ringSize": 10,
+          "ratingsPerPair": 1,
+          "reciprocityThreshold": 0.8,
+          "honestAgents": 30,
+          "honestRatings": 2,
+          "coreThreshold": 4,
+          "seed": 42
+        },
+        "metrics": {
+          "ringScorePerAgent": 0,
+          "ringCostWei": 819381600000000,
+          "costPerRingPointWei": 819381600000000,
+          "honestCostPerPointWei": 9104240000000,
+          "efficiencyRatio": 0.011111111111111112,
+          "detectorPrecision": null,
+          "detectorRecall": null,
+          "detectors": []
+        },
+        "findings": "Peer feedback does not contribute to the score, so the ring manufactures nothing and there is no recorded rating graph to inspect. This is immunity by omission, not detection."
+      },
+      "scores": {
+        "composite": 54.6,
+        "sybilFarming": 53.8,
+        "slowBurnHarvest": 10,
+        "collusiveRing": 100
+      },
+      "weakSpots": [
+        "Bonded capital does not cover a high-value harvest"
+      ]
+    }
+  ]
+}

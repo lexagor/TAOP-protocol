@@ -32,6 +32,16 @@ describe("TimelockController — non-zero delay + multisig proposer (hardened)",
     await timelock.waitForDeployment();
 
     await ron.transferOwnership(await timelock.getAddress());
+
+    // Ownable2Step: ownership is pending until the Timelock accepts. Mirror the
+    // production path — schedule + execute acceptOwnership with the multisig.
+    const target = await ron.getAddress();
+    const data = ron.interface.encodeFunctionData("acceptOwnership");
+    const salt = ethers.id("accept-ownership");
+    await timelock.connect(multisig).schedule(target, 0, data, ethers.ZeroHash, salt, DELAY);
+    await time.increase(Number(DELAY) + 1);
+    await timelock.connect(multisig).execute(target, 0, data, ethers.ZeroHash, salt);
+
     return { ron, timelock, deployer, agent, challenger, multisig };
   }
 
@@ -87,6 +97,13 @@ describe("TimelockController — non-zero delay + multisig proposer (hardened)",
     const zero = await Timelock.deploy(0n, [multisig.address], [multisig.address], ethers.ZeroAddress);
     await zero.waitForDeployment();
     await ron.transferOwnership(await zero.getAddress());
+
+    // Ownable2Step: accept via the 0-delay Timelock.
+    const ronTarget = await ron.getAddress();
+    const acceptData = ron.interface.encodeFunctionData("acceptOwnership");
+    const acceptSalt = ethers.id("accept-ownership-zero");
+    await zero.connect(multisig).schedule(ronTarget, 0, acceptData, ethers.ZeroHash, acceptSalt, 0n);
+    await zero.connect(multisig).execute(ronTarget, 0, acceptData, ethers.ZeroHash, acceptSalt);
 
     await ron.connect(agent).attestCompletion(SUMMARY, "ipfs://r");
     await ron.connect(challenger).challengeCompletion(1, "ipfs://ev", { value: BOND });

@@ -88,6 +88,27 @@ async function main() {
   await ron.transferOwnership(timelockAddr);
   await registry.transferOwnership(timelockAddr);
 
+  // Ownable2Step: ownership is pending until the Timelock accepts. With a
+  // 0-delay Timelock and the deployer in both roles we finish the handover
+  // here; otherwise the operator executes acceptOwnership() from the Safe.
+  const deployerCanExecute =
+    minDelay === 0n && proposers.includes(deployer.address) && executors.includes(deployer.address);
+  if (deployerCanExecute) {
+    for (const contract of [ron, registry]) {
+      const target = await contract.getAddress();
+      const data = contract.interface.encodeFunctionData("acceptOwnership");
+      const salt = ethers.id(`accept-ownership-${target}`);
+      await timelock.schedule(target, 0, data, ethers.ZeroHash, salt, 0n);
+      await timelock.execute(target, 0, data, ethers.ZeroHash, salt);
+    }
+    console.log("Ownership accepted by the TimelockController (0-delay)");
+  } else {
+    console.log(
+      "Ownership is PENDING: execute acceptOwnership() for RON and Registry via the Timelock " +
+        "(node scripts/timelock-tx.mjs --action acceptOwnership --target ron|registry)",
+    );
+  }
+
   const deployment = {
     chainId: 31337,
     network: "localhost",

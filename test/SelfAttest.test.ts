@@ -32,6 +32,12 @@ describe("ReputationOracleNetwork — self-attest + challenge (MVP)", () => {
       return tx;
     }
 
+    // Ownable2Step: complete the handover so owner-only calls go through the Timelock.
+    await executeAsOwner(
+      await ron.getAddress(),
+      ron.interface.encodeFunctionData("acceptOwnership"),
+    );
+
     return { ron, owner, agentA, agentB, challenger, other, timelock, executeAsOwner };
   }
 

@@ -103,5 +103,15 @@ The backend holds signing keys and can spend ETH, so:
   EOA ⇒ effectively one key). Documented centralization — see `TRD.md` Appendix.
 - `CHALLENGE_BOND` is a fixed `0.01 ETH`; a rejected challenge forfeits the bond
   to the owner-withdrawable `slashedEthPool`.
+- `cancelChallenge` is challenger-only and `nonReentrant`: after
+  `CHALLENGE_TIMEOUT` (90 days) with no resolution it refunds the bond, so a
+  contested challenge that governance ignores cannot lock funds forever. It is
+  never pausable.
+- Ownership is two-step (`Ownable2Step`): `transferOwnership` only sets a
+  `pendingOwner`; `acceptOwnership` must be called by the new owner. Handing the
+  contracts to the Timelock/Safe therefore takes two calls (see
+  `docs/hardened-timelock.md`).
+- All URI fields (`resultCID`, receipt, evidence, rebuttal, metadata) are capped
+  at `MAX_URI_LEN = 200` bytes to bound storage growth/gas griefing.
 - Not audited. Not ready for mainnet value. Before mainnet: multisig proposer /
   executor, non-zero timelock delay, external review.

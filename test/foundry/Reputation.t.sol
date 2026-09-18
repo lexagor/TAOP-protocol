@@ -110,6 +110,20 @@ contract RONHandler is Test {
             pending--;
         } catch {}
     }
+
+    /// @dev v0.4 liveness: after CHALLENGE_TIMEOUT the challenger reclaims the bond.
+    function cancel(uint256 idSeed) external {
+        if (ids.length == 0) return;
+        uint256 id = ids[idSeed % ids.length];
+        (address challenger, , uint64 ts, bool resolved, , , ) = ron.challenges(id);
+        if (challenger == address(0) || resolved) return;
+        uint256 readyAt = uint256(ts) + ron.CHALLENGE_TIMEOUT();
+        if (block.timestamp < readyAt) vm.warp(readyAt);
+        vm.prank(challenger);
+        try ron.cancelChallenge(id) {
+            pending--;
+        } catch {}
+    }
 }
 
 contract RONInvariants is Test {
@@ -120,6 +134,8 @@ contract RONInvariants is Test {
     function setUp() public {
         ron = new ReputationOracleNetwork();
         ron.transferOwnership(ownerAddr);
+        vm.prank(ownerAddr);
+        ron.acceptOwnership();
         handler = new RONHandler(ron, ownerAddr);
         targetContract(address(handler));
     }
@@ -211,5 +227,53 @@ contract RONFuzz is Test {
         vm.warp(t0 + elapsedB);
         (, , uint64 later) = ron.getSelfAttestScore(agent);
         assertLe(later, earlier);
+    }
+
+    /// @dev cancelChallenge is exactly-timeout gated, challenger-only, and
+    ///      refunds the full bond (contract balance returns to zero).
+    function testFuzz_cancelChallengeLiveness(uint64 earlyBy, uint64 lateBy) public {
+        address agent = address(0xA11CE);
+        address challenger = address(0xB0B);
+        address other = address(0xC0FFEE);
+        uint256 bond = ron.CHALLENGE_BOND();
+
+        vm.prank(agent);
+        ron.attestCompletion(bytes32("t"), "ipfs://r");
+        vm.deal(challenger, bond);
+        vm.prank(challenger);
+        ron.challengeCompletion{value: bond}(1, "ipfs://ev");
+
+        (, , uint64 ts, , , , ) = ron.challenges(1);
+        uint256 readyAt = uint256(ts) + ron.CHALLENGE_TIMEOUT();
+
+        uint256 early = bound(earlyBy, 0, ron.CHALLENGE_TIMEOUT() - 1);
+        vm.warp(ts + early);
+        vm.prank(challenger);
+        vm.expectRevert(
+            abi.encodeWithSelector(ReputationOracleNetwork.ChallengeNotTimedOut.selector, readyAt)
+        );
+        ron.cancelChallenge(1);
+
+        vm.warp(readyAt + bound(lateBy, 0, 365 days));
+        vm.prank(other);
+        vm.expectRevert(ReputationOracleNetwork.NotChallenger.selector);
+        ron.cancelChallenge(1);
+
+        vm.prank(challenger);
+        ron.cancelChallenge(1);
+        assertEq(address(ron).balance, 0);
+        (, , , bool resolved, , , ) = ron.challenges(1);
+        assertTrue(resolved);
+    }
+
+    /// @dev URI fields are capped at MAX_URI_LEN; a too-long result reverts.
+    function testFuzz_uriLengthCap(uint256 length) public {
+        uint256 over = bound(length, ron.MAX_URI_LEN() + 1, 10_000);
+        string memory uri = new string(over);
+        vm.prank(address(0xA11CE));
+        vm.expectRevert(
+            abi.encodeWithSelector(ReputationOracleNetwork.URITooLong.selector, over)
+        );
+        ron.attestCompletion(bytes32("t"), uri);
     }
 }

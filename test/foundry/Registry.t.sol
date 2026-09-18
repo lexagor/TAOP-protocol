@@ -67,6 +67,8 @@ contract RegistryInvariants is Test {
     function setUp() public {
         registry = new CapabilityRegistry(address(this)); // certifier = test
         registry.transferOwnership(ownerAddr);
+        vm.prank(ownerAddr);
+        registry.acceptOwnership();
         handler = new RegistryHandler(registry, ownerAddr);
         targetContract(address(handler));
     }

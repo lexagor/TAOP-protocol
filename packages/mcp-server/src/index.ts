@@ -187,6 +187,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: "cancel_challenge",
+        description: "v0.4 liveness: reclaim the challenge bond after CHALLENGE_TIMEOUT (90 days) when a pending challenge was never resolved (challenger only, requires the challenger's PRIVATE_KEY).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            completionId: { type: "number", description: "ID of the challenged completion" },
+          },
+          required: ["completionId"],
+        },
+      },
+      {
         name: "attest_completion",
         description: "Self-attest a task completion (requires PRIVATE_KEY in env). Returns completionId and tx hash.",
         inputSchema: {
@@ -607,6 +618,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: JSON.stringify({ success: true, completionId, txHash: receipt?.hash, upheld: true }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "cancel_challenge": {
+        if (!signer) throw new Error("PRIVATE_KEY required to submit the cancel transaction");
+
+        const completionId = Number(toolArgs.completionId);
+
+        const ronWrite = new ReputationOracleNetworkClient(deployment.ron, signer);
+        const receipt = await ronWrite.cancelChallenge(completionId);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ success: true, completionId, txHash: receipt?.hash, cancelled: true }, null, 2),
             },
           ],
         };

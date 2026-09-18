@@ -10,6 +10,7 @@
  *   node scripts/timelock-tx.mjs --action setCertifier --certifier 0xSafe
  *   node scripts/timelock-tx.mjs --action withdrawRon --to 0xAddr --amount-eth 0.01
  *   node scripts/timelock-tx.mjs --action withdrawRegistry --to 0xAddr --amount-eth 0.01
+ *   node scripts/timelock-tx.mjs --action acceptOwnership --target ron|registry
  *
  * Options: --deployments <path> (default deployments.json), --delay <seconds>
  * (default $TIMELOCK_DELAY or 3600), --out <prefix> (default timelock-batch).
@@ -27,7 +28,9 @@ const opt = (name, def) => {
 };
 const action = opt("action");
 if (!action) {
-  console.error("Missing --action (pause|unpause|cooldown|resolve|setCertifier|withdrawRon|withdrawRegistry)");
+  console.error(
+    "Missing --action (pause|unpause|cooldown|resolve|setCertifier|withdrawRon|withdrawRegistry|acceptOwnership)",
+  );
   process.exit(2);
 }
 
@@ -42,10 +45,12 @@ const RON_IFACE = new ethers.Interface([
   "function setAttestCooldown(uint64 cooldown)",
   "function resolveChallenge(uint256 completionId, bool upheld)",
   "function withdrawEthPool(address payable to, uint256 amount)",
+  "function acceptOwnership()",
 ]);
 const REG_IFACE = new ethers.Interface([
   "function setCertifier(address c)",
   "function withdrawEthPool(address payable to, uint256 amount)",
+  "function acceptOwnership()",
 ]);
 const TIMELOCK_IFACE = new ethers.Interface([
   "function schedule(address target, uint256 value, bytes data, bytes32 predecessor, bytes32 salt, uint256 delay)",
@@ -92,6 +97,21 @@ switch (action) {
     ]);
     label = `Registry.withdrawEthPool(${opt("to", "")}, ${opt("amount-eth", "0.01")} ETH)`;
     break;
+  case "acceptOwnership": {
+    const which = opt("target", "ron");
+    if (which === "registry") {
+      target = dep.registry;
+      inner = REG_IFACE.encodeFunctionData("acceptOwnership");
+      label = "Registry.acceptOwnership()";
+    } else if (which === "ron") {
+      inner = RON_IFACE.encodeFunctionData("acceptOwnership");
+      label = "RON.acceptOwnership()";
+    } else {
+      console.error("Unknown --target:", which, "(use ron or registry)");
+      process.exit(2);
+    }
+    break;
+  }
   default:
     console.error("Unknown --action:", action);
     process.exit(2);

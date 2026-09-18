@@ -25,6 +25,17 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint64",
+        "name": "readyAt",
+        "type": "uint64"
+      }
+    ],
+    "name": "ChallengeNotTimedOut",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "ChallengeWindowClosed",
     "type": "error"
@@ -67,6 +78,11 @@
   },
   {
     "inputs": [],
+    "name": "NotChallenger",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NotCounterparty",
     "type": "error"
   },
@@ -105,6 +121,17 @@
   {
     "inputs": [],
     "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "length",
+        "type": "uint256"
+      }
+    ],
+    "name": "URITooLong",
     "type": "error"
   },
   {
@@ -158,6 +185,25 @@
       }
     ],
     "name": "AttestCooldownChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "completionId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "challenger",
+        "type": "address"
+      }
+    ],
+    "name": "ChallengeCancelled",
     "type": "event"
   },
   {
@@ -240,6 +286,25 @@
       }
     ],
     "name": "EthPoolWithdrawn",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferStarted",
     "type": "event"
   },
   {
@@ -384,6 +449,19 @@
   },
   {
     "inputs": [],
+    "name": "CHALLENGE_TIMEOUT",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "CHALLENGE_WINDOW",
     "outputs": [
       {
@@ -419,6 +497,26 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_URI_LEN",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "acceptOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -491,6 +589,19 @@
       }
     ],
     "name": "attestReceipt",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "completionId",
+        "type": "uint256"
+      }
+    ],
+    "name": "cancelChallenge",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1052,6 +1163,19 @@
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pendingOwner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",

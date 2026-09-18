@@ -40,6 +40,8 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - Analysis tool versions are pinned (Slither 0.11.5) and the Aderyn download is
   **checksum-verified** in CI.
 - **CodeQL** code scanning (default setup) on JS/TS + Python.
+- **OpenSSF Scorecard** (weekly + on push to main) with SARIF upload; the root
+  `security-insights.yml` documents the project's security posture for reviewers.
 - **SBOM** (CycloneDX) generated in CI and uploaded as an artifact.
 - Lockfiles committed; `npm ci` used everywhere.
 - **Publishability is CI-checked**: `npm pack --dry-run` must ship `dist`, and the
@@ -64,22 +66,37 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - SPA fallback (serves `index.html`) is rate-limited like the API; **`/api/admin/*`
   writes have a tighter limit (10 / 5 min) and `Cache-Control: no-store`**, and the
   security headers (CSP, nosniff, HSTS) are asserted by tests.
-- Indexer: confirmation depth + reorg rebuild.
+- Indexer: confirmation depth + reorg rebuild; `ChallengeCancelled` surfaces in
+  the alert stream (no dispute recorded — there was no ruling).
+- **Scheduled deployment healthcheck**: every 6 hours, retried read-only
+  `verify:deployment` against the live Base Sepolia addresses.
 - Key management + emergency playbooks in [`EMERGENCY.md`](EMERGENCY.md).
 
 ## Contracts
 
-- Slither (blocking), Aderyn, and Mythril (symbolic) clean on our contracts.
+- Slither (blocking) clean; Aderyn 0.6.8: 0 high / 6 low (accepted, see
+  `SELF-AUDIT.md`); Mythril: `CapabilityRegistry` clean and one
+  compiler-generated Yul SWC-101 false positive on `ReputationOracleNetwork`,
+  triaged non-exploitable (see `SELF-AUDIT.md`). Re-runnable via
+  `scripts/mythril-scan.sh` and the weekly `Mythril (symbolic)` workflow
+  (digest-pinned image, report artifact).
 - **Coverage ratchet**: `npm run coverage:check` enforces floors (stmts/lines 95,
   funcs 90, branches 70) *and* the recorded `coverage-baseline.json` — coverage can
-  only go up.
-- Foundry fuzz + invariants (ETH conservation, receipt/dispute consistency,
-  score bounds, index integrity).
-- Mutation spot-check (12/12 critical mutants caught).
+  only go up. Current: stmts 97.9, funcs 95.0, lines 97.6, branches 74.75.
+- Foundry fuzz + invariants (ETH conservation — including cancelled challenges —
+  receipt/dispute consistency, score bounds, index integrity). 13 tests.
+- Mutation spot-check (21/21 critical mutants caught, including the v0.4
+  cancel-timeout, refund and URI-cap mutations).
 - Zero-address guards; indexed address events; no protocol token.
 - **v0.3 (code, pending redeploy):** `Pausable` circuit breaker on both contracts
   (exits stay open), settable attestation cooldown, and a diversity-adjusted
   credit score (distinct counterparties) so self-dealing can't inflate ranking.
+- **v0.4 (code, pending redeploy):** challenge liveness (`cancelChallenge` after
+  `CHALLENGE_TIMEOUT` — challenger-only, never pausable, so no bond is locked
+  forever), two-step ownership (`Ownable2Step`), and `MAX_URI_LEN = 200` caps on
+  every on-chain URI field.
+- **Gaming-resistance benchmark** with a committed seed-42 baseline; CI fails if
+  the published numbers drift (`packages/benchmark`, `npm run benchmark:test`).
 
 ## GitHub settings (applied)
 

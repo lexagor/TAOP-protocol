@@ -33,6 +33,12 @@ const MUTANTS = [
   { file: "contracts/ReputationOracleNetwork.sol", find: "if (attestCooldown != 0) {", replace: "if (false) {", label: "RON attest cooldown ignored" },
   { file: "contracts/ReputationOracleNetwork.sol", find: "if (counterpartyConfirmations[c.agent][msg.sender] == 0) {\n            distinctCounterparties[c.agent] += 1;\n        }", replace: "// mutated: diversity not tracked", label: "RON distinct counterparties not counted" },
   { file: "contracts/ReputationOracleNetwork.sol", find: "confirmedCount[c.agent] -= 1;\n            _decrementCounterparty(c.agent, cp);", replace: "confirmedCount[c.agent] -= 1;", label: "RON does not decrement diversity on upheld dispute" },
+  // v0.4 hardening: challenge liveness + URI caps
+  { file: "contracts/ReputationOracleNetwork.sol", find: "if (block.timestamp < readyAt) revert ChallengeNotTimedOut(readyAt);", replace: "if (false) revert ChallengeNotTimedOut(readyAt);", label: "RON cancelChallenge ignores the timeout" },
+  { file: "contracts/ReputationOracleNetwork.sol", find: "if (msg.sender != ch.challenger) revert NotChallenger();", replace: "if (false) revert NotChallenger();", label: "RON cancelChallenge open to anyone" },
+  { file: "contracts/ReputationOracleNetwork.sol", find: "if (bytes(uri).length > MAX_URI_LEN) revert URITooLong(bytes(uri).length);", replace: "if (false) revert URITooLong(bytes(uri).length);", label: "RON URI cap ignored" },
+  { file: "contracts/ReputationOracleNetwork.sol", find: "ch.resolved = true;\n        (bool ok, ) = payable(ch.challenger).call{value: CHALLENGE_BOND}(\"\");", replace: "ch.resolved = true;\n        (bool ok, ) = payable(ch.challenger).call{value: 0}(\"\");", label: "RON cancelChallenge does not refund" },
+  { file: "contracts/CapabilityRegistry.sol", find: "if (bytes(uri).length > MAX_URI_LEN) revert URITooLong(bytes(uri).length);", replace: "if (false) revert URITooLong(bytes(uri).length);", label: "Registry URI cap ignored" },
 ];
 
 let caught = 0;

@@ -5,6 +5,45 @@ All notable changes to TAOP will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Challenge liveness** — `cancelChallenge(completionId)` lets the challenger
+  reclaim the bond after a 90-day `CHALLENGE_TIMEOUT` when a pending (typically
+  contested) challenge is never resolved. The completion stays challenged (no
+  re-challenge, no dispute recorded); the function is never pausable, so bonds
+  can always exit. Surfaced in the TS SDK (`cancelChallenge`, `challengeTimeout`),
+  the MCP server (`cancel_challenge`), and the indexer alert stream. Tests:
+  `test/ChallengeLiveness.test.ts`, `test/foundry/Reputation.t.sol`, and
+  `packages/backend/test/indexer.events.test.ts`.
+- **Gaming-resistance benchmark** (`packages/benchmark`) — deterministic,
+  seed-reproducible scores (0–100) for the TAOP Base mechanisms and four
+  baselines across Sybil farming, slow-burn harvest, and collusive rings, with a
+  committed seed-42 baseline, sensitivity runs, and a CI reproducibility check.
+  Ported from `github.com/arlechins/sol-ai` (MIT) and re-parameterized for
+  Base/ETH.
+- **Two-step ownership** (`Ownable2Step`) on both contracts: `transferOwnership`
+  sets a pending owner and `acceptOwnership` completes it, so a typo'd handover
+  cannot brick the owner role. Deploy scripts auto-accept with the 0-delay pilot
+  Timelock; otherwise `node scripts/timelock-tx.mjs --action acceptOwnership
+  --target ron|registry` builds the Safe batch.
+- **URI length caps** — `MAX_URI_LEN = 200` bytes on all on-chain URI fields
+  (result/receipt/evidence/rebuttal/metadata), reverting `URITooLong(length)`,
+  to bound storage griefing. Tests: `test/Ownable2StepUri.test.ts`.
+- **Scheduled deployment healthcheck** (`.github/workflows/healthcheck.yml`) —
+  every 6 hours, retried, read-only `verify:deployment` against the live Base
+  Sepolia addresses.
+- **OpenSSF Scorecard** workflow (weekly + on main) with SARIF upload, and a
+  root `security-insights.yml` describing the project's security posture.
+- **CI hardening**: every job now has a `timeout-minutes` bound (10–45).
+- Python SDK parity: `cancel_challenge`, `challenge_timeout`, `max_uri_len`.
+- **Mythril re-run tooling**: `scripts/mythril-scan.sh` runs Mythril v0.24.8 on
+  both deployed runtime bytecodes (local Python 3.12 or the digest-pinned
+  `mythril/myth` image); the weekly/dispatchable `Mythril (symbolic)` workflow
+  uploads the reports as an artifact for the redeploy evidence.
+  `CapabilityRegistry` is clean; the single `ReputationOracleNetwork` SWC-101 is
+  a compiler-generated Yul false positive triaged in `docs/SELF-AUDIT.md`.
+
 ## [0.3.0] - 2026-09-17
 
 **Live on Base Sepolia:**
