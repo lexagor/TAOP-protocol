@@ -29,6 +29,12 @@ RUN rm -f packages/sdk/src/*.js packages/sdk/src/*.js.map packages/sdk/src/*.d.t
  && npm run demo:build \
  && npm run backend:build
 
+# The runtime stage copies node_modules, so strip devDependencies here: the
+# production tree ships zero known advisories and the image stays small. The
+# backend bundle marks packages external, and its prod deps (express,
+# better-sqlite3, @taopp/sdk, ...) are unaffected.
+RUN npm prune --omit=dev --ignore-scripts
+
 FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS run
 WORKDIR /app
 ENV NODE_ENV=production \

@@ -44,6 +44,13 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
   `security-insights.yml` documents the project's security posture for reviewers.
 - **SBOM** (CycloneDX) generated in CI and uploaded as an artifact.
 - Lockfiles committed; `npm ci` used everywhere.
+- **Production dependency tree is audit-clean**: `npm audit --omit=dev` = 0
+  vulnerabilities. Residual `npm audit` advisories (24 low / 5 moderate, 0 high)
+  are dev-only in the Hardhat 2 toolchain (fixing them needs the Hardhat 3
+  migration). Patched transitive lines are forced via `overrides` in
+  `package.json` (adm-zip, lodash, serialize-javascript, tmp, undici, uuid), and
+  the Docker runtime stage runs `npm prune --omit=dev` so the shipped image
+  contains no dev toolchain at all.
 - **Publishability is CI-checked**: `npm pack --dry-run` must ship `dist`, and the
   Python wheel must contain the bundled ABIs and exclude tests (`check_wheel.py`).
 - **Python deps are hash-pinned** (`packages/python-sdk/requirements-dev.txt`,

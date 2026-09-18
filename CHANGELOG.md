@@ -43,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   uploads the reports as an artifact for the redeploy evidence.
   `CapabilityRegistry` is clean; the single `ReputationOracleNetwork` SWC-101 is
   a compiler-generated Yul false positive triaged in `docs/SELF-AUDIT.md`.
+- **Dependency hardening**: `npm audit --omit=dev` = 0 vulnerabilities; patched
+  transitive dev lines forced via `overrides` (adm-zip, lodash,
+  serialize-javascript, tmp, undici, uuid); residual advisories are dev-only
+  Hardhat 2 toolchain (0 high). Docker runtime stage now runs
+  `npm prune --omit=dev` and CI boots the image read-only to assert
+  `/api/healthz`.
 
 ## [0.3.0] - 2026-09-17
 

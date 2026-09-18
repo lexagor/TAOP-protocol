@@ -363,6 +363,20 @@ jobs:
             test -f deployments.json
           '
 
+      - name: Container smoke test (boots read-only, answers /api/healthz)
+        run: |
+          docker run -d --name taop-smoke -p 4000:4000 \
+            -e DEMO_READ_ONLY=true \
+            taop-demo:ci
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4000/api/healthz >/dev/null; then ok=1; break; fi
+            sleep 2
+          done
+          docker logs taop-smoke | tail -20
+          docker rm -f taop-smoke >/dev/null
+          [ "$ok" = "1" ]
+
   # Deterministic gaming-resistance benchmark: rubric + determinism tests, and a
   # reproducibility check against the committed seed-42 baseline. Fails if the
   # published numbers drift unintentionally.
