@@ -51,7 +51,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
     "@openzeppelin/contracts": "^5.6.1",
-    "@types/better-sqlite3": "^7.6.13",
+    "@types/better-sqlite3": "^9.6.0",
     "better-sqlite3": "^13.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
