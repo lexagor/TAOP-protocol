@@ -89,7 +89,11 @@ The backend holds signing keys and can spend ETH, so:
 - All non-`GET` `/api` routes require `X-TAOP-Key: <TAOP_API_KEY>` when the key is
   configured. Compare is constant-time; failures return `401`.
 - `DEMO_READ_ONLY=true` disables every write route (`503`) — use this for any
-  publicly reachable instance. Read routes are safe.
+  publicly reachable instance. Read routes are safe. A read-only instance also
+  needs **no private keys at all**: it reads through the provider and takes the
+  agent/validator addresses from `deployments.json`. Write-enabled mode refuses
+  to boot without `ORACLE_PK`/`DEPLOYER_PK` and `AGENT_A_PK` (there is no
+  well-known-mnemonic fallback).
 - Rate limits: 240 req/min overall, 20 writes / 5 min.
 - Never expose the write-enabled server (even temporarily) via `cloudflared`,
   ngrok, Vercel, or any tunnel without `TAOP_API_KEY`.

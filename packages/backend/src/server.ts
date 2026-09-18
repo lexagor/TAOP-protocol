@@ -370,7 +370,7 @@ api.post("/completions/:id/challenge", async (req, res) => {
       return res.status(400).json({ error: "No such completion. Run the live demo first." });
     }
 
-    const challengerAddr = await state.agentARunner.getAddress();
+    const challengerAddr = state.agentAAddress;
     const bal = await state.provider.getBalance(challengerAddr);
     if (bal < bond) {
       return res.status(400).json({ error: `Insufficient balance on challenger ${challengerAddr} (${ethers.formatEther(bal)} ETH) to post ${ethers.formatEther(bond)} ETH bond. Faucet more test ETH to the agentA address.` });

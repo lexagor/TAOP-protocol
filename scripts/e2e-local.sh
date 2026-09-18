@@ -30,6 +30,9 @@ export PORT="$APP_PORT"
 # Hardhat account #1 (well-known public test key) acts as the demo agent; it is
 # funded by the local node, so no faucet/keys are involved.
 export AGENT_A_PK="0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+# Hardhat account #0 is the local oracle/deployer (pays for Timelock actions).
+# Explicit because write mode no longer falls back to a well-known mnemonic.
+export ORACLE_PK="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 export INDEXER_ENABLED=true
 export INDEXER_START_BLOCK=0
 export INDEXER_POLL_MS=1000

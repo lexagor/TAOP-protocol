@@ -62,12 +62,14 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - Backend: loopback by default, `X-TAOP-Key` write gate (constant-time), rate
   limits, `DEMO_READ_ONLY`, refuses a public bind without a key; structured logs
   with secret redaction; enriched `/api/healthz` + `/api/alerts`.
-- **Read-only instances never write**: `DEMO_READ_ONLY=true` also skips the
-  startup Agent A capability bootstrap, so a public read-only deployment sends
-  no transactions at all.
+- **Read-only instances never write** and need **no keys**: `DEMO_READ_ONLY=true`
+  skips the startup Agent A capability bootstrap, reads through the provider,
+  and takes addresses from the deployment descriptor. Write mode fails fast
+  without `ORACLE_PK`/`AGENT_A_PK` — there is no well-known-mnemonic fallback.
 - **Signed outbound webhooks** (opt-in via `TAOP_WEBHOOK_URL`): HMAC-SHA256
   `x-taop-signature` over the raw body, ordered at-least-once delivery with an
   `x-taop-delivery` de-dupe id, per-delivery timeout, and exponential backoff.
+  `/api/healthz` exposes counters only (never the subscriber URL).
 - **Security headers**: helmet with a Content-Security-Policy (external scripts,
   framing, and objects blocked; `unsafe-inline` only for Swagger UI's bootstrap
   and injected styles), plus `frame-ancestors 'none'`.

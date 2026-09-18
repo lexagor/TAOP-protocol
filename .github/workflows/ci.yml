@@ -218,6 +218,11 @@ jobs:
 
       - name: Forge tests (fuzz + invariants)
         run: forge test -vv
+        env:
+          # Deeper than the defaults; the suite still runs in seconds.
+          FOUNDRY_FUZZ_RUNS: 2000
+          FOUNDRY_INVARIANT_RUNS: 256
+          FOUNDRY_INVARIANT_DEPTH: 64
 
   mutation:
     runs-on: ubuntu-24.04
@@ -365,12 +370,10 @@ jobs:
 
       - name: Container smoke test (boots read-only, answers /api/healthz)
         run: |
-          # Hardhat's public account #0 key (allowlisted in scan-secrets/gitleaks);
-          # the backend requires an Agent A key even in read-only mode.
+          # Read-only needs no private keys: this boot proves keys are optional.
           docker run -d --name taop-smoke -p 4000:4000 \
             -e TAOP_API_KEY=smoke-test-key \
             -e DEMO_READ_ONLY=true \
-            -e AGENT_A_PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
             -e BASE_SEPOLIA_RPC_URL=https://sepolia.base.org \
             taop-demo:ci
           ok=0

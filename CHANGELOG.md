@@ -59,6 +59,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   timeout, and exponential backoff on failure. `GET /api/healthz` reports the
   dispatcher status. Unit tests plus an end-to-end assertion in `e2e:local`
   (signed delivery, unique ids, alert kinds).
+- **Keyless read-only instances**: `DEMO_READ_ONLY=true` no longer requires (or
+  loads) `AGENT_A_PK`/`ORACLE_PK` — reads use the provider and the
+  agent/validator addresses come from the deployment descriptor. Write-enabled
+  mode now fails fast without keys instead of silently falling back to the
+  well-known Hardhat mnemonic. CI's container smoke test boots with no keys.
+- **No endpoint leak**: `/api/healthz` reports webhook counters but no longer
+  the subscriber URL.
+- CI `foundry` job runs deeper campaigns (2000 fuzz runs, 256 invariant runs ×
+  depth 64).
 
 ## [0.3.0] - 2026-09-17
 

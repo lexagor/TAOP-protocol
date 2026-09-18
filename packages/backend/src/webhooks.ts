@@ -38,7 +38,6 @@ interface AlertRecord {
 
 export interface WebhookStatus {
   enabled: boolean;
-  url: string | null;
   lastDeliveredId: number;
   pending: number;
   delivered: number;
@@ -149,7 +148,6 @@ export function webhookStatus(env: NodeJS.ProcessEnv = process.env): WebhookStat
   }
   return {
     enabled: config !== null,
-    url: config ? config.url : null,
     lastDeliveredId: lastId,
     pending,
     delivered: Number(getMeta(DELIVERED_KEY) ?? "0") || 0,

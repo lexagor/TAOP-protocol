@@ -12,7 +12,6 @@ import {
 import { isCapabilityRegistered, recordCapability, getMeta, setMeta, db } from "./db.js";
 import { pinJSON, buildModelCard } from "./ipfs.js";
 
-const HARDHAT_MNEMONIC = "test test test test test test test test test test test junk";
 const DEMO_BOND_ETH = "0.01";
 
 export interface BackendState {
@@ -30,9 +29,9 @@ export interface BackendState {
   capabilityId: bigint;
   capabilityMetadataCID: string;
   taskCounter: number;
-  // Runners exposed for nonce reset (public RPCs often cause "nonce too low" desync)
-  oracleRunner: ethers.NonceManager;
-  agentARunner: ethers.NonceManager;
+  // Signers for nonce reset; null on read-only instances (no keys loaded).
+  oracleRunner: ethers.NonceManager | null;
+  agentARunner: ethers.NonceManager | null;
 }
 
 export interface TimelockResult {
@@ -44,17 +43,13 @@ export interface TimelockResult {
 
 let _state: BackendState | null = null;
 
-function deriveWallet(mnemonic: string, index: number, provider: ethers.JsonRpcProvider): ethers.HDNodeWallet {
-  const mn = ethers.Mnemonic.fromPhrase(mnemonic);
-  return ethers.HDNodeWallet.fromMnemonic(mn, `m/44'/60'/0'/0/${index}`).connect(provider);
-}
-
 /** Build a NonceManager-wrapped signer so back-to-back txs get sequential nonces.
  *  Override getNonce to always query fresh max(latest, pending) to avoid
- *  stale nonce issues common with public L2 RPCs.
+ *  stale nonce issues common with public L2 RPCs. Requires an explicit key —
+ *  there is deliberately no well-known-mnemonic fallback.
  */
-function makeRunner(pk: string | undefined, mnemonicIndex: number, provider: ethers.JsonRpcProvider): ethers.NonceManager {
-  const wallet: ethers.Signer = pk ? new ethers.Wallet(pk, provider) : deriveWallet(HARDHAT_MNEMONIC, mnemonicIndex, provider);
+function makeRunner(pk: string, provider: ethers.JsonRpcProvider): ethers.NonceManager {
+  const wallet: ethers.Signer = new ethers.Wallet(pk, provider);
   const manager = new ethers.NonceManager(wallet);
   const origGetNonce = manager.getNonce.bind(manager);
   // Patch to force a fresh query every time. Use raw `eth_getTransactionCount`
@@ -82,12 +77,12 @@ export async function initState(): Promise<BackendState> {
 
   const provider = new ethers.JsonRpcProvider(rpcUrl, deployment.chainId);
 
-  const oracleRunner = makeRunner(process.env.ORACLE_PK || process.env.DEPLOYER_PK, 0, provider);
-
-  // SECURITY (Phase 0): key material comes from the environment (.env, gitignored).
-  // `deployments.json` is a publishable artifact and must never hold keys — a
-  // legacy file that still does is accepted with a loud warning so operators can
-  // migrate, but the environment always wins.
+  // SECURITY: a read-only instance must not need (or load) any private key, and
+  // a write-enabled instance must never silently fall back to a well-known
+  // mnemonic. Keys come only from the environment (.env, gitignored);
+  // `deployments.json` is publishable and holds addresses only.
+  const readOnly = process.env.DEMO_READ_ONLY === "true";
+  const oraclePk = process.env.ORACLE_PK || process.env.DEPLOYER_PK;
   const legacyFilePk = (deployment as { agentAPk?: string }).agentAPk;
   if (legacyFilePk) {
     logger.warn(
@@ -96,19 +91,33 @@ export async function initState(): Promise<BackendState> {
     );
   }
   const agentAPk = process.env.AGENT_A_PK || legacyFilePk;
-  if (!agentAPk) {
-    throw new Error(
-      "No Agent A key found: set AGENT_A_PK in .env (running `npm run deploy:sepolia` generates and persists one).",
-    );
-  }
-  const agentARunner = makeRunner(agentAPk, 1, provider);
-  const oracleAddress = await oracleRunner.getAddress();
-  const agentAAddress = await agentARunner.getAddress();
 
-  const ron = new ReputationOracleNetworkClient(deployment.ron, oracleRunner);
-  const ronAgentA = new ReputationOracleNetworkClient(deployment.ron, agentARunner);
-  const registryOracle = new CapabilityRegistryClient(deployment.registry, oracleRunner);
-  const registryAgentA = new CapabilityRegistryClient(deployment.registry, agentARunner);
+  if (!readOnly) {
+    if (!oraclePk) {
+      throw new Error(
+        "No ORACLE_PK/DEPLOYER_PK found: set one in .env, or run with DEMO_READ_ONLY=true for a keyless read-only instance.",
+      );
+    }
+    if (!agentAPk) {
+      throw new Error(
+        "No Agent A key found: set AGENT_A_PK in .env (running `npm run deploy:sepolia` generates and persists one), " +
+          "or run with DEMO_READ_ONLY=true for a keyless read-only instance.",
+      );
+    }
+  }
+
+  const oracleRunner = oraclePk ? makeRunner(oraclePk, provider) : null;
+  const agentARunner = agentAPk ? makeRunner(agentAPk, provider) : null;
+  const oracleAddress = oracleRunner ? await oracleRunner.getAddress() : deployment.validator;
+  const agentAAddress = agentARunner ? await agentARunner.getAddress() : deployment.agentA;
+
+  // Reads always work: fall back to the provider when no signer is configured.
+  const oracleClientRunner = oracleRunner ?? provider;
+  const agentAClientRunner = agentARunner ?? provider;
+  const ron = new ReputationOracleNetworkClient(deployment.ron, oracleClientRunner);
+  const ronAgentA = new ReputationOracleNetworkClient(deployment.ron, agentAClientRunner);
+  const registryOracle = new CapabilityRegistryClient(deployment.registry, oracleClientRunner);
+  const registryAgentA = new CapabilityRegistryClient(deployment.registry, agentAClientRunner);
 
   // Timelock support (P0 ownership hardening). If present, admin actions (resolve, withdraws, setCertifier) go through it.
   let timelock: ethers.Contract | null = null;
@@ -121,7 +130,7 @@ export async function initState(): Promise<BackendState> {
       "function isOperationReady(bytes32 id) view returns (bool)",
       "function getOperationState(bytes32 id) view returns (uint8)"
     ];
-    timelock = new ethers.Contract(deployment.timelock, timelockAbi, oracleRunner);
+    timelock = new ethers.Contract(deployment.timelock, timelockAbi, oracleRunner ?? provider);
   }
 
   let currentTimelockDelay = 0n;
@@ -207,7 +216,7 @@ export async function initState(): Promise<BackendState> {
     registryAgentA,
     timelock,
     timelockDelay: currentTimelockDelay,
-    executeViaTimelock: timelock ? executeViaTimelock : null,
+    executeViaTimelock: timelock && oracleRunner ? executeViaTimelock : null,
     capabilityId: 0n,
     capabilityMetadataCID: "ipfs://taop-demo-lora-summarization-v1",
     taskCounter: 0,
