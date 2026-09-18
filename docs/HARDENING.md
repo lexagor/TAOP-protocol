@@ -83,7 +83,11 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
   dispatcher before closing the server.
 - **Container runs unprivileged**: the runtime image uses the `node` user
   (uid 1000) with only `/app/data` (SQLite) writable; CI asserts the uid and
-  boots the image read-only.
+  boots the image read-only. A second smoke test runs it on a **read-only
+  rootfs** (tmpfs data) with `--cap-drop=ALL` and `no-new-privileges`.
+- **OpenAPI spec gate**: `npm run openapi:lint` (Spectral, `--fail-severity=warn`)
+  runs in CI against the generated document, so structural regressions fail the
+  build.
 - **Security headers**: helmet with a Content-Security-Policy (external scripts,
   framing, and objects blocked; `unsafe-inline` only for Swagger UI's bootstrap
   and injected styles), plus `frame-ancestors 'none'`.

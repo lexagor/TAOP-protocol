@@ -103,6 +103,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `node` user (uid 1000) with only `/app/data` writable (CI asserts the uid);
   unknown `/api` paths and body-parser failures return JSON (404/400/413) with
   no HTML or stack traces; `SIGINT`/`SIGTERM` also stop the indexer.
+- **CI quality gates**: the OpenAPI document is linted with Spectral on every
+  run (`npm run openapi:lint`, 0 errors/warnings) and the container is booted a
+  second time on a read-only rootfs (tmpfs data, all caps dropped,
+  `no-new-privileges`) to prove the image needs no writable layer.
 
 ## [0.3.0] - 2026-09-17
 

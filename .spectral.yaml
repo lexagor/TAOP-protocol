@@ -1,0 +1,19 @@
+# Spectral ruleset for the TAOP OpenAPI document.
+#
+# CI runs: npm run openapi:lint (dumps the generated spec, then lints with
+# --fail-severity=warning). `spectral:oas` is authoritative; the overrides below
+# are intentional and reviewed.
+extends: ["spectral:oas"]
+
+rules:
+  # The backend is the only server; clients use /api relative to their host.
+  oas3-api-servers: off
+  # Project-level docs (README/SECURITY) cover contact/description.
+  info-contact: off
+  info-description: off
+  # Operations use `summary` (one-line) as the documented style.
+  operation-description: off
+  # Single-service spec: tags add no routing value here.
+  operation-tags: off
+  # operationIds are useful for code generation but this spec is hand-consumed.
+  operation-operationId: hint

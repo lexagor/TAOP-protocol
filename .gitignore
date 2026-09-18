@@ -75,3 +75,6 @@ mutation_campaign/
 # Generated API docs
 docs/api/
 cache_forge/
+
+# Generated OpenAPI dump (scripts/dump-openapi.ts)
+openapi.json
