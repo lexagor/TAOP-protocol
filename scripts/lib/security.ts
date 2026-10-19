@@ -63,3 +63,48 @@ export function readEnvVar(file: string, key: string): string {
     return "";
   }
 }
+
+export interface MainnetGuardInput {
+  chainId: number;
+  /** True when the network is a local fork (rehearsal, not real funds). */
+  isFork: boolean;
+  minDelay: bigint;
+  multisig?: string;
+  proposers: string[];
+  executors: string[];
+  deployer: string;
+}
+
+/**
+ * Refuse unsafe mainnet governance: a 0-delay Timelock or a hot deployer EOA in
+ * the proposer/executor roles turns the whole ownership surface back into a
+ * single key. Fork rehearsals bypass this (no real funds, throwaway config).
+ */
+export function assertHardenedMainnet(input: MainnetGuardInput): void {
+  if (input.chainId !== 8453 || input.isFork) return;
+  const deployer = input.deployer.toLowerCase();
+  const deployerControls =
+    input.proposers.some((p) => p.trim().toLowerCase() === deployer) ||
+    input.executors.some((e) => e.trim().toLowerCase() === deployer);
+  const hasMultisig = Boolean(input.multisig && /^0x[0-9a-fA-F]{40}$/.test(input.multisig.trim()));
+
+  const errors: string[] = [];
+  if (input.minDelay <= 0n) {
+    errors.push("TIMELOCK_DELAY must be greater than 0 (e.g. 86400).");
+  }
+  if (!hasMultisig && deployerControls) {
+    errors.push(
+      "MULTISIG_ADDRESS must be set (do not use the hot deployer EOA as proposer/executor).",
+    );
+  }
+  if (input.proposers.length === 0 || input.executors.length === 0) {
+    errors.push("Timelock proposers/executors must be configured.");
+  }
+  if (errors.length > 0) {
+    throw new Error(
+      "Refusing unsafe mainnet deploy:\n  - " +
+        errors.join("\n  - ") +
+        "\nSee PRE_MAINNET_CHECKLIST.md and docs/hardened-timelock.md.",
+    );
+  }
+}

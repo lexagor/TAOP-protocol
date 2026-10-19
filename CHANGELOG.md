@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Mainnet deploy guard**: `deploy:mainnet` refuses a 0-delay Timelock or a hot
+  deployer EOA in the proposer/executor roles (fork rehearsals exempt), warns
+  when the public RPC / missing Basescan key / deployer-as-certifier would ship,
+  and runs the check *before* spending gas (`test/DeployGuards.test.ts`).
 - **Deep-audit fixes**: Registry type-index removal is now O(1) (position map;
   withdrawal gas no longer grows with the number of capabilities of a type);
   the indexer purges alerts from orphaned blocks on a reorg; alerts are

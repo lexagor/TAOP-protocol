@@ -3,6 +3,14 @@
 **Goal:** move from the Sepolia pilot (0-delay, single key) to a credible mainnet
 deployment. Run this before `npm run deploy:mainnet`.
 
+> **Status (2026-10-19 audit): NOT READY for mainnet.** The code-side controls
+> below are green (v0.4, analyzers, 100% statement/function/line coverage,
+> mutation 23/23, refund safety, reorg-safe indexer, metrics). Every unchecked
+> item is an owner/ops/audit action — governance, funding, keys, external review,
+> anti-sybil policy, monitoring, publishing and a mainnet E2E. `deploy:mainnet`
+> now **refuses** a 0-delay Timelock or a deployer-EOA proposer unless it is a
+> fork rehearsal.
+
 Companion docs: [`redeploy-v0.2.md`](redeploy-v0.2.md),
 [`hardened-timelock.md`](hardened-timelock.md),
 [`SECURITY-REVIEW.md`](SECURITY-REVIEW.md), [`OPERATIONS.md`](OPERATIONS.md),
@@ -12,6 +20,8 @@ Companion docs: [`redeploy-v0.2.md`](redeploy-v0.2.md),
 
 - [x] Deploy scripts support `MULTISIG_ADDRESS` / `PROPOSERS` / `EXECUTORS` / `TIMELOCK_DELAY`.
 - [x] `test/TimelockDelay.test.ts` proves schedule → wait → execute, the non-proposer guard, and the 0-delay contrast.
+- [x] `deploy:mainnet` refuses a 0-delay Timelock or a hot deployer EOA in the
+      proposer/executor roles (`test/DeployGuards.test.ts`); fork rehearsals are exempt.
 - [x] **Decision (2026-09-17): unfreeze 0-delay for hardened/mainnet deploys.** The
       pilot itself stays 0-delay until a hardened deploy happens; mainnet ships with
       a non-zero delay + Safe. Steps: [`hardened-timelock.md`](hardened-timelock.md).
@@ -38,6 +48,11 @@ Companion docs: [`redeploy-v0.2.md`](redeploy-v0.2.md),
 - [ ] Decide paid audit vs. free-only for mainnet value; fund if chosen.
 - [ ] Decide the **anti-sybil policy** (minimum attest bond, per-address rate limits, identity anchors). This is the credibility gap, not a code bug.
 - [x] Pause / circuit breaker shipped (v0.3; exits stay open).
+- [x] Pull-payment challenge refunds (a reverting receiver can't block resolution),
+      challenge liveness, two-step ownership, URI caps (v0.4).
+- [x] Deep bug sweep: SSRF (mapped IPv6/redirects), async-rejection crash class,
+      metrics cardinality, NaN params/env, reorg alert purge, alert idempotency.
+- [x] Coverage 100% statements/functions/lines (branches 75.24); mutation 23/23.
 
 ## 3. Infrastructure & funding
 
@@ -58,7 +73,9 @@ Companion docs: [`redeploy-v0.2.md`](redeploy-v0.2.md),
 
 ## 5. Operations & monitoring
 
-- [x] Structured logs (pino), `/api/healthz` (RPC latency, indexer lag), `/api/alerts`.
+- [x] Structured logs (pino), `/api/healthz` (RPC latency, indexer lag, webhook
+      status), `/api/alerts`, and Prometheus `/api/metrics`
+      (indexer lag/reorgs/retention, webhook backlog/failures, HTTP counters).
 - [x] `docs/OPERATIONS.md` runbook + `docs/EMERGENCY.md`.
 - [ ] Wire `/api/healthz` + `/api/alerts` into alerting; alert on any `EthPoolWithdrawn` / `CertifierChanged`.
 - [ ] Backups: `deployments.json` + `.env` (offline); SQLite index is rebuildable.

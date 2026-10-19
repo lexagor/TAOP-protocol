@@ -1,7 +1,13 @@
 import { ethers, network } from "hardhat";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { assertNotTracked, assertNoKeyMaterial, backupFile, readEnvVar } from "./lib/security";
+import {
+  assertHardenedMainnet,
+  assertNotTracked,
+  assertNoKeyMaterial,
+  backupFile,
+  readEnvVar,
+} from "./lib/security";
 
 /**
  * Deploy the TAOP MVP contracts (works for Sepolia or mainnet).
@@ -94,6 +100,56 @@ async function main() {
     process.exit(1);
   }
 
+  const minDelay = process.env.TIMELOCK_DELAY ? BigInt(process.env.TIMELOCK_DELAY) : 0n;
+
+  // Multisig support for mainnet/hardened deploys.
+  // Set MULTISIG_ADDRESS=0x... (recommended) or PROPOSERS=0xA,0xB and EXECUTORS=0xA,0xB
+  // If MULTISIG_ADDRESS is set, it is used for both proposers and executors.
+  // Admin is left as ZeroAddress (no admin after deploy).
+  let proposers: string[];
+  let executors: string[];
+  const multisig = process.env.MULTISIG_ADDRESS;
+  if (multisig && multisig.length === 42) {
+    proposers = [multisig];
+    executors = [multisig];
+    console.log("Using MULTISIG for Timelock proposers/executors:", multisig);
+  } else if (process.env.PROPOSERS || process.env.EXECUTORS) {
+    proposers = (process.env.PROPOSERS || deployerAddr).split(",").map(s => s.trim());
+    executors = (process.env.EXECUTORS || deployerAddr).split(",").map(s => s.trim());
+    console.log("Using custom PROPOSERS/EXECUTORS for Timelock");
+  } else {
+    proposers = [deployerAddr];
+    executors = [deployerAddr];
+  }
+  // Mainnet safety gate: refuse 0-delay / hot-deployer governance. Fork
+  // rehearsals (isFork) are exempt because no real value is involved.
+  assertHardenedMainnet({
+    chainId,
+    isFork,
+    minDelay,
+    multisig,
+    proposers,
+    executors,
+    deployer: deployerAddr,
+  });
+  if (isMainnet && !process.env.BASE_MAINNET_RPC_URL) {
+    console.warn(
+      "! BASE_MAINNET_RPC_URL is not set — deploying over the public RPC. " +
+        "Use a dedicated provider for production.",
+    );
+  }
+  if (isMainnet && !process.env.BASESCAN_API_KEY) {
+    console.warn(
+      "! BASESCAN_API_KEY is not set — remember to verify the contracts afterwards.",
+    );
+  }
+  if (isMainnet) {
+    console.warn(
+      `! Registry certifier will be the deployer (${deployerAddr}) until you schedule ` +
+        "setCertifier via the Timelock (use the Safe, not a hot EOA).",
+    );
+  }
+
   // --- Deploy RON (v1, ETH-only) ---
   // Capture the block so the F10 indexer can backfill from the deployment point.
   const deployStartBlock = await ethers.provider.getBlockNumber();
@@ -117,27 +173,6 @@ async function main() {
   // For hardened mainnet: set TIMELOCK_DELAY=86400 (or more) + use multisig in proposers/executors.
   // See hardhat.config.ts "base" network, README "Mainnet preparation", and IMPROVEMENTS_PLAN.md
   const Timelock = await ethers.getContractFactory("TimelockController");
-  const minDelay = process.env.TIMELOCK_DELAY ? BigInt(process.env.TIMELOCK_DELAY) : 0n;
-
-  // Multisig support for mainnet/hardened deploys.
-  // Set MULTISIG_ADDRESS=0x... (recommended) or PROPOSERS=0xA,0xB and EXECUTORS=0xA,0xB
-  // If MULTISIG_ADDRESS is set, it is used for both proposers and executors.
-  // Admin is left as ZeroAddress (no admin after deploy).
-  let proposers: string[];
-  let executors: string[];
-  const multisig = process.env.MULTISIG_ADDRESS;
-  if (multisig && multisig.length === 42) {
-    proposers = [multisig];
-    executors = [multisig];
-    console.log("Using MULTISIG for Timelock proposers/executors:", multisig);
-  } else if (process.env.PROPOSERS || process.env.EXECUTORS) {
-    proposers = (process.env.PROPOSERS || deployerAddr).split(",").map(s => s.trim());
-    executors = (process.env.EXECUTORS || deployerAddr).split(",").map(s => s.trim());
-    console.log("Using custom PROPOSERS/EXECUTORS for Timelock");
-  } else {
-    proposers = [deployerAddr];
-    executors = [deployerAddr];
-  }
   const admin = ethers.ZeroAddress;
   const timelock = await Timelock.deploy(minDelay, proposers, executors, admin);
   await timelock.waitForDeployment();

@@ -301,11 +301,12 @@ See `PRE_MAINNET_CHECKLIST.md` for the full pre-mainnet readiness list.
 See `TEST_RESULTS.md` for latest verified E2E pilot flows (cURL + UI + on-chain).
 
 ### Quick mainnet deploy checklist
-1. Get a mainnet RPC and set `BASE_MAINNET_RPC_URL` in `.env`.
+1. Get a dedicated mainnet RPC and set `BASE_MAINNET_RPC_URL` in `.env`.
 2. Fund a deployer wallet with real Base ETH.
-3. Decide on multisig (e.g. Gnosis Safe on Base) and set `proposers`/`executors` in deploy script (see comments).
-4. (Optional but recommended for hardened) `TIMELOCK_DELAY=86400` (24h) in env before deploy.
-5. `npm run deploy:mainnet`
+3. Create a Safe on Base and set `MULTISIG_ADDRESS=<safe>` (required: the script
+   refuses a hot deployer EOA as proposer/executor on mainnet).
+4. Set `TIMELOCK_DELAY=86400` (required: the script refuses a 0-delay mainnet).
+5. `npm run deploy:mainnet` (preflight runs before any gas is spent)
 6. Update README table + deployments.json (auto), verify on Basescan.
 7. **Strongly recommended**: professional audit (or at least Slither + manual review) before public mainnet usage with real value.
 

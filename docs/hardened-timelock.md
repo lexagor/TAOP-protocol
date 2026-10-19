@@ -20,6 +20,11 @@ instantly.
 | `MULTISIG_ADDRESS` | sets proposers **and** executors to this address (e.g. a Safe) |
 | `PROPOSERS` / `EXECUTORS` | comma-separated lists if you want them to differ |
 
+On a real mainnet (`chainId 8453`, not a fork) the deploy script **refuses to run**
+unless `TIMELOCK_DELAY > 0` and the proposer/executor roles are not the hot
+deployer EOA (`MULTISIG_ADDRESS`, or explicit Safe addresses). Fork rehearsals
+are exempt. This prevents an accidental 0-delay/EOA mainnet deploy.
+
 `admin` is always `address(0)` (no lingering admin role after setup), and both
 contracts transfer ownership to the Timelock.
 
