@@ -42,6 +42,13 @@ const MUTANTS = [
   { file: "contracts/ReputationOracleNetwork.sol", find: "pendingWithdrawals[ch.challenger] += CHALLENGE_BOND;", replace: "pendingWithdrawals[ch.challenger] += 0;", label: "RON cancel does not credit refund" },
   { file: "contracts/ReputationOracleNetwork.sol", find: "        }\n        pendingWithdrawals[ch.challenger] += CHALLENGE_BOND;", replace: "        }\n        pendingWithdrawals[ch.challenger] += 0;", label: "RON upheld challenge does not credit refund" },
   { file: "contracts/ReputationOracleNetwork.sol", find: "pendingWithdrawals[msg.sender] = 0;", replace: "// mutated: double-claim allowed", label: "RON refund can be claimed twice" },
+  // v0.5 anti-sybil economics
+  { file: "contracts/ReputationOracleNetwork.sol", find: "if (block.timestamp > eligibleUntil) revert ChallengeEligibilityClosed(eligibleUntil);", replace: "if (false) revert ChallengeEligibilityClosed(eligibleUntil);", label: "RON challenge eligibility ignored" },
+  { file: "contracts/ReputationOracleNetwork.sol", find: "pendingChallenges[c.agent] += 1;", replace: "pendingChallenges[c.agent] += 0;", label: "RON pending challenge not counted" },
+  { file: "contracts/ReputationOracleNetwork.sol", find: "stake[c.agent] = agentStake - slash;", replace: "stake[c.agent] = agentStake;", label: "RON upheld dispute does not slash stake" },
+  { file: "contracts/ReputationOracleNetwork.sol", find: "        (score, decayBps) = _decayedScore(confirmedCount_, disputeCount_, lastActivity_);\n        score = _capByStake(agent, score);", replace: "        (score, decayBps) = _decayedScore(confirmedCount_, disputeCount_, lastActivity_);", label: "RON two-sided score not stake-capped" },
+  { file: "contracts/ReputationOracleNetwork.sol", find: "        (score, decayBps) = _decayedScore(distinctCounterparties_, disputeCount_, lastActivity_);\n        score = _capByStake(agent, score);", replace: "        (score, decayBps) = _decayedScore(distinctCounterparties_, disputeCount_, lastActivity_);", label: "RON credit score not stake-capped" },
+  { file: "contracts/CapabilityRegistry.sol", find: "if (bond < MIN_BOND) revert BondTooSmall(bond, MIN_BOND);", replace: "if (false) revert BondTooSmall(bond, MIN_BOND);", label: "Registry minimum bond ignored" },
 ];
 
 let caught = 0;

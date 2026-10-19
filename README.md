@@ -46,7 +46,14 @@ counterparties − disputes), which `getRankingScore` prefers when available.
 after a 90-day `CHALLENGE_TIMEOUT`, so no bond is locked forever), two-step
 ownership (`Ownable2Step`), a 200-byte cap on every on-chain URI field
 (`MAX_URI_LEN`), and signed outbound webhooks for the alert stream
-(`TAOP_WEBHOOK_URL`, HMAC-SHA256, ordered at-least-once). See `CHANGELOG.md`.
+(`TAOP_WEBHOOK_URL`, HMAC-SHA256, ordered at-least-once).
+**v0.5 (code, pending redeploy)** adds the anti-sybil economics: ranking scores
+are capped by stake (`STAKE_PER_POINT = 0.01 ETH`, no free tier), challenges are
+only accepted within 7 days of attestation (`CHALLENGE_ELIGIBILITY`), upheld
+disputes slash `0.05 ETH` from stake as a challenger bounty, and the Registry
+requires a `0.05 ETH` minimum capability bond. Benchmark (seed 42): Sybil
+**66.3/100** vs 7.5 for v0.3. See `docs/anti-sybil-proposal.md` and
+`CHANGELOG.md`.
 
 The demo page proves the loop:
 
@@ -302,7 +309,8 @@ See `TEST_RESULTS.md` for latest verified E2E pilot flows (cURL + UI + on-chain)
 
 ### Quick mainnet deploy checklist
 1. Get a dedicated mainnet RPC and set `BASE_MAINNET_RPC_URL` in `.env`.
-2. Fund a deployer wallet with real Base ETH.
+2. Fund a deployer wallet with real Base ETH (≥0.2 ETH: deploys, 0.05 capability
+   bond, 0.01 stake, 0.01 challenge bond, gas — most is recoverable).
 3. Create a Safe on Base and set `MULTISIG_ADDRESS=<safe>` (required: the script
    refuses a hot deployer EOA as proposer/executor on mainnet).
 4. Set `TIMELOCK_DELAY=86400` (required: the script refuses a 0-delay mainnet).

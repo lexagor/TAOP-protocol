@@ -134,6 +134,17 @@ def test_v04_abi_surface_is_bundled():
     events = _abi_names(_RON_ABI, "event")
     errors = _abi_names(_RON_ABI, "error")
     assert {"cancelChallenge", "CHALLENGE_TIMEOUT", "MAX_URI_LEN", "acceptOwnership", "pendingOwner"} <= funcs
+    assert {
+        "depositStake",
+        "withdrawStake",
+        "stake",
+        "stakeUnlockAt",
+        "pendingChallenges",
+        "STAKE_PER_POINT",
+        "FREE_POINTS",
+        "SLASH_PER_DISPUTE",
+        "CHALLENGE_ELIGIBILITY",
+    } <= funcs
     assert "ChallengeCancelled" in events
     assert {"ChallengeNotTimedOut", "NotChallenger", "URITooLong"} <= errors
 

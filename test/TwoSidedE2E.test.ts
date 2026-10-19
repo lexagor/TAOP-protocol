@@ -13,7 +13,8 @@ import { ReputationOracleNetworkClient, CapabilityRegistryClient, discover } fro
  */
 describe("v0.2 E2E — SDK clients on the in-process network", () => {
   const LORA = "LoRA";
-  const BOND = ethers.parseEther("0.01");
+  const BOND = ethers.parseEther("0.01"); // RON challenge bond
+  const REG_BOND = ethers.parseEther("0.05"); // Registry MIN_BOND
 
   async function deploy() {
     const [owner, agentA, requester, challenger] = await ethers.getSigners();
@@ -36,7 +37,7 @@ describe("v0.2 E2E — SDK clients on the in-process network", () => {
     const ronOwner = new ReputationOracleNetworkClient(await ron.getAddress(), owner);
 
     // 1. Capability lifecycle (id from the emitted event, per v0.1.2).
-    const { capabilityId } = await registryAgentA.registerCapabilityEth(LORA, "ipfs://cap", BOND);
+    const { capabilityId } = await registryAgentA.registerCapabilityEth(LORA, "ipfs://cap", REG_BOND);
     expect(capabilityId).to.eq(1n);
     await registryOwner.certifyCapability(capabilityId);
     expect((await registryAgentA.getCapability(capabilityId)).certified).to.eq(true);
@@ -50,6 +51,7 @@ describe("v0.2 E2E — SDK clients on the in-process network", () => {
     expect(c1.counterparty.toLowerCase()).to.eq(requester.address.toLowerCase());
     expect(c1.receiptTimestamp).to.be.gt(0n);
 
+    await ronAgentA.depositStake(ethers.parseEther("0.01"));
     let two = await ronAgentA.getTwoSidedScore(agentA.address);
     expect(two.confirmed).to.eq(1n);
     expect(two.disputes).to.eq(0n);
@@ -89,7 +91,7 @@ describe("v0.2 E2E — SDK clients on the in-process network", () => {
     const { registry, agentA } = await deploy();
     const registryAgentA = new CapabilityRegistryClient(await registry.getAddress(), agentA);
     for (let i = 0; i < 3; i++) {
-      await registryAgentA.registerCapabilityEth(LORA, `ipfs://c${i}`, BOND);
+      await registryAgentA.registerCapabilityEth(LORA, `ipfs://c${i}`, REG_BOND);
     }
     expect(await registryAgentA.countCapabilitiesByType(LORA)).to.eq(3n);
     expect((await registryAgentA.getCapabilitiesByTypePaged(LORA, 0, 2)).map(String)).to.deep.eq(["1", "2"]);

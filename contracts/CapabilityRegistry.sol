@@ -27,6 +27,10 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable2Step, ReentrancyGuard, 
     /// @notice Maximum byte length of a capability metadata URI.
     uint256 public constant MAX_URI_LEN = 200;
 
+    /// @notice Minimum ETH bond for a capability. Prevents 1-wei registrations
+    ///         whose bond provides no meaningful slow-burn coverage.
+    uint256 public constant MIN_BOND = 0.05 ether;
+
     struct Capability {
         address creator;
         uint256 bond; // ETH locked by creator (wei)
@@ -61,6 +65,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable2Step, ReentrancyGuard, 
     error BondStillSlashed();
     error NothingToWithdraw();
     error URITooLong(uint256 length);
+    error BondTooSmall(uint256 sent, uint256 minimum);
 
     constructor(address _certifier) ERC721("TAOP Capability", "TAOP-CAP") Ownable(msg.sender) {
         if (_certifier == address(0)) revert ZeroAddress();
@@ -95,7 +100,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable2Step, ReentrancyGuard, 
     {
         _requireUri(metadataCID);
         uint256 bond = msg.value;
-        if (bond == 0) revert ZeroBond();
+        if (bond < MIN_BOND) revert BondTooSmall(bond, MIN_BOND);
         capabilityId = ++_nextTokenId;
         _safeMint(msg.sender, capabilityId);
         _capabilities[capabilityId] = Capability({

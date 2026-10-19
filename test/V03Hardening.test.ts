@@ -9,7 +9,8 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 describe("v0.3 hardening — pause, cooldown, diversity score", () => {
   const SUMMARY = ethers.id("summarization");
   const LORA = ethers.id("LoRA");
-  const BOND = ethers.parseEther("0.01");
+  const BOND = ethers.parseEther("0.01"); // RON challenge bond
+  const REG_BOND = ethers.parseEther("0.05"); // Registry MIN_BOND
   const WINDOW = 3 * 24 * 60 * 60;
 
   async function deployRon() {
@@ -94,6 +95,7 @@ describe("v0.3 hardening — pause, cooldown, diversity score", () => {
   describe("diversity-adjusted credit score", () => {
     it("counts distinct counterparties, not raw confirmations", async () => {
       const { ron, agent, cp1, cp2 } = await deployRon();
+      await ron.connect(agent).depositStake({ value: ethers.parseEther("0.02") });
       await ron.connect(agent).attestCompletion(SUMMARY, "ipfs://r1");
       await ron.connect(agent).attestCompletion(SUMMARY, "ipfs://r2");
       await ron.connect(agent).attestCompletion(SUMMARY, "ipfs://r3");
@@ -136,11 +138,11 @@ describe("v0.3 hardening — pause, cooldown, diversity score", () => {
       const [owner, creator] = await ethers.getSigners();
       const Registry = await ethers.getContractFactory("CapabilityRegistry");
       const registry = await Registry.deploy(owner.address);
-      await registry.connect(creator).registerCapabilityEth(LORA, "ipfs://m", { value: BOND });
+      await registry.connect(creator).registerCapabilityEth(LORA, "ipfs://m", { value: REG_BOND });
 
       await registry.connect(owner).pause();
       await expect(
-        registry.connect(creator).registerCapabilityEth(LORA, "ipfs://m2", { value: BOND }),
+        registry.connect(creator).registerCapabilityEth(LORA, "ipfs://m2", { value: REG_BOND }),
       ).to.be.revertedWithCustomError(registry, "EnforcedPause");
       await expect(registry.connect(owner).certifyCapability(1)).to.be.revertedWithCustomError(
         registry,

@@ -24,7 +24,8 @@ describe("gas snapshot (regression guard)", () => {
     const [owner, agent, cp1, challenger] = await ethers.getSigners();
     const SUMMARY = ethers.id("summarization");
     const LORA = ethers.id("LoRA");
-    const BOND = ethers.parseEther("0.01");
+    const BOND = ethers.parseEther("0.01"); // RON challenge bond
+  const REG_BOND = ethers.parseEther("0.05"); // Registry MIN_BOND
 
     const measured: Record<string, number> = {};
     const gas = async (p: Promise<{ wait: () => Promise<{ gasUsed: bigint } | null> }>) => {
@@ -36,7 +37,7 @@ describe("gas snapshot (regression guard)", () => {
     const Registry = await ethers.getContractFactory("CapabilityRegistry");
     const registry = await Registry.deploy(agent.address);
     measured.registerCapabilityEth = await gas(
-      registry.connect(agent).registerCapabilityEth(LORA, "ipfs://m", { value: BOND }),
+      registry.connect(agent).registerCapabilityEth(LORA, "ipfs://m", { value: REG_BOND }),
     );
     measured.certifyCapability = await gas(registry.connect(agent).certifyCapability(1));
     await registry.connect(agent).slashCapability(1, 1n);

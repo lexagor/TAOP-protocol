@@ -35,6 +35,7 @@ describe("ReputationOracleNetwork v0.2 — two-sided attestation (F11)", () => {
   describe("receipts", () => {
     it("a counterparty countersigns a completion and it counts as confirmed", async () => {
       const { ron, agent, requester } = await deploy();
+      await ron.connect(agent).depositStake({ value: ethers.parseEther("0.01") });
       await ron.connect(agent).attestCompletion(SUMMARY, "ipfs://result");
 
       await expect(ron.connect(requester).attestReceipt(1, "ipfs://receipt"))
@@ -259,6 +260,7 @@ describe("ReputationOracleNetwork v0.2 — two-sided attestation (F11)", () => {
   describe("two-sided score", () => {
     it("counts only confirmed completions", async () => {
       const { ron, agent, requester } = await deploy();
+      await ron.connect(agent).depositStake({ value: ethers.parseEther("0.01") });
       await ron.connect(agent).attestCompletion(SUMMARY, "ipfs://r1");
       await ron.connect(agent).attestCompletion(SUMMARY, "ipfs://r2");
       await ron.connect(requester).attestReceipt(1, "ipfs://receipt");

@@ -7,8 +7,9 @@ the reference capital threshold for the Sybil capital component is 0.01 ETH.
 
 | Mechanism | Sybil | Slow burn | Collusion | Composite |
 |---|---:|---:|---:|---:|
-| `base_taop_v03` | 7.5 | 0.2 | 0.0 | 2.6 |
-| `base_taop_self_attest` | 3.8 | 0.2 | 100.0 | 34.7 |
+| `base_taop_v05` | 66.3 | 11.0 | 0.0 | 25.8 |
+| `base_taop_v03` | 7.5 | 1.0 | 0.0 | 2.8 |
+| `base_taop_self_attest` | 3.8 | 1.0 | 100.0 | 34.9 |
 
 ### Sybil resistance vs watcher challenge probability
 

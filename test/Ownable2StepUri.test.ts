@@ -7,7 +7,8 @@ import { ethers } from "hardhat";
  */
 describe("Ownable2Step + URI caps", () => {
   const SUMMARY = ethers.id("summarization");
-  const BOND = ethers.parseEther("0.01");
+  const BOND = ethers.parseEther("0.01"); // RON challenge bond
+  const REG_BOND = ethers.parseEther("0.05"); // Registry MIN_BOND
   const MAX = 200;
 
   async function deployRon() {
@@ -110,7 +111,7 @@ describe("Ownable2Step + URI caps", () => {
       const { registry, creator } = await deployRegistry();
       expect(await registry.MAX_URI_LEN()).to.eq(BigInt(MAX));
       await expect(
-        registry.connect(creator).registerCapabilityEth(SUMMARY, overCap, { value: BOND }),
+        registry.connect(creator).registerCapabilityEth(SUMMARY, overCap, { value: REG_BOND }),
       )
         .to.be.revertedWithCustomError(registry, "URITooLong")
         .withArgs(MAX + 1);

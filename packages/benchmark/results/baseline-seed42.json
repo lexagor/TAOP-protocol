@@ -2,7 +2,7 @@
   "metadata": {
     "generatedAt": "baseline",
     "seed": 42,
-    "nodeVersion": "v24.14.1",
+    "nodeVersion": "v24.21.0",
     "version": "0.1.0",
     "scenarios": [
       "sybil",
@@ -37,11 +37,144 @@
   },
   "params": {
     "challengeBondWei": 10000000000000000,
-    "capabilityBondWei": 10000000000000000,
+    "capabilityBondWei": 50000000000000000,
     "decayGraceSecs": 2592000,
     "decayHorizonSecs": 12960000
   },
   "reports": [
+    {
+      "mechanism": "base_taop_v05",
+      "description": "v0.5: diversity credit score capped at FREE_POINTS + stake/rate; an upheld dispute slashes stake (SLASH_PER_DISPUTE) as a challenger bounty.",
+      "sybil": {
+        "scenario": "sybil_farming",
+        "mechanism": "base_taop_v05",
+        "config": {
+          "sybils": 20,
+          "attestsPerSybil": 10,
+          "challengeProbability": 0.1,
+          "upheldProbability": 0.9,
+          "seed": 42
+        },
+        "metrics": {
+          "sybilAgents": 20,
+          "totalAttestations": 200,
+          "totalReceipts": 200,
+          "totalScore": 135,
+          "spentWei": 654118336000000000,
+          "lockedWei": 1350000000000000000,
+          "capitalPerPointWei": 10000000000000000,
+          "costPerPointWei": 14845321007407408,
+          "honestCostPerPointWei": 10020591680000000,
+          "efficiencyRatio": 0.6749999999999999,
+          "challenges": 16,
+          "disputes": 15,
+          "costToThreshold": {
+            "10": "0.000114874 ETH",
+            "100": "0.001148744 ETH",
+            "1000": "0.011487440 ETH"
+          }
+        },
+        "findings": "Attacker commits 0.014845321 ETH per effective reputation point (1.350000000 ETH of it locked capital) versus 0.010020592 ETH for honest work (efficiency 0.67x). 15/16 challenges were upheld; 200 ring-internal receipts were funded. Challenge pressure materially taxes fake completions."
+      },
+      "slowBurn": {
+        "scenario": "slow_burn_harvest",
+        "mechanism": "base_taop_v05",
+        "config": {
+          "targetScore": 50,
+          "harvestValueWei": 5000000000000000000,
+          "attestsPerDay": 2,
+          "horizonDays": 180,
+          "accomplices": 64
+        },
+        "metrics": {
+          "reachable": true,
+          "daysToThreshold": 25,
+          "scoreAtHarvest": 50,
+          "spentWei": 1044808840000000,
+          "slashableWei": 550000000000000000,
+          "harvestValueWei": 5000000000000000000,
+          "slashCoverage": 0.11,
+          "netAttackerProfitWei": 4448955191160000000,
+          "scoreAfterSlash": 0
+        },
+        "findings": "Reached score 50 in 25 days for 0.001044809 ETH. Bonded capital (0.550000000 ETH) covers 11.0% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+      },
+      "collusion": {
+        "scenario": "collusive_ring",
+        "mechanism": "base_taop_v05",
+        "config": {
+          "ringSize": 10,
+          "ratingsPerPair": 1,
+          "reciprocityThreshold": 0.8,
+          "honestAgents": 30,
+          "honestRatings": 2,
+          "coreThreshold": 4,
+          "seed": 42
+        },
+        "metrics": {
+          "ringScorePerAgent": 9,
+          "ringCostWei": 1853251200000000,
+          "costPerRingPointWei": 20591680000000,
+          "honestCostPerPointWei": 20591680000000,
+          "efficiencyRatio": 1,
+          "detectorPrecision": 1,
+          "detectorRecall": 1,
+          "detectors": [
+            {
+              "name": "reciprocity",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            },
+            {
+              "name": "mutual_degree",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            },
+            {
+              "name": "k_core",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            },
+            {
+              "name": "ensemble",
+              "flagged": 10,
+              "truePositives": 10,
+              "falsePositives": 0,
+              "falseNegatives": 0,
+              "precision": 1,
+              "recall": 1,
+              "f1": 1
+            }
+          ]
+        },
+        "findings": "A ring of 10 accounts manufactures 9 points per member at 0.000020592 ETH per point, versus 0.000020592 ETH for a genuine rating. Best detector: reciprocity (precision 1.00, recall 1.00, F1 1.00) over a mixed graph of 40 accounts."
+      },
+      "scores": {
+        "composite": 25.8,
+        "sybilFarming": 66.3,
+        "slowBurnHarvest": 11,
+        "collusiveRing": 0
+      },
+      "weakSpots": [
+        "Bonded capital does not cover a high-value harvest",
+        "Fabricated peer receipts are accepted at face value"
+      ]
+    },
     {
       "mechanism": "base_taop_v03",
       "description": "RON getCreditScore: distinct counterparties that confirmed at least one completion, score = max(0, distinct counterparties - disputes) with inactivity decay.",
@@ -91,13 +224,13 @@
           "daysToThreshold": 25,
           "scoreAtHarvest": 50,
           "spentWei": 1044808840000000,
-          "slashableWei": 10000000000000000,
+          "slashableWei": 50000000000000000,
           "harvestValueWei": 5000000000000000000,
-          "slashCoverage": 0.002,
-          "netAttackerProfitWei": 4988955191160000000,
+          "slashCoverage": 0.01,
+          "netAttackerProfitWei": 4948955191160000000,
           "scoreAfterSlash": 0
         },
-        "findings": "Reached score 50 in 25 days for 0.001044809 ETH. Bonded capital (0.010000000 ETH) covers 0.2% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+        "findings": "Reached score 50 in 25 days for 0.001044809 ETH. Bonded capital (0.050000000 ETH) covers 1.0% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
       },
       "collusion": {
         "scenario": "collusive_ring",
@@ -165,9 +298,9 @@
         "findings": "A ring of 10 accounts manufactures 9 points per member at 0.000020592 ETH per point, versus 0.000020592 ETH for a genuine rating. Best detector: reciprocity (precision 1.00, recall 1.00, F1 1.00) over a mixed graph of 40 accounts."
       },
       "scores": {
-        "composite": 2.6,
+        "composite": 2.8,
         "sybilFarming": 7.5,
-        "slowBurnHarvest": 0.2,
+        "slowBurnHarvest": 1,
         "collusiveRing": 0
       },
       "weakSpots": [
@@ -225,13 +358,13 @@
           "daysToThreshold": 25,
           "scoreAtHarvest": 50,
           "spentWei": 1044808840000000,
-          "slashableWei": 10000000000000000,
+          "slashableWei": 50000000000000000,
           "harvestValueWei": 5000000000000000000,
-          "slashCoverage": 0.002,
-          "netAttackerProfitWei": 4988955191160000000,
+          "slashCoverage": 0.01,
+          "netAttackerProfitWei": 4948955191160000000,
           "scoreAfterSlash": 0
         },
-        "findings": "Reached score 50 in 25 days for 0.001044809 ETH. Bonded capital (0.010000000 ETH) covers 0.2% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+        "findings": "Reached score 50 in 25 days for 0.001044809 ETH. Bonded capital (0.050000000 ETH) covers 1.0% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
       },
       "collusion": {
         "scenario": "collusive_ring",
@@ -299,9 +432,9 @@
         "findings": "A ring of 10 accounts manufactures 9 points per member at 0.000020592 ETH per point, versus 0.000020592 ETH for a genuine rating. Best detector: reciprocity (precision 1.00, recall 1.00, F1 1.00) over a mixed graph of 40 accounts."
       },
       "scores": {
-        "composite": 2.6,
+        "composite": 2.8,
         "sybilFarming": 7.5,
-        "slowBurnHarvest": 0.2,
+        "slowBurnHarvest": 1,
         "collusiveRing": 0
       },
       "weakSpots": [
@@ -359,13 +492,13 @@
           "daysToThreshold": 25,
           "scoreAtHarvest": 50,
           "spentWei": 589596840000000,
-          "slashableWei": 10000000000000000,
+          "slashableWei": 50000000000000000,
           "harvestValueWei": 5000000000000000000,
-          "slashCoverage": 0.002,
-          "netAttackerProfitWei": 4989410403160000000,
+          "slashCoverage": 0.01,
+          "netAttackerProfitWei": 4949410403160000000,
           "scoreAfterSlash": 0
         },
-        "findings": "Reached score 50 in 25 days for 0.000589597 ETH. Bonded capital (0.010000000 ETH) covers 0.2% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+        "findings": "Reached score 50 in 25 days for 0.000589597 ETH. Bonded capital (0.050000000 ETH) covers 1.0% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
       },
       "collusion": {
         "scenario": "collusive_ring",
@@ -392,9 +525,9 @@
         "findings": "Peer feedback does not contribute to the score, so the ring manufactures nothing and there is no recorded rating graph to inspect. This is immunity by omission, not detection."
       },
       "scores": {
-        "composite": 34.7,
+        "composite": 34.9,
         "sybilFarming": 3.8,
-        "slowBurnHarvest": 0.2,
+        "slowBurnHarvest": 1,
         "collusiveRing": 100
       },
       "weakSpots": [
@@ -451,13 +584,13 @@
           "daysToThreshold": 25,
           "scoreAtHarvest": 50,
           "spentWei": 589596840000000,
-          "slashableWei": 10000000000000000,
+          "slashableWei": 50000000000000000,
           "harvestValueWei": 5000000000000000000,
-          "slashCoverage": 0.002,
-          "netAttackerProfitWei": 4989410403160000000,
+          "slashCoverage": 0.01,
+          "netAttackerProfitWei": 4949410403160000000,
           "scoreAfterSlash": 50
         },
-        "findings": "Reached score 50 in 25 days for 0.000589597 ETH. Bonded capital (0.010000000 ETH) covers 0.2% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+        "findings": "Reached score 50 in 25 days for 0.000589597 ETH. Bonded capital (0.050000000 ETH) covers 1.0% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
       },
       "collusion": {
         "scenario": "collusive_ring",
@@ -484,9 +617,9 @@
         "findings": "Peer feedback does not contribute to the score, so the ring manufactures nothing and there is no recorded rating graph to inspect. This is immunity by omission, not detection."
       },
       "scores": {
-        "composite": 33.4,
+        "composite": 33.7,
         "sybilFarming": 0,
-        "slowBurnHarvest": 0.2,
+        "slowBurnHarvest": 1,
         "collusiveRing": 100
       },
       "weakSpots": [
@@ -543,13 +676,13 @@
           "daysToThreshold": 25,
           "scoreAtHarvest": 50,
           "spentWei": 589596840000000,
-          "slashableWei": 10000000000000000,
+          "slashableWei": 50000000000000000,
           "harvestValueWei": 5000000000000000000,
-          "slashCoverage": 0.002,
-          "netAttackerProfitWei": 4989410403160000000,
+          "slashCoverage": 0.01,
+          "netAttackerProfitWei": 4949410403160000000,
           "scoreAfterSlash": 0
         },
-        "findings": "Reached score 50 in 25 days for 0.000589597 ETH. Bonded capital (0.010000000 ETH) covers 0.2% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+        "findings": "Reached score 50 in 25 days for 0.000589597 ETH. Bonded capital (0.050000000 ETH) covers 1.0% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
       },
       "collusion": {
         "scenario": "collusive_ring",
@@ -576,9 +709,9 @@
         "findings": "Peer feedback does not contribute to the score, so the ring manufactures nothing and there is no recorded rating graph to inspect. This is immunity by omission, not detection."
       },
       "scores": {
-        "composite": 34.7,
+        "composite": 34.9,
         "sybilFarming": 3.8,
-        "slowBurnHarvest": 0.2,
+        "slowBurnHarvest": 1,
         "collusiveRing": 100
       },
       "weakSpots": [
@@ -635,9 +768,9 @@
           "daysToThreshold": null,
           "scoreAtHarvest": 0,
           "spentWei": 4150703240000000,
-          "slashableWei": 10000000000000000,
+          "slashableWei": 50000000000000000,
           "harvestValueWei": 5000000000000000000,
-          "slashCoverage": 0.002,
+          "slashCoverage": 0.01,
           "netAttackerProfitWei": 0,
           "scoreAfterSlash": 0
         },
@@ -766,14 +899,14 @@
           "reachable": true,
           "daysToThreshold": 25,
           "scoreAtHarvest": 50,
-          "spentWei": 579541160000000,
-          "slashableWei": 500000000000000000,
+          "spentWei": 594766000000000,
+          "slashableWei": 550000000000000000,
           "harvestValueWei": 5000000000000000000,
-          "slashCoverage": 0.1,
-          "netAttackerProfitWei": 4499420458840000000,
+          "slashCoverage": 0.11,
+          "netAttackerProfitWei": 4449405234000000000,
           "scoreAfterSlash": 0
         },
-        "findings": "Reached score 50 in 25 days for 0.000579541 ETH. Bonded capital (0.500000000 ETH) covers 10.0% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
+        "findings": "Reached score 50 in 25 days for 0.000594766 ETH. Bonded capital (0.550000000 ETH) covers 11.0% of the 5.000000000 ETH harvest. Underbonded capabilities are the attack surface; raise the bond or gate the contract on more than score."
       },
       "collusion": {
         "scenario": "collusive_ring",
@@ -800,9 +933,9 @@
         "findings": "Peer feedback does not contribute to the score, so the ring manufactures nothing and there is no recorded rating graph to inspect. This is immunity by omission, not detection."
       },
       "scores": {
-        "composite": 54.6,
+        "composite": 54.9,
         "sybilFarming": 53.8,
-        "slowBurnHarvest": 10,
+        "slowBurnHarvest": 11,
         "collusiveRing": 100
       },
       "weakSpots": [

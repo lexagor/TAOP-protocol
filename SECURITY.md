@@ -116,6 +116,15 @@ The backend holds signing keys and can spend ETH, so:
 - Refunds are **pull payments**: upheld/cancelled challenges credit
   `pendingWithdrawals[challenger]`, claimed via `withdrawRefund()`. A challenger
   contract with a reverting `receive()` cannot block resolution or finalization.
+- **v0.5 stake economics**: ranking scores (`getTwoSidedScore`, `getCreditScore`)
+  are capped at `stake / 0.01 ETH` (no free tier). Stake can only be withdrawn
+  after `CHALLENGE_ELIGIBILITY` (7 days from the last attestation) and while no
+  challenge is pending. Challenges must be filed within that 7-day window.
+  Upheld disputes slash `0.05 ETH` (bounded by stake) to the challenger; the
+  Registry enforces a `0.05 ETH` minimum capability bond. The legacy
+  `getSelfAttestScore` is intentionally not stake-capped — consumers should rank
+  on the credit/two-sided score. Owner Timelock still resolves contested
+  challenges.
 - Ownership is two-step (`Ownable2Step`): `transferOwnership` only sets a
   `pendingOwner`; `acceptOwnership` must be called by the new owner. Handing the
   contracts to the Timelock/Safe therefore takes two calls (see

@@ -218,11 +218,27 @@ export function runCollusiveRing(
 
   if (needsCompletions) {
     for (const from of ring) {
+      // A ring member that stake-gates its score locks capital for the
+      // counterparties it can accumulate (M-1).
+      if (mechanism.capitalRequiredForScore && mechanism.lockCapital) {
+        mechanism.lockCapital(
+          state,
+          from,
+          mechanism.capitalRequiredForScore(Math.max(1, config.ringSize - 1)),
+        );
+      }
       for (let k = 0; k < config.ringSize - 1; k += 1) {
         mechanism.attest(state, from, 0);
       }
     }
     for (const from of honest) {
+      if (mechanism.capitalRequiredForScore && mechanism.lockCapital) {
+        mechanism.lockCapital(
+          state,
+          from,
+          mechanism.capitalRequiredForScore(Math.max(1, config.honestRatings)),
+        );
+      }
       for (let k = 0; k < config.honestRatings; k += 1) {
         mechanism.attest(state, from, 0);
       }

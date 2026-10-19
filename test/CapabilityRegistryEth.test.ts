@@ -59,7 +59,7 @@ describe("CapabilityRegistry — ETH bonds (MVP)", () => {
   it("registerCapabilityEth reverts on zero bond", async () => {
     const { registry, creator } = await deploy();
     await expect(registry.connect(creator).registerCapabilityEth(LORA, "ipfs://meta", { value: 0 }))
-      .to.be.revertedWithCustomError(registry, "ZeroBond");
+      .to.be.revertedWithCustomError(registry, "BondTooSmall");
   });
 
   it("slashCapability routes slashed ETH to slashedEthPool", async () => {

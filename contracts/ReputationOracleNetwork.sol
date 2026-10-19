@@ -42,6 +42,16 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
     ///         receipt, evidence, rebuttal, profile metadata).
     uint256 public constant MAX_URI_LEN = 200;
 
+    /// @notice Score points available per ETH of locked stake (above the free tier).
+    uint256 public constant STAKE_PER_POINT = 0.01 ether;
+    /// @notice Ranking points available without any stake (onboarding tier).
+    uint64 public constant FREE_POINTS = 0;
+    /// @notice Stake slashed per upheld dispute and paid to the challenger.
+    uint256 public constant SLASH_PER_DISPUTE = 0.05 ether;
+    /// @notice A completion may only be challenged within this window after it
+    ///         is attested; this makes the attestation stake safely withdrawable.
+    uint64 public constant CHALLENGE_ELIGIBILITY = 7 days;
+
     /// @notice Time an agent has to contest a challenge before it can be
     ///         finalized optimistically in the challenger's favour.
     uint256 public constant CHALLENGE_WINDOW = 3 days;
@@ -89,6 +99,14 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
     ///         contract with a reverting `receive()` from blocking resolution.
     mapping(address => uint256) public pendingWithdrawals;
 
+    /// @notice Agent stake backing its ranking score above FREE_POINTS.
+    mapping(address => uint256) public stake;
+    /// @notice Earnliest time the agent may withdraw stake (last attestation +
+    ///         CHALLENGE_ELIGIBILITY).
+    mapping(address => uint64) public stakeUnlockAt;
+    /// @notice Unresolved challenges against this agent; blocks stake withdrawal.
+    mapping(address => uint32) public pendingChallenges;
+
     // --- v0.3 sybil-resistance ---
     /// @notice Per-(agent, counterparty) confirmation count. Bounded diversity so a
     ///         self-dealing pair contributes at most one distinct counterparty.
@@ -111,6 +129,9 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
     event EthPoolWithdrawn(address indexed to, uint256 amount);
     event RefundCredited(address indexed to, uint256 amount);
     event RefundWithdrawn(address indexed to, uint256 amount);
+    event StakeDeposited(address indexed agent, uint256 amount);
+    event StakeWithdrawn(address indexed agent, uint256 amount);
+    event StakeSlashed(address indexed agent, uint256 amount, address indexed challenger);
     event AttestCooldownChanged(uint64 cooldown);
 
     error NoSuchCompletion();
@@ -130,6 +151,10 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
     error NothingToWithdraw();
     error ZeroAddress();
     error CooldownActive(uint64 readyAt);
+    error NoStake();
+    error StakeLocked(uint64 readyAt);
+    error ChallengesPending();
+    error ChallengeEligibilityClosed(uint64 deadline);
 
     constructor() Ownable(msg.sender) {}
 
@@ -181,6 +206,9 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
         });
         completionCount[msg.sender] += 1;
         lastActivity[msg.sender] = uint64(block.timestamp);
+        // The ranking stake stays at risk until this completion can no longer be
+        // challenged (challenge eligibility window).
+        stakeUnlockAt[msg.sender] = uint64(block.timestamp) + uint64(CHALLENGE_ELIGIBILITY);
         emit SelfAttested(completionId, msg.sender, taskType);
     }
 
@@ -249,8 +277,11 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
         Completion storage c = completions[completionId];
         if (c.agent == address(0)) revert NoSuchCompletion();
         if (c.challenged) revert AlreadyChallenged();
+        uint64 eligibleUntil = c.timestamp + CHALLENGE_ELIGIBILITY;
+        if (block.timestamp > eligibleUntil) revert ChallengeEligibilityClosed(eligibleUntil);
         if (msg.value != CHALLENGE_BOND) revert WrongChallengeBond(msg.value, CHALLENGE_BOND);
         c.challenged = true;
+        pendingChallenges[c.agent] += 1;
         challenges[completionId] = Challenge({
             challenger: msg.sender,
             evidenceCID: evidenceCID,
@@ -311,6 +342,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
             _uphold(c, ch, completionId);
         } else {
             ch.resolved = true;
+            pendingChallenges[c.agent] -= 1;
             slashedEthPool += CHALLENGE_BOND;
         }
         emit ChallengeResolved(completionId, upheld);
@@ -331,6 +363,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
         if (block.timestamp < readyAt) revert ChallengeNotTimedOut(readyAt);
 
         ch.resolved = true;
+        pendingChallenges[c.agent] -= 1;
         pendingWithdrawals[ch.challenger] += CHALLENGE_BOND;
         emit RefundCredited(ch.challenger, CHALLENGE_BOND);
         emit ChallengeCancelled(completionId, ch.challenger);
@@ -343,6 +376,15 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
         ch.resolved = true;
         c.disputed = true;
         disputeCount[c.agent] += 1;
+        pendingChallenges[c.agent] -= 1;
+        uint256 slash = SLASH_PER_DISPUTE;
+        uint256 agentStake = stake[c.agent];
+        if (slash > agentStake) slash = agentStake;
+        if (slash > 0) {
+            stake[c.agent] = agentStake - slash;
+            pendingWithdrawals[ch.challenger] += slash;
+            emit StakeSlashed(c.agent, slash, ch.challenger);
+        }
         if (c.counterparty != address(0)) {
             address cp = c.counterparty;
             delete receiptCID[completionId];
@@ -365,6 +407,27 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
         (bool ok, ) = payable(msg.sender).call{value: amount}("");
         require(ok, "withdraw failed");
         emit RefundWithdrawn(msg.sender, amount);
+    }
+
+    /// @notice Deposit stake backing the ranking score above FREE_POINTS.
+    function depositStake() external payable {
+        if (msg.value == 0) revert NoStake();
+        stake[msg.sender] += msg.value;
+        emit StakeDeposited(msg.sender, msg.value);
+    }
+
+    /// @notice Withdraw stake. Blocked until the newest attestation can no longer
+    ///         be challenged and while any challenge against the agent is pending.
+    function withdrawStake(uint256 amount) external nonReentrant {
+        uint256 balance = stake[msg.sender];
+        if (amount == 0 || amount > balance) revert NoStake();
+        uint64 readyAt = stakeUnlockAt[msg.sender];
+        if (block.timestamp < readyAt) revert StakeLocked(readyAt);
+        if (pendingChallenges[msg.sender] != 0) revert ChallengesPending();
+        stake[msg.sender] = balance - amount;
+        (bool ok, ) = payable(msg.sender).call{value: amount}("");
+        require(ok, "stake withdraw failed");
+        emit StakeWithdrawn(msg.sender, amount);
     }
 
     /// @notice Owner withdraws forfeited challenger bonds.
@@ -456,6 +519,7 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
         disputeCount_ = disputeCount[agent];
         lastActivity_ = lastActivity[agent];
         (score, decayBps) = _decayedScore(confirmedCount_, disputeCount_, lastActivity_);
+        score = _capByStake(agent, score);
     }
 
     /// @notice v0.3 credit score: diversity-adjusted ranking signal. Counts
@@ -478,6 +542,15 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
         disputeCount_ = disputeCount[agent];
         lastActivity_ = lastActivity[agent];
         (score, decayBps) = _decayedScore(distinctCounterparties_, disputeCount_, lastActivity_);
+        score = _capByStake(agent, score);
+    }
+
+    /// @dev Ranking scores are capped by stake: FREE_POINTS + stake / rate.
+    function _capByStake(address agent, uint64 score) private view returns (uint64) {
+        // cap is economically bounded far below uint64 (the full ETH supply at
+        // 0.001 ETH/point is ~1.2e8); the cast is safe.
+        uint256 cap = uint256(FREE_POINTS) + stake[agent] / STAKE_PER_POINT;
+        return score < cap ? score : uint64(cap);
     }
 
     function getCompletion(uint256 completionId) external view returns (Completion memory) {

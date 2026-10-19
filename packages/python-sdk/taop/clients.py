@@ -170,6 +170,43 @@ class ReputationOracleNetworkClient:
         """v0.2: seconds the agent has to contest a challenge."""
         return self.contract.functions.CHALLENGE_WINDOW().call()
 
+    # --- v0.5 anti-sybil economics ---
+
+    def stake(self, agent: str) -> int:
+        """Stake backing the agent's ranking score."""
+        return self.contract.functions.stake(agent).call()
+
+    def stake_unlock_at(self, agent: str) -> int:
+        """Earliest timestamp at which the agent may withdraw stake."""
+        return self.contract.functions.stakeUnlockAt(agent).call()
+
+    def pending_challenges(self, agent: str) -> int:
+        """Unresolved challenges blocking stake withdrawal."""
+        return self.contract.functions.pendingChallenges(agent).call()
+
+    def deposit_stake(self, amount_wei: int) -> dict:
+        fn = self.contract.functions.depositStake()
+        tx = fn.build_transaction({
+            "from": self.account.address,
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
+            "gas": 120_000,
+            "gasPrice": self.w3.eth.gas_price,
+            "chainId": self.w3.eth.chain_id,
+            "value": amount_wei,
+        })
+        return self._send_tx(tx)
+
+    def withdraw_stake(self, amount_wei: int) -> dict:
+        fn = self.contract.functions.withdrawStake(amount_wei)
+        tx = fn.build_transaction({
+            "from": self.account.address,
+            "nonce": self.w3.eth.get_transaction_count(self.account.address),
+            "gas": 120_000,
+            "gasPrice": self.w3.eth.gas_price,
+            "chainId": self.w3.eth.chain_id,
+        })
+        return self._send_tx(tx)
+
     def challenge_timeout(self) -> int:
         """v0.4: seconds before a challenger may reclaim a stuck challenge bond."""
         return self.contract.functions.CHALLENGE_TIMEOUT().call()

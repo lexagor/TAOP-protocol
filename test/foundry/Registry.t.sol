@@ -25,7 +25,7 @@ contract RegistryHandler is Test {
     }
 
     function register(uint96 bondSeed) external {
-        uint256 bond = bound(uint256(bondSeed), 1, 5 ether);
+        uint256 bond = bound(uint256(bondSeed), registry.MIN_BOND(), 5 ether);
         vm.deal(USER, bond);
         vm.prank(USER);
         uint256 id = registry.registerCapabilityEth{value: bond}(LORA, "ipfs://m");
@@ -99,9 +99,9 @@ contract RegistryFuzz is Test {
         registry = new CapabilityRegistry(address(this));
     }
 
-    /// @dev register with any bond in [1, 5e18] locks exactly that bond and returns increasing ids.
+    /// @dev register with any bond in [MIN_BOND, 5e18] locks exactly that bond and returns increasing ids.
     function testFuzz_registerLocksBond(uint96 bondSeed) public {
-        uint256 bond = bound(uint256(bondSeed), 1, 5 ether);
+        uint256 bond = bound(uint256(bondSeed), registry.MIN_BOND(), 5 ether);
         vm.deal(USER, bond);
         vm.prank(USER);
         uint256 id = registry.registerCapabilityEth{value: bond}(LORA, "ipfs://m");
@@ -114,8 +114,21 @@ contract RegistryFuzz is Test {
     function testFuzz_registerRejectsZeroBond(address caller) public {
         vm.assume(caller != address(0));
         vm.prank(caller);
-        vm.expectRevert(CapabilityRegistry.ZeroBond.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(CapabilityRegistry.BondTooSmall.selector, 0, registry.MIN_BOND())
+        );
         registry.registerCapabilityEth(LORA, "ipfs://m");
+    }
+
+    /// @dev A bond below MIN_BOND is rejected.
+    function testFuzz_registerRejectsBelowMinBond(uint96 bondSeed) public {
+        uint256 bond = bound(uint256(bondSeed), 1, registry.MIN_BOND() - 1);
+        vm.deal(USER, bond);
+        vm.prank(USER);
+        vm.expectRevert(
+            abi.encodeWithSelector(CapabilityRegistry.BondTooSmall.selector, bond, registry.MIN_BOND())
+        );
+        registry.registerCapabilityEth{value: bond}(LORA, "ipfs://m");
     }
 
     /// @dev Paged view agrees with the full array for arbitrary offset/limit.

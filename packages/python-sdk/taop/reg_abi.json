@@ -16,6 +16,22 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "sent",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minimum",
+        "type": "uint256"
+      }
+    ],
+    "name": "BondTooSmall",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "ERC721EnumerableForbiddenBatchMint",
     "type": "error"
@@ -495,6 +511,19 @@
   {
     "inputs": [],
     "name": "MAX_URI_LEN",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_BOND",
     "outputs": [
       {
         "internalType": "uint256",

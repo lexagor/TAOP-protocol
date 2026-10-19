@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { WEI_PER_ETH } from "./economics";
-import { BaseTaopSelfAttestMechanism, BaseTaopV03Mechanism, defaultParams } from "./mechanisms";
+import { BaseTaopSelfAttestMechanism, BaseTaopV03Mechanism, BaseTaopV05Mechanism, defaultParams } from "./mechanisms";
 import { defaultBenchmarkConfigs, ALL_SCENARIOS, buildMechanismReport } from "./rubric";
 import { defaultSybilConfig, sybilResistanceScore, runSybilFarming } from "./scenarios/sybil";
 import { defaultSlowBurnConfig, slowBurnResistanceScore, runSlowBurnHarvest } from "./scenarios/slowBurn";
@@ -61,6 +61,7 @@ function slowBurnTable(): string[] {
 function summary(): string[] {
   const configs = defaultBenchmarkConfigs(42);
   const mechanisms = [
+    new BaseTaopV05Mechanism(defaultParams()),
     new BaseTaopV03Mechanism(defaultParams()),
     new BaseTaopSelfAttestMechanism(defaultParams()),
   ];

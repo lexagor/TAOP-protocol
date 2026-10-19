@@ -11,7 +11,7 @@ import { CapabilityRegistryClient, ReputationOracleNetworkClient } from "@taopp/
  */
 describe("v0.1.2 fixes — stale index, id derivation, decay", () => {
   const LORA = ethers.id("LoRA");
-  const BOND = ethers.parseEther("0.01");
+  const BOND = ethers.parseEther("0.05");
 
   describe("CapabilityRegistry — index consistency across withdrawals (F4)", () => {
     it("withdrawBond removes the id from getCapabilitiesByType", async () => {

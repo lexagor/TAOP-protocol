@@ -14,7 +14,8 @@ contract RONHandler is Test {
     uint256[] public ids;
 
     uint256 public pending; // unresolved challenges (each holds one CHALLENGE_BOND)
-    uint256 public credited; // bonds credited to challengers (pull refunds, unclaimed)
+    uint256 public credited; // bonds/bounties credited to challengers (pull refunds, unclaimed)
+    uint256 public staked; // agent stake held by the contract
     uint256 public ghost_challenges;
 
     constructor(ReputationOracleNetwork _ron, address _owner) {
@@ -94,9 +95,12 @@ contract RONHandler is Test {
         if (!c.challenged) return;
         (bool resolved, uint64 deadline, bool contested) = _challenge(id);
         if (resolved || contested || block.timestamp < deadline) return;
+        uint256 before = ron.stake(c.agent);
         try ron.finalizeChallenge(id) {
+            uint256 slash = before - ron.stake(c.agent);
             pending--;
-            credited += ron.CHALLENGE_BOND();
+            staked -= slash;
+            credited += ron.CHALLENGE_BOND() + slash;
         } catch {}
     }
 
@@ -107,14 +111,43 @@ contract RONHandler is Test {
         if (!c.challenged) return;
         (bool resolved, , ) = _challenge(id);
         if (resolved) return;
+        uint256 before = ron.stake(c.agent);
         vm.prank(owner);
         try ron.resolveChallenge(id, upheld) {
+            uint256 slash = before - ron.stake(c.agent);
             pending--;
-            if (upheld) credited += ron.CHALLENGE_BOND();
+            if (upheld) {
+                staked -= slash;
+                credited += ron.CHALLENGE_BOND() + slash;
+            }
         } catch {}
     }
 
     /// @dev v0.4 liveness: after CHALLENGE_TIMEOUT the challenger reclaims the bond.
+    /// @dev Deposit stake from one of the test agents.
+    function stake(uint256 seed) external {
+        address a = agents[seed % agents.length];
+        uint256 amount = bound(seed, 0.001 ether, 1 ether);
+        vm.deal(a, amount);
+        vm.prank(a);
+        ron.depositStake{value: amount}();
+        staked += amount;
+    }
+
+    /// @dev Withdraw stake once unlocked and no challenge is pending.
+    function unstake(uint256 seed) external {
+        address a = agents[seed % agents.length];
+        uint256 balance = ron.stake(a);
+        if (balance == 0 || ron.pendingChallenges(a) != 0) return;
+        uint64 readyAt = ron.stakeUnlockAt(a);
+        if (block.timestamp < readyAt) vm.warp(readyAt);
+        uint256 amount = bound(seed, 1, balance);
+        vm.prank(a);
+        try ron.withdrawStake(amount) {
+            staked -= amount;
+        } catch {}
+    }
+
     function cancel(uint256 idSeed) external {
         if (ids.length == 0) return;
         uint256 id = ids[idSeed % ids.length];
@@ -147,12 +180,13 @@ contract RONInvariants is Test {
     /// @dev The contract holds exactly the pending challenge bonds plus the pool:
     ///      balance == pending * CHALLENGE_BOND + slashedEthPool.
     function invariant_ethConservation() public view {
-        // Unresolved bonds + forfeited bonds + credited (unclaimed) refunds.
+        // Unresolved bonds + forfeited bonds + credited refunds/bounties + stake.
         assertEq(
             address(ron).balance,
             uint256(handler.pending()) * ron.CHALLENGE_BOND()
                 + ron.slashedEthPool()
                 + handler.credited()
+                + handler.staked()
         );
     }
 

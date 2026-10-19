@@ -5,13 +5,14 @@ import { ethers } from "hardhat";
 describe("public surface coverage", () => {
   const SUMMARY = ethers.id("summarization");
   const LORA = ethers.id("LoRA");
-  const BOND = ethers.parseEther("0.01");
+  const BOND = ethers.parseEther("0.01"); // RON challenge bond
+  const REG_BOND = ethers.parseEther("0.05"); // Registry MIN_BOND
 
   it("Registry exposes the capability type of a token", async () => {
     const [owner, creator] = await ethers.getSigners();
     const Registry = await ethers.getContractFactory("CapabilityRegistry");
     const registry = await Registry.deploy(owner.address);
-    await registry.connect(creator).registerCapabilityEth(LORA, "ipfs://meta", { value: BOND });
+    await registry.connect(creator).registerCapabilityEth(LORA, "ipfs://meta", { value: REG_BOND });
     expect(await registry.capabilityTypeOf(1)).to.eq(LORA);
   });
 

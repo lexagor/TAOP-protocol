@@ -83,11 +83,11 @@ async function main() {
   console.log("Deployer balance:", ethers.formatEther(deployerBal), "ETH");
 
   // Pre-flight funds check: 3 contract deploys + agent top-up + buffer.
-  const MIN_DEPLOYER = ethers.parseEther("0.08");
+  const MIN_DEPLOYER = ethers.parseEther("0.15");
   if (deployerBal < MIN_DEPLOYER) {
     console.error(
       `\n❌ Deployer ${deployerAddr} holds ${ethers.formatEther(deployerBal)} ETH but at least ` +
-        `${ethers.formatEther(MIN_DEPLOYER)} is required (3 deploys + Agent A top-up + gas buffer).`,
+        `${ethers.formatEther(MIN_DEPLOYER)} is required (3 deploys + 0.1 ETH Agent A funding + gas buffer).`,
     );
     if (isMainnet) {
       console.error("   Send REAL Base ETH to the deployer, then re-run.");
@@ -223,7 +223,7 @@ async function main() {
   // Top up only the shortfall so repeated deploys don't accumulate idle funds.
   // On mainnet this would send REAL ETH to a freshly generated wallet, so it is
   // opt-in (FUND_AGENT_A=true); otherwise the operator funds it deliberately.
-  const MIN_AGENT_BALANCE = ethers.parseEther("0.05"); // capability bond (0.01) + attest gas + challenge bond (0.01) + buffer
+  const MIN_AGENT_BALANCE = ethers.parseEther("0.15"); // capability bond (0.05) + stake (0.01) + challenge bond (0.01) + gas + buffer
   const agentBal = await ethers.provider.getBalance(agentAAddr);
   if (agentBal < MIN_AGENT_BALANCE) {
     const topUp = MIN_AGENT_BALANCE - agentBal;

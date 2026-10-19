@@ -46,13 +46,18 @@ Companion docs: [`redeploy-v0.2.md`](redeploy-v0.2.md),
 - [ ] Attach the Mythril report artifact for the redeploy commit (dispatch the
       `Mythril (symbolic)` workflow on the redeploy tag, download `mythril-report`).
 - [ ] Decide paid audit vs. free-only for mainnet value; fund if chosen.
-- [ ] Decide the **anti-sybil policy** (minimum attest bond, per-address rate limits, identity anchors). This is the credibility gap, not a code bug.
+- [x] **v0.5 anti-sybil economics implemented**: ranking scores capped at
+      `stake / 0.01 ETH` (no free tier), 7-day challenge eligibility, 0.05 ETH
+      dispute slash/bounty, `MIN_BOND = 0.05 ETH`. Benchmark: Sybil 66.3/100.
+- [ ] Set the launch `attestCooldown` (e.g. 60s) and decide the consumer value cap
+      (`gated value ≤ k × capability bond`) or value-scaled bonds; identity
+      anchors remain optional multipliers.
 - [x] Pause / circuit breaker shipped (v0.3; exits stay open).
 - [x] Pull-payment challenge refunds (a reverting receiver can't block resolution),
       challenge liveness, two-step ownership, URI caps (v0.4).
 - [x] Deep bug sweep: SSRF (mapped IPv6/redirects), async-rejection crash class,
       metrics cardinality, NaN params/env, reorg alert purge, alert idempotency.
-- [x] Coverage 100% statements/functions/lines (branches 75.24); mutation 23/23.
+- [x] Coverage 100% statements/functions/lines (branches 76.79); mutation 29/29.
 
 ## 3. Infrastructure & funding
 

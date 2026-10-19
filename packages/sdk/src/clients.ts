@@ -88,6 +88,26 @@ export class ReputationOracleNetworkClient {
   maxUriLen(): Promise<bigint> {
     return this.c.MAX_URI_LEN() as Promise<bigint>;
   }
+  /** v0.5: stake backing the ranking score above the free tier. */
+  stake(agent: string): Promise<bigint> {
+    return this.c.stake(agent) as Promise<bigint>;
+  }
+  /** v0.5: earliest timestamp at which stake can be withdrawn. */
+  stakeUnlockAt(agent: string): Promise<bigint> {
+    return this.c.stakeUnlockAt(agent) as Promise<bigint>;
+  }
+  /** v0.5: unresolved challenges blocking stake withdrawal. */
+  pendingChallenges(agent: string): Promise<bigint> {
+    return this.c.pendingChallenges(agent) as Promise<bigint>;
+  }
+  /** v0.5: deposit stake. */
+  async depositStake(value: bigint): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.depositStake({ value })).wait()) ?? null;
+  }
+  /** v0.5: withdraw stake (requires unlock passed and no pending challenges). */
+  async withdrawStake(amount: bigint): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.withdrawStake(amount)).wait()) ?? null;
+  }
   /** Current owner (TimelockController in production). */
   owner(): Promise<string> {
     return this.c.owner() as Promise<string>;

@@ -12,7 +12,7 @@ import {
 import { isCapabilityRegistered, recordCapability, getMeta, setMeta, db } from "./db.js";
 import { pinJSON, buildModelCard } from "./ipfs.js";
 
-const DEMO_BOND_ETH = "0.01";
+const DEMO_BOND_ETH = "0.05"; // Registry MIN_BOND (v0.5)
 
 export interface BackendState {
   deployment: Deployment;
@@ -231,8 +231,28 @@ export async function initState(): Promise<BackendState> {
     logger.info("[backend] read-only mode: skipping the Agent A capability bootstrap (no startup writes)");
   } else {
     await ensureCapability(state);
+    await ensureAgentStake(state);
   }
   return state;
+}
+
+/** v0.5: ranking scores are stake-capped; make sure the demo agent can score.
+ *  `AGENT_STAKE_ETH=0` disables (e.g. when the operator stakes deliberately). */
+export async function ensureAgentStake(state: BackendState): Promise<void> {
+  const desired = (process.env.AGENT_STAKE_ETH ?? "0.01").trim();
+  if (desired === "0" || desired === "") return;
+  try {
+    const current = await state.ron.stake(state.agentAAddress);
+    if (current > 0n) return;
+    const value = ethers.parseEther(desired);
+    await state.ronAgentA.depositStake(value);
+    logger.info(`[stake] deposited ${desired} ETH stake for Agent A`);
+  } catch (e) {
+    // Pre-v0.5 deployments have no stake(); this is expected there.
+    logger.info(
+      `[stake] skipping Agent A stake (${String((e as Error).message ?? e).slice(0, 120)})`,
+    );
+  }
 }
 
 /** Ensure Agent A has a certified LoRA capability registered with an ETH bond.

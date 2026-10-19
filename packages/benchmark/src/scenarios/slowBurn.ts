@@ -59,18 +59,19 @@ export function runSlowBurnHarvest(
   const attacker = 0;
   mechanism.ensureAgent(state, attacker);
 
-  // Model the capital required to bid on the high-value contract: a stake-gated
-  // mechanism needs locked stake, TAOP needs a bonded capability.
+  // Bidding on a high-value contract requires a bonded capability. Mechanisms
+  // that gate reputation on capital additionally require locked stake.
+  {
+    const record = mechanism.ensureAgent(state, attacker);
+    record.lockedWei += mechanism.params.capabilityBondWei;
+    record.spentWei += txCost(GAS.registerCapabilityEth);
+  }
   if (mechanism.capitalRequiredForScore && mechanism.lockCapital) {
     mechanism.lockCapital(
       state,
       attacker,
       mechanism.capitalRequiredForScore(config.targetScore),
     );
-  } else {
-    const record = mechanism.ensureAgent(state, attacker);
-    record.lockedWei += mechanism.params.capabilityBondWei;
-    record.spentWei += txCost(GAS.registerCapabilityEth);
   }
 
   const accomplices = mechanism.requiresReceipts

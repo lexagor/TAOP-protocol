@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **v0.5 anti-sybil economics** (contracts, benchmark, SDKs, backend):
+  - Ranking scores (`getTwoSidedScore`, `getCreditScore`) are capped at
+    `stake / STAKE_PER_POINT` with `STAKE_PER_POINT = 0.01 ETH` and no free tier;
+    the legacy self-attest score stays uncapped.
+  - `depositStake()` / `withdrawStake(amount)`: withdrawal requires the 7-day
+    `CHALLENGE_ELIGIBILITY` window to have passed and no pending challenges.
+  - Challenges are only accepted within `CHALLENGE_ELIGIBILITY` (7 days) of
+    attestation; an upheld dispute slashes `SLASH_PER_DISPUTE = 0.05 ETH`
+    (bounded by stake) to the challenger as a bounty.
+  - `CapabilityRegistry.MIN_BOND = 0.05 ETH`.
+  - Benchmark `base_taop_v05` (seed 42): **Sybil 66.3/100** (v0.3: 7.5),
+    slow-burn 11.0, collusion 0 with detector recall 1.0.
+  - SDK/Python: stake getters/deposit/withdraw, `MIN_BOND`; deploy verification
+    checks v0.5 parameters; the backend bootstraps `AGENT_STAKE_ETH=0.01` for the
+    demo and the deploy scripts fund Agent A with 0.15 ETH.
 - **Mainnet deploy guard**: `deploy:mainnet` refuses a 0-delay Timelock or a hot
   deployer EOA in the proposer/executor roles (fork rehearsals exempt), warns
   when the public RPC / missing Basescan key / deployer-as-certifier would ship,

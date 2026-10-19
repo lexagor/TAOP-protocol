@@ -10,7 +10,7 @@ import { ethers } from "hardhat";
 describe("security hardening — Slither triage", () => {
   const SUMMARY = ethers.id("summarization");
   const LORA = ethers.id("LoRA");
-  const BOND = ethers.parseEther("0.01");
+  const BOND = ethers.parseEther("0.05");
 
   it("CapabilityRegistry rejects a zero certifier at construction", async () => {
     const Registry = await ethers.getContractFactory("CapabilityRegistry");

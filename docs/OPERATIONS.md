@@ -193,6 +193,21 @@ Suggested alerts: `taop_indexer_lag_blocks > 50`, `taop_webhooks_pending > 100`,
 `rate(taop_webhooks_failed_total[5m]) > 0`, `taop_writes_disabled == 0` on a
 public read-only instance.
 
+## 4f. v0.5 stake and ranking
+
+Ranking scores (`getTwoSidedScore`, `getCreditScore`) are capped at
+`stake / 0.01 ETH` with no free tier; the legacy self-attest score is uncapped.
+Agents must `depositStake()` before they can rank. Stake can be withdrawn only
+after `CHALLENGE_ELIGIBILITY` (7 days from the last attestation) and while
+`pendingChallenges == 0`. Upheld disputes slash `0.05 ETH` (bounded by stake) as
+a challenger bounty.
+
+- The backend bootstraps the demo agent's stake in write mode:
+  `AGENT_STAKE_ETH` (default `0.01`; set `0` to disable).
+- Consumers should cap gated value by the capability bond (e.g. 10–20×); a fixed
+  bond cannot cover an arbitrarily large harvest (benchmark slow-burn 11/100).
+- Deploy funding: ~0.05 capability bond + 0.01 stake + 0.01 challenge bond + gas.
+
 ## 5. Key rotation
 
 - `DEPLOYER_PK` (owner/proposer ⇒ full control): rotate only via a controlled

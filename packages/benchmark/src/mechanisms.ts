@@ -20,7 +20,13 @@ export interface MechanismParams {
 }
 
 export const DEFAULT_CHALLENGE_BOND_WEI = 0.01 * WEI_PER_ETH;
-export const DEFAULT_CAPABILITY_BOND_WEI = 0.01 * WEI_PER_ETH;
+/** Matches the v0.5 Registry MIN_BOND. */
+export const DEFAULT_CAPABILITY_BOND_WEI = 0.05 * WEI_PER_ETH;
+
+/** v0.5 anti-sybil economics (mirrors ReputationOracleNetwork constants). */
+export const V05_STAKE_PER_POINT_WEI = 0.01 * WEI_PER_ETH;
+export const V05_FREE_POINTS = 0;
+export const V05_SLASH_PER_DISPUTE_WEI = 0.05 * WEI_PER_ETH;
 export const DECAY_GRACE_SECS = 30 * 24 * 60 * 60;
 export const DECAY_HORIZON_SECS = 150 * 24 * 60 * 60;
 
@@ -336,7 +342,7 @@ export class BaseTaopTwoSidedMechanism extends DecayingMechanism {
 
 /** v0.3: diversity-adjusted credit score (distinct counterparties only). */
 export class BaseTaopV03Mechanism extends DecayingMechanism {
-  readonly name = "base_taop_v03";
+  readonly name: string = "base_taop_v03";
   readonly usesPeerRatings = true;
   readonly requiresReceipts = true;
   readonly description =
@@ -349,6 +355,48 @@ export class BaseTaopV03Mechanism extends DecayingMechanism {
 
   netScore(state: MechanismState, agent: number): number {
     return distinctCounterparties(ensure(state, agent));
+  }
+}
+
+/** v0.5: v0.3 credit score capped by stake, with dispute slashing/bounty. */
+export class BaseTaopV05Mechanism extends BaseTaopV03Mechanism {
+  readonly name = "base_taop_v05";
+  readonly description =
+    "v0.5: diversity credit score capped at FREE_POINTS + stake/rate; an upheld " +
+    "dispute slashes stake (SLASH_PER_DISPUTE) as a challenger bounty.";
+
+  score(state: MechanismState, agent: number, now: number): number {
+    const record = ensure(state, agent);
+    const cap =
+      V05_FREE_POINTS + Math.floor(record.lockedWei / V05_STAKE_PER_POINT_WEI);
+    return Math.min(super.score(state, agent, now), cap);
+  }
+
+  capitalRequiredForScore(targetScore: number): number {
+    return Math.max(0, targetScore - V05_FREE_POINTS) * V05_STAKE_PER_POINT_WEI;
+  }
+
+  lockCapital(state: MechanismState, agent: number, wei: number): void {
+    const record = ensure(state, agent);
+    record.lockedWei += wei;
+  }
+
+  slashable(state: MechanismState, agent: number): number {
+    return ensure(state, agent).lockedWei;
+  }
+
+  resolve(state: MechanismState, completionId: number, upheld: boolean): void {
+    if (upheld) {
+      const completion = state.completions.find((entry) => entry.id === completionId);
+      if (completion) {
+        const record = ensure(state, completion.agent);
+        const slash = Math.min(V05_SLASH_PER_DISPUTE_WEI, record.lockedWei);
+        record.lockedWei -= slash;
+        record.slashedWei += slash;
+        record.spentWei += slash;
+      }
+    }
+    super.resolve(state, completionId, upheld);
   }
 }
 
@@ -442,6 +490,7 @@ export function defaultParams(): MechanismParams {
 
 export function allMechanisms(params = defaultParams()): Mechanism[] {
   return [
+    new BaseTaopV05Mechanism(params),
     new BaseTaopV03Mechanism(params),
     new BaseTaopTwoSidedMechanism(params),
     new BaseTaopSelfAttestMechanism(params),

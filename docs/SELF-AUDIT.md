@@ -91,6 +91,18 @@ New surface added after the review above — to be re-reviewed when deployed:
   a pending challenge's bond after a 90-day `CHALLENGE_TIMEOUT` when it is never
   resolved, so a contested challenge cannot lock funds forever
   (`test/ChallengeLiveness.test.ts`).
+- **v0.5 stake economics**: ranking scores are capped by
+  `FREE_POINTS + stake / STAKE_PER_POINT` (both ranking getters only; the legacy
+  self-attest score stays uncapped). `challengeCompletion` requires the
+  completion to be <= `CHALLENGE_ELIGIBILITY` old; stake withdrawal requires the
+  unlock window and no pending challenges; upheld disputes slash
+  `SLASH_PER_DISPUTE` (bounded by stake) to the challenger. `CapabilityRegistry`
+  enforces `MIN_BOND`. The Foundry ETH-conservation invariant now includes agent
+  stake; `test/V05Economics.test.ts` covers cap, eligibility, bounty, withdrawal
+  gating and the minimum bond. Residual trust: the owner/Timelock still resolves
+  contested challenges, and consumers must apply a value cap (`gated value <=
+  k × capability bond`) because a fixed bond cannot cover arbitrarily large
+  harvests (benchmark slow-burn 11/100 at a 5 ETH harvest).
 - **Refund safety (pull payments)**: upheld/cancelled challenge refunds are
   credited to `pendingWithdrawals` and claimed with `withdrawRefund()` instead of
   pushed. A challenger contract with a reverting `receive()` can no longer block

@@ -36,6 +36,10 @@ const ron = new ethers.Contract(
     "function pendingOwner() view returns (address)",
     "function CHALLENGE_WINDOW() view returns (uint256)",
     "function CHALLENGE_TIMEOUT() view returns (uint256)",
+    "function CHALLENGE_ELIGIBILITY() view returns (uint64)",
+    "function STAKE_PER_POINT() view returns (uint256)",
+    "function FREE_POINTS() view returns (uint64)",
+    "function SLASH_PER_DISPUTE() view returns (uint256)",
     "function MAX_URI_LEN() view returns (uint256)",
     "function getTwoSidedScore(address) view returns (uint64,uint64,uint64,uint64,uint16)",
     "function paused() view returns (bool)",
@@ -50,6 +54,7 @@ const registry = new ethers.Contract(
     "function owner() view returns (address)",
     "function pendingOwner() view returns (address)",
     "function certifier() view returns (address)",
+    "function MIN_BOND() view returns (uint256)",
     "function MAX_URI_LEN() view returns (uint256)",
     "function countCapabilitiesByType(bytes32) view returns (uint256)",
     "function paused() view returns (bool)",
@@ -186,8 +191,51 @@ if (ronHasV4) {
   );
 }
 
+// v0.5 anti-sybil economics (stake-capped ranking, eligibility, slash bounty).
+const ronHasV5 = selectorIn(ronCode, "STAKE_PER_POINT()") || selectorIn(ronCode, "depositStake()");
+let v5 = false;
+if (ronHasV5) {
+  v5 = true;
+  try {
+    const rate = await ron.STAKE_PER_POINT();
+    check("v0.5 STAKE_PER_POINT is 0.01 ETH", rate === 10_000_000_000_000_000n, `${rate} wei`);
+  } catch {
+    check("v0.5 STAKE_PER_POINT callable", false);
+  }
+  try {
+    const free = await ron.FREE_POINTS();
+    check("v0.5 FREE_POINTS is 0", free === 0n, `${free}`);
+  } catch {
+    check("v0.5 FREE_POINTS callable", false);
+  }
+  try {
+    const slash = await ron.SLASH_PER_DISPUTE();
+    check("v0.5 SLASH_PER_DISPUTE is 0.05 ETH", slash === 50_000_000_000_000_000n, `${slash} wei`);
+  } catch {
+    check("v0.5 SLASH_PER_DISPUTE callable", false);
+  }
+  try {
+    const elig = await ron.CHALLENGE_ELIGIBILITY();
+    check("v0.5 CHALLENGE_ELIGIBILITY is 7 days", elig === 604_800n, `${elig}s`);
+  } catch {
+    check("v0.5 CHALLENGE_ELIGIBILITY callable", false);
+  }
+  check(
+    "v0.5 depositStake/withdrawStake selectors present",
+    selectorIn(ronCode, "depositStake()") && selectorIn(ronCode, "withdrawStake(uint256)"),
+  );
+  try {
+    const minBond = await registry.MIN_BOND();
+    check("v0.5 Registry MIN_BOND is 0.05 ETH", minBond === 50_000_000_000_000_000n, `${minBond} wei`);
+  } catch {
+    check("v0.5 Registry MIN_BOND callable", false);
+  }
+} else {
+  console.log("INFO  v0.5 economics absent (pre-v0.5 deployment): stake, eligibility, bounty");
+}
+
 console.log(
-  `INFO  feature level: ${v4 ? "v0.4" : v3 ? "v0.3" : v2 ? "v0.2" : "pre-v0.2"}`,
+  `INFO  feature level: ${v5 ? "v0.5" : v4 ? "v0.4" : v3 ? "v0.3" : v2 ? "v0.2" : "pre-v0.2"}`,
 );
 
 try {

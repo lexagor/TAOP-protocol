@@ -7,7 +7,7 @@ import { ethers } from "hardhat";
  */
 describe("CapabilityRegistry — paginated discovery (F10)", () => {
   const LORA = ethers.id("LoRA");
-  const BOND = ethers.parseEther("0.01");
+  const BOND = ethers.parseEther("0.05");
 
   async function deployWith(n: number) {
     const [creator] = await ethers.getSigners();

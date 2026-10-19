@@ -18,6 +18,7 @@ for Base/ETH with the TAOP Base mechanisms added.
 
 | Mechanism | Score rule | Bonds |
 |---|---|---|
+| `base_taop_v05` | v0.3 credit score capped at `stake / 0.01 ETH`; upheld disputes slash 0.05 ETH | challenge bond, capability bond, stake |
 | `base_taop_v03` | distinct counterparties − disputes, linear decay | challenge bond, capability bond |
 | `base_taop_twosided` | receipt confirmations − disputes, linear decay | challenge bond, capability bond |
 | `base_taop_self_attest` | self-attested completions − disputes, linear decay | challenge bond, capability bond |
@@ -33,9 +34,11 @@ for Base/ETH with the TAOP Base mechanisms added.
 
 Costs are modeled in wei from measured gas (`gas-snapshot.json`) plus published
 price assumptions: 0.03 gwei base fee, 0.01 gwei priority fee, and 0.000003 ETH
-L1 data per transaction. Bonds: 0.01 ETH challenge bond, 0.01 ETH capability
-bond. The Sybil capital component is normalized to 0.01 ETH locked per point —
-a stated policy choice, not a measurement.
+L1 data per transaction. Bonds: 0.01 ETH challenge bond, 0.05 ETH capability
+bond (v0.5 Registry `MIN_BOND`). v0.5 requires 0.01 ETH stake per ranking point
+(no free tier) and slashes 0.05 ETH per upheld dispute. The Sybil capital
+component is normalized to 0.01 ETH locked per point — a stated policy choice,
+not a measurement.
 
 ## Run
 

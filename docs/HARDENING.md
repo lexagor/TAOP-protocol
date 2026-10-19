@@ -68,6 +68,9 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - Backend: loopback by default, `X-TAOP-Key` write gate (constant-time), rate
   limits, `DEMO_READ_ONLY`, refuses a public bind without a key; structured logs
   with secret redaction; enriched `/api/healthz` + `/api/alerts`.
+- **Demo stake bootstrap**: `ensureAgentStake` deposits `AGENT_STAKE_ETH`
+  (default 0.01) for Agent A in write mode so the demo has a non-zero ranking
+  score; `AGENT_STAKE_ETH=0` disables.
 - **Read-only instances never write** and need **no keys**: `DEMO_READ_ONLY=true`
   skips the startup Agent A capability bootstrap, reads through the provider,
   and takes addresses from the deployment descriptor. Write mode fails fast
@@ -142,13 +145,17 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
   only go up. Current: stmts 97.9, funcs 95.0, lines 97.6, branches 74.75.
 - Foundry fuzz + invariants (ETH conservation — including cancelled challenges —
   receipt/dispute consistency, score bounds, index integrity). 13 tests.
-- Mutation spot-check (23/23 critical mutants caught, including the v0.4
-  cancel-timeout, refund and URI-cap mutations).
+- Mutation spot-check (29/29 critical mutants caught, including v0.4 cancel/
+  refund/URI caps and v0.5 eligibility/stake-cap/slash/min-bond mutations).
 - Zero-address guards; indexed address events; no protocol token.
 - **Pull-payment refunds**: challenge refunds are credited and claimed explicitly
   (`withdrawRefund`), so a reverting challenger receiver can't block resolution.
   Foundry ETH conservation: `balance == pending bonds + slashed pool + credited
-  refunds`.
+  refunds + agent stake`.
+- **v0.5 stake economics**: ranking scores are stake-capped; stake withdrawal is
+  gated by the 7-day challenge eligibility window and pending challenges;
+  upheld disputes slash 0.05 ETH to the challenger; Registry `MIN_BOND = 0.05 ETH`.
+  Coverage 100% statements/functions/lines (branches 76.79).
 - **O(1) capability index removal**: a position map replaces the unbounded linear
   scan in `withdrawBond`, so gas does not grow with the number of capabilities of
   a type.

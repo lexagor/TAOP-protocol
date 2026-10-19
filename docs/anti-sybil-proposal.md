@@ -1,12 +1,21 @@
-# Anti-sybil design proposal (v0.3)
+# Anti-sybil design
 
-**Status (updated): the two cheap levers are IMPLEMENTED in v0.3** —
-counterparty-diversity weighting (`getCreditScore` on distinct counterparties) and
-an owner-settable attestation cooldown. They activate on redeploy. Still open
-(owner decisions): a minimum attest bond, identity anchors, and whether to require
-the credit score for any listing.
+**Status (2026-10-19): v0.5 implements the economics.** Ranking scores
+(`getTwoSidedScore`, `getCreditScore`) are now **stake-capped**
+(`FREE_POINTS = 0`, `STAKE_PER_POINT = 0.01 ETH`); stake is withdrawable only
+after `CHALLENGE_ELIGIBILITY` (7 days) and while no challenge is pending.
+Challenges must be filed within that eligibility window. An upheld dispute
+slashes `SLASH_PER_DISPUTE = 0.05 ETH` from the agent's stake and credits it to
+the challenger as a bounty (plus the challenge-bond refund). The Registry
+requires `MIN_BOND = 0.05 ETH`. The v0.3 diversity score and cooldown remain.
 
-Original proposal below, for the remaining decisions.
+Measured with the seed-42 benchmark: **Sybil 66.3/100** (v0.3: 7.5),
+slow-burn 11.0 (a 5 ETH harvest still needs a value-scaled bond or a consumer cap
+of gated value vs bond), collusion 0 with detector recall 1.0.
+
+Still open (policy, not code): the launch `attestCooldown` value, a consumer
+value cap (`gated value <= k × capability bond`) or value-scaled bonds, and
+optional identity multipliers.
 
 ## Problem
 
