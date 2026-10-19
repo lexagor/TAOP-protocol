@@ -124,6 +124,12 @@ describe("ReputationOracleNetwork — self-attest + challenge (MVP)", () => {
     expect(completion.disputed).to.eq(true);
     const challenge = await ron.challenges(1);
     expect(challenge.resolved).to.eq(true);
+    // Pull payment: the bond is credited, then claimed explicitly.
+    expect(await ron.pendingWithdrawals(challenger.address)).to.eq(CHALLENGE_BOND);
+    await expect(ron.connect(challenger).withdrawRefund())
+      .to.emit(ron, "RefundWithdrawn")
+      .withArgs(challenger.address, CHALLENGE_BOND);
+    expect(await ron.pendingWithdrawals(challenger.address)).to.eq(0n);
     const challengerAfter = await ethers.provider.getBalance(challenger.address);
     expect(challengerAfter).to.be.gt(challengerBefore);
   });

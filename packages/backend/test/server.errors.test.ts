@@ -10,6 +10,9 @@ process.env.TAOP_NO_AUTOSTART = "true";
 process.env.HOST = "127.0.0.1";
 delete process.env.DEMO_READ_ONLY;
 
+const idb = await import("../src/index_db.js");
+idb.initIndexSchema();
+
 const { app, setBackendState } = await import("../src/server.js");
 
 setBackendState({
@@ -24,7 +27,7 @@ setBackendState({
   },
   provider: { getBlockNumber: async () => 1 },
   ron: {},
-  registryOracle: {},
+  registryOracle: { getCapabilitiesByType: async () => [] },
   timelockDelay: 0n,
   capabilityId: 0n,
 } as never);
@@ -45,6 +48,22 @@ describe("API error handling", () => {
     expect(res.status).toBe(400);
     expect(res.headers["content-type"]).toContain("application/json");
     expect(res.body).toEqual({ error: "Invalid JSON body" });
+  });
+
+  it("falls back safely on non-numeric query limits", async () => {
+    for (const path of ["/api/alerts?limit=abc", "/api/admin/audit?limit=abc", "/api/discover?limit=abc"]) {
+      const res = await request(app).get(path);
+      expect(res.status, path).toBe(200);
+    }
+  });
+
+  it("forwards async handler rejections to the JSON error handler (no crash)", async () => {
+    const res = await request(app).get("/api/agents/0x0000000000000000000000000000000000000001/score");
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: "Internal server error" });
+    // The process is still alive and serving.
+    const health = await request(app).get("/api/healthz");
+    expect(health.status).toBe(200);
   });
 
   it("returns a JSON 413 for oversized bodies", async () => {

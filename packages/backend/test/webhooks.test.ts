@@ -165,6 +165,11 @@ describe("webhook URL validation (SSRF hygiene)", () => {
       "http://169.254.1.1/hook",
       "http://0.0.0.0/hook",
       "http://[::1]/hook",
+      "http://[::ffff:127.0.0.1]/hook",
+      "http://[::ffff:7f00:1]/hook",
+      "http://[::ffff:a00:1]/hook",
+      "http://[::ffff:c0a8:101]/hook",
+      "http://[::ffff:a9fe:a9fe]/hook",
       "http://printer.local/hook",
     ];
     for (const target of targets) {

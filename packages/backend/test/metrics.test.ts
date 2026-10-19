@@ -13,6 +13,7 @@ process.env.DEMO_READ_ONLY = "true";
 delete process.env.TAOP_WEBHOOK_URL;
 
 const { app, setBackendState } = await import("../src/server.js");
+const { normalizeHttpMethod } = await import("../src/metrics.js");
 
 setBackendState({
   deployment: {
@@ -30,6 +31,15 @@ setBackendState({
   timelockDelay: 0n,
   capabilityId: 1n,
 } as never);
+
+describe("metrics method labels", () => {
+  it("buckets unknown HTTP methods to bound cardinality", () => {
+    expect(normalizeHttpMethod("GET")).toBe("GET");
+    expect(normalizeHttpMethod("post")).toBe("POST");
+    expect(normalizeHttpMethod("PROPFIND")).toBe("OTHER");
+    expect(normalizeHttpMethod("X".repeat(64))).toBe("OTHER");
+  });
+});
 
 describe("GET /api/metrics", () => {
   it("exposes Prometheus text metrics", async () => {

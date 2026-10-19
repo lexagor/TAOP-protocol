@@ -37,8 +37,11 @@ const MUTANTS = [
   { file: "contracts/ReputationOracleNetwork.sol", find: "if (block.timestamp < readyAt) revert ChallengeNotTimedOut(readyAt);", replace: "if (false) revert ChallengeNotTimedOut(readyAt);", label: "RON cancelChallenge ignores the timeout" },
   { file: "contracts/ReputationOracleNetwork.sol", find: "if (msg.sender != ch.challenger) revert NotChallenger();", replace: "if (false) revert NotChallenger();", label: "RON cancelChallenge open to anyone" },
   { file: "contracts/ReputationOracleNetwork.sol", find: "if (bytes(uri).length > MAX_URI_LEN) revert URITooLong(bytes(uri).length);", replace: "if (false) revert URITooLong(bytes(uri).length);", label: "RON URI cap ignored" },
-  { file: "contracts/ReputationOracleNetwork.sol", find: "ch.resolved = true;\n        (bool ok, ) = payable(ch.challenger).call{value: CHALLENGE_BOND}(\"\");", replace: "ch.resolved = true;\n        (bool ok, ) = payable(ch.challenger).call{value: 0}(\"\");", label: "RON cancelChallenge does not refund" },
   { file: "contracts/CapabilityRegistry.sol", find: "if (bytes(uri).length > MAX_URI_LEN) revert URITooLong(bytes(uri).length);", replace: "if (false) revert URITooLong(bytes(uri).length);", label: "Registry URI cap ignored" },
+  // v0.4 refund safety (pull payments)
+  { file: "contracts/ReputationOracleNetwork.sol", find: "pendingWithdrawals[ch.challenger] += CHALLENGE_BOND;", replace: "pendingWithdrawals[ch.challenger] += 0;", label: "RON cancel does not credit refund" },
+  { file: "contracts/ReputationOracleNetwork.sol", find: "        }\n        pendingWithdrawals[ch.challenger] += CHALLENGE_BOND;", replace: "        }\n        pendingWithdrawals[ch.challenger] += 0;", label: "RON upheld challenge does not credit refund" },
+  { file: "contracts/ReputationOracleNetwork.sol", find: "pendingWithdrawals[msg.sender] = 0;", replace: "// mutated: double-claim allowed", label: "RON refund can be claimed twice" },
 ];
 
 let caught = 0;

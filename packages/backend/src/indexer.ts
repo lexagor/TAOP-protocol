@@ -66,6 +66,12 @@ const RON_EVENTS = [
   "event Unpaused(address account)",
 ];
 
+/** Parse a numeric env var, falling back on NaN and clamping to a range. */
+const envInt = (name: string, fallback: number, min: number, max: number): number => {
+  const n = Number(process.env[name] ?? fallback);
+  return Number.isFinite(n) ? Math.min(Math.max(Math.floor(n), min), max) : fallback;
+};
+
 const registryIface = new ethers.Interface(REGISTRY_EVENTS);
 const ronIface = new ethers.Interface(RON_EVENTS);
 
@@ -472,8 +478,8 @@ export async function pollOnce(state: BackendState, opts: PollOptions): Promise<
   // not delivered yet (its cursor protects them), and only prune log markers
   // when explicitly enabled — a reorg rebuild clears them anyway.
   try {
-    const alertsKeep = Number(process.env.DB_RETENTION_ALERTS ?? "5000");
-    const markerBlocks = Number(process.env.DB_RETENTION_LOG_MARKERS_BLOCKS ?? "0");
+    const alertsKeep = envInt("DB_RETENTION_ALERTS", 5000, 0, 1_000_000);
+    const markerBlocks = envInt("DB_RETENTION_LOG_MARKERS_BLOCKS", 0, 0, 100_000_000);
     status.alertsPruned += pruneAlerts(alertsKeep, lastDeliveredIdIfEnabled());
     if (markerBlocks > 0) {
       status.markersPruned += pruneIndexedLogs(status.lastBlock, markerBlocks);
@@ -492,18 +498,20 @@ export async function startIndexer(state: BackendState): Promise<void> {
   status.enabled = true;
   initIndexSchema();
 
-  const pollMs = Number(process.env.INDEXER_POLL_MS ?? 15000);
-  const chunkSize = Number(process.env.INDEXER_CHUNK_SIZE ?? 2000);
-  const confirmations = Number(process.env.INDEXER_CONFIRMATIONS ?? 5);
-  const lookback = Number(process.env.INDEXER_LOOKBACK_BLOCKS ?? 50000);
-  const maxChunks = Number(process.env.INDEXER_MAX_CHUNKS_PER_TICK ?? 20);
+  const pollMs = envInt("INDEXER_POLL_MS", 15000, 250, 3_600_000);
+  const chunkSize = envInt("INDEXER_CHUNK_SIZE", 2000, 1, 100_000);
+  const confirmations = envInt("INDEXER_CONFIRMATIONS", 5, 0, 10_000);
+  const lookback = envInt("INDEXER_LOOKBACK_BLOCKS", 50000, 0, 100_000_000);
+  const maxChunks = envInt("INDEXER_MAX_CHUNKS_PER_TICK", 20, 1, 10_000);
 
   await loadDecayConstants(state);
   status.useTwoSided = await detectTwoSided(state);
   status.useCredit = status.useTwoSided ? await detectCredit(state) : false;
 
   const head = await state.provider.getBlockNumber();
-  const explicitStart = process.env.INDEXER_START_BLOCK ? Number(process.env.INDEXER_START_BLOCK) : undefined;
+  const explicitStart = process.env.INDEXER_START_BLOCK
+    ? envInt("INDEXER_START_BLOCK", 0, 0, Number.MAX_SAFE_INTEGER)
+    : undefined;
   const deployedBlock = (state.deployment as { deployedBlock?: number }).deployedBlock;
   const startBlock = explicitStart ?? deployedBlock ?? Math.max(0, head - lookback);
 

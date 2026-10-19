@@ -71,6 +71,12 @@ describe("challenge liveness — cancelChallenge", () => {
       .to.emit(ron, "ChallengeCancelled")
       .withArgs(1, challenger.address);
 
+    // Pull payment: the contract keeps the bond until the challenger claims it.
+    expect(await ethers.provider.getBalance(await ron.getAddress())).to.eq(BOND);
+    expect(await ron.pendingWithdrawals(challenger.address)).to.eq(BOND);
+    await expect(ron.connect(challenger).withdrawRefund())
+      .to.emit(ron, "RefundWithdrawn")
+      .withArgs(challenger.address, BOND);
     expect(await ethers.provider.getBalance(await ron.getAddress())).to.eq(0n);
     const challenge = await ron.challenges(1);
     expect(challenge.resolved).to.eq(true);

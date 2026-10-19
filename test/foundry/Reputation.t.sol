@@ -14,6 +14,7 @@ contract RONHandler is Test {
     uint256[] public ids;
 
     uint256 public pending; // unresolved challenges (each holds one CHALLENGE_BOND)
+    uint256 public credited; // bonds credited to challengers (pull refunds, unclaimed)
     uint256 public ghost_challenges;
 
     constructor(ReputationOracleNetwork _ron, address _owner) {
@@ -95,6 +96,7 @@ contract RONHandler is Test {
         if (resolved || contested || block.timestamp < deadline) return;
         try ron.finalizeChallenge(id) {
             pending--;
+            credited += ron.CHALLENGE_BOND();
         } catch {}
     }
 
@@ -108,6 +110,7 @@ contract RONHandler is Test {
         vm.prank(owner);
         try ron.resolveChallenge(id, upheld) {
             pending--;
+            if (upheld) credited += ron.CHALLENGE_BOND();
         } catch {}
     }
 
@@ -122,6 +125,7 @@ contract RONHandler is Test {
         vm.prank(challenger);
         try ron.cancelChallenge(id) {
             pending--;
+            credited += ron.CHALLENGE_BOND();
         } catch {}
     }
 }
@@ -143,9 +147,12 @@ contract RONInvariants is Test {
     /// @dev The contract holds exactly the pending challenge bonds plus the pool:
     ///      balance == pending * CHALLENGE_BOND + slashedEthPool.
     function invariant_ethConservation() public view {
+        // Unresolved bonds + forfeited bonds + credited (unclaimed) refunds.
         assertEq(
             address(ron).balance,
-            uint256(handler.pending()) * ron.CHALLENGE_BOND() + ron.slashedEthPool()
+            uint256(handler.pending()) * ron.CHALLENGE_BOND()
+                + ron.slashedEthPool()
+                + handler.credited()
         );
     }
 
@@ -261,9 +268,16 @@ contract RONFuzz is Test {
 
         vm.prank(challenger);
         ron.cancelChallenge(1);
-        assertEq(address(ron).balance, 0);
+        // Pull payment: the bond stays in the contract until claimed.
+        assertEq(ron.pendingWithdrawals(challenger), ron.CHALLENGE_BOND());
+        assertEq(address(ron).balance, ron.CHALLENGE_BOND());
         (, , , bool resolved, , , ) = ron.challenges(1);
         assertTrue(resolved);
+
+        vm.prank(challenger);
+        ron.withdrawRefund();
+        assertEq(ron.pendingWithdrawals(challenger), 0);
+        assertEq(address(ron).balance, 0);
     }
 
     /// @dev URI fields are capped at MAX_URI_LEN; a too-long result reverts.

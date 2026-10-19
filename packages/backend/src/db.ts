@@ -237,9 +237,10 @@ export function listAdminActions(limit = 50): Array<{
   detail: unknown;
   createdAt: string;
 }> {
+  const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.floor(limit), 1), 500) : 50;
   const rows = db()
     .prepare("SELECT * FROM admin_actions ORDER BY id DESC LIMIT ?")
-    .all(Math.min(Math.max(limit, 1), 500)) as Array<{
+    .all(safeLimit) as Array<{
     id: number;
     action: string;
     actor: string;

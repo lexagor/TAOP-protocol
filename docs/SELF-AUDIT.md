@@ -91,6 +91,13 @@ New surface added after the review above — to be re-reviewed when deployed:
   a pending challenge's bond after a 90-day `CHALLENGE_TIMEOUT` when it is never
   resolved, so a contested challenge cannot lock funds forever
   (`test/ChallengeLiveness.test.ts`).
+- **Refund safety (pull payments)**: upheld/cancelled challenge refunds are
+  credited to `pendingWithdrawals` and claimed with `withdrawRefund()` instead of
+  pushed. A challenger contract with a reverting `receive()` can no longer block
+  `resolveChallenge`/`finalizeChallenge`/`cancelChallenge` (the previous push
+  refund made resolution revert forever). Proven by
+  `test/RefundSafety.test.ts` with a rejecting-receiver contract; the Foundry
+  ETH-conservation invariant now includes credited-but-unclaimed refunds.
 - Two-step ownership (`Ownable2Step`) on both contracts — a typo'd
   `transferOwnership` leaves the current owner in place until the pending owner
   accepts (`test/Ownable2StepUri.test.ts`). Deploy scripts auto-accept on the

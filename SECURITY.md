@@ -113,6 +113,9 @@ The backend holds signing keys and can spend ETH, so:
   `CHALLENGE_TIMEOUT` (90 days) with no resolution it refunds the bond, so a
   contested challenge that governance ignores cannot lock funds forever. It is
   never pausable.
+- Refunds are **pull payments**: upheld/cancelled challenges credit
+  `pendingWithdrawals[challenger]`, claimed via `withdrawRefund()`. A challenger
+  contract with a reverting `receive()` cannot block resolution or finalization.
 - Ownership is two-step (`Ownable2Step`): `transferOwnership` only sets a
   `pendingOwner`; `acceptOwnership` must be called by the new owner. Handing the
   contracts to the Timelock/Safe therefore takes two calls (see

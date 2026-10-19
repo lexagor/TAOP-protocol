@@ -45,12 +45,18 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
 - **SBOM** (CycloneDX) generated in CI and uploaded as an artifact.
 - Lockfiles committed; `npm ci` used everywhere.
 - **Production dependency tree is audit-clean**: `npm audit --omit=dev` = 0
-  vulnerabilities. Residual `npm audit` advisories (24 low / 5 moderate, 0 high)
-  are dev-only in the Hardhat 2 toolchain (fixing them needs the Hardhat 3
-  migration). Patched transitive lines are forced via `overrides` in
-  `package.json` (adm-zip, lodash, serialize-javascript, tmp, undici, uuid), and
-  the Docker runtime stage runs `npm prune --omit=dev` so the shipped image
-  contains no dev toolchain at all.
+  vulnerabilities. Residual `npm audit` advisories (Oct 2026: 17 low / 7
+  moderate / 8 high / 0 critical) are dev-only, in the Hardhat 2 coverage chain
+  and Spectral's glob/micromatch chain — both have no non-breaking fix (coverage
+  needs HH3; Spectral parses only our own spec). Patched transitive lines are
+  forced via `overrides` in `package.json` (adm-zip, axios, handlebars,
+  http-cache-semantics, lodash, pbkdf2, proxy-addr, serialize-javascript,
+  source-map-js, tmp, undici, uuid), and the Docker runtime stage runs
+  `npm prune --omit=dev` so the shipped image contains no dev toolchain.
+- **Never blind-run `npm audit fix`**: in Oct 2026 it satisfied new advisories by
+  *downgrading* `sc-istanbul`'s nested `js-yaml`/`argparse` (3.15.2→3.2.6,
+  1.0.10→0.1.16) into newly published critical ranges. Apply targeted overrides
+  and re-audit with `--omit=dev` as the production gate.
 - **Publishability is CI-checked**: `npm pack --dry-run` must ship `dist`, and the
   Python wheel must contain the bundled ABIs and exclude tests (`check_wheel.py`).
 - **Python deps are hash-pinned** (`packages/python-sdk/requirements-dev.txt`,
@@ -81,6 +87,13 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
   body-parser failures return JSON 400/413 — never Express's HTML error page or
   a stack trace. Shutdown (`SIGINT`/`SIGTERM`) stops the indexer and the webhook
   dispatcher before closing the server.
+- **Async route rejections are forwarded** to the JSON error handler
+  (`express-async-errors`), so an RPC/DB failure can't become an unhandled
+  rejection and take the process down.
+- **Bounded observability labels**: unknown HTTP methods are bucketed as `OTHER`,
+  and numeric query params (`limit`/`offset`/`minScore`) fall back to defaults
+  instead of producing NaN or SQL errors. Invalid `INDEXER_*` env values are
+  clamped (a NaN interval would otherwise become a 1 ms hot loop).
 - **Container runs unprivileged**: the runtime image uses the `node` user
   (uid 1000) with only `/app/data` (SQLite) writable; CI asserts the uid and
   boots the image read-only. A second smoke test runs it on a **read-only
@@ -122,9 +135,13 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
   only go up. Current: stmts 97.9, funcs 95.0, lines 97.6, branches 74.75.
 - Foundry fuzz + invariants (ETH conservation — including cancelled challenges —
   receipt/dispute consistency, score bounds, index integrity). 13 tests.
-- Mutation spot-check (21/21 critical mutants caught, including the v0.4
+- Mutation spot-check (23/23 critical mutants caught, including the v0.4
   cancel-timeout, refund and URI-cap mutations).
 - Zero-address guards; indexed address events; no protocol token.
+- **Pull-payment refunds**: challenge refunds are credited and claimed explicitly
+  (`withdrawRefund`), so a reverting challenger receiver can't block resolution.
+  Foundry ETH conservation: `balance == pending bonds + slashed pool + credited
+  refunds`.
 - **v0.3 (code, pending redeploy):** `Pausable` circuit breaker on both contracts
   (exits stay open), settable attestation cooldown, and a diversity-adjusted
   credit score (distinct counterparties) so self-dealing can't inflate ranking.

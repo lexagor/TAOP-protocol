@@ -1,3 +1,7 @@
+// Forward rejected promises from async route handlers to the JSON error
+// handler; without this, Express 4 leaves them as unhandled rejections and the
+// process can die (e.g. an RPC error on a route without a try/catch).
+import "express-async-errors";
 import "dotenv/config";
 import { logger } from "./logger.js";
 import express from "express";
@@ -73,6 +77,13 @@ const corsOrigin = (process.env.CORS_ORIGIN ?? "").trim();
 app.use(corsOrigin ? cors({ origin: corsOrigin.split(",").map((s) => s.trim()) }) : cors());
 
 const isWriteRequest = (req: { method: string }) => !["GET", "HEAD", "OPTIONS"].includes(req.method);
+
+/** Parse a numeric query param, falling back on NaN and clamping to a range. */
+function intQuery(value: unknown, fallback: number, min: number, max: number): number {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(Math.max(Math.floor(n), min), max);
+}
 
 const readLimiter = rateLimit({
   windowMs: 60_000,
@@ -704,9 +715,9 @@ api.post("/agents/register", async (req, res) => {
 
 api.get("/discover", async (req, res) => {
   const typeLabel = String(req.query.capabilityType ?? LORA_CAPABILITY_TYPE);
-  const minScore = Number(req.query.minScore ?? 0);
-  const limit = Math.min(Math.max(Number(req.query.limit ?? 50), 1), 200);
-  const offset = Math.max(Number(req.query.offset ?? 0), 0);
+  const minScore = intQuery(req.query.minScore, 0, 0, Number.MAX_SAFE_INTEGER);
+  const limit = intQuery(req.query.limit, 50, 1, 200);
+  const offset = intQuery(req.query.offset, 0, 0, Number.MAX_SAFE_INTEGER);
 
   // F10: serve from the off-chain index when it already has this capability type.
   if (isIndexerReady() && indexedCount(typeLabel) > 0) {
@@ -732,7 +743,7 @@ api.get("/discover", async (req, res) => {
 
 /** F10: indexer health/observability for operators. */
 api.get("/admin/audit", (req, res) => {
-  res.json(listAdminActions(Number(req.query.limit ?? 50)));
+  res.json(listAdminActions(intQuery(req.query.limit, 50, 1, 500)));
 });
 
 api.get("/indexer", (_req, res) => {
@@ -747,7 +758,7 @@ api.get("/metrics", (_req, res) => {
 
 /** F12: recent protocol alerts (challenges, slashing, pool withdrawals). */
 api.get("/alerts", (req, res) => {
-  res.json(listAlerts(Number(req.query.limit ?? 50)));
+  res.json(listAlerts(intQuery(req.query.limit, 50, 1, 500)));
 });
 
 // --- Demo orchestrator ---

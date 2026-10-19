@@ -84,6 +84,11 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
     mapping(address => uint64) public lastActivity; // for score decay
     uint256 public slashedEthPool; // forfeited challenger bonds, owner-withdrawable
 
+    /// @notice Refunds owed to challengers, credited on resolution/cancel and
+    ///         claimed with `withdrawRefund()`. Pull payments keep a challenger
+    ///         contract with a reverting `receive()` from blocking resolution.
+    mapping(address => uint256) public pendingWithdrawals;
+
     // --- v0.3 sybil-resistance ---
     /// @notice Per-(agent, counterparty) confirmation count. Bounded diversity so a
     ///         self-dealing pair contributes at most one distinct counterparty.
@@ -104,6 +109,8 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
     event ChallengeResolved(uint256 completionId, bool upheld);
     event ChallengeCancelled(uint256 completionId, address indexed challenger);
     event EthPoolWithdrawn(address indexed to, uint256 amount);
+    event RefundCredited(address indexed to, uint256 amount);
+    event RefundWithdrawn(address indexed to, uint256 amount);
     event AttestCooldownChanged(uint64 cooldown);
 
     error NoSuchCompletion();
@@ -128,8 +135,8 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
 
     // --- v0.3 pause (circuit breaker) ---
     // Pauses state-changing protocol actions only. Owner withdrawals and
-    // user exits (`revokeReceipt`, `withdrawEthPool`) are NEVER paused so funds
-    // can always be recovered.
+    // user exits (`revokeReceipt`, `withdrawEthPool`, `withdrawRefund`) are
+    // NEVER paused so funds can always be recovered.
 
     /// @notice Pause protocol actions (owner/Timelock).
     function pause() external onlyOwner {
@@ -324,8 +331,8 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
         if (block.timestamp < readyAt) revert ChallengeNotTimedOut(readyAt);
 
         ch.resolved = true;
-        (bool ok, ) = payable(ch.challenger).call{value: CHALLENGE_BOND}("");
-        require(ok, "refund failed");
+        pendingWithdrawals[ch.challenger] += CHALLENGE_BOND;
+        emit RefundCredited(ch.challenger, CHALLENGE_BOND);
         emit ChallengeCancelled(completionId, ch.challenger);
     }
 
@@ -344,8 +351,20 @@ contract ReputationOracleNetwork is ReentrancyGuard, Ownable2Step, Pausable {
             confirmedCount[c.agent] -= 1;
             _decrementCounterparty(c.agent, cp);
         }
-        (bool ok, ) = payable(ch.challenger).call{value: CHALLENGE_BOND}("");
-        require(ok, "refund failed");
+        pendingWithdrawals[ch.challenger] += CHALLENGE_BOND;
+        emit RefundCredited(ch.challenger, CHALLENGE_BOND);
+    }
+
+    /// @notice Claim a credited refund (challenge upheld or cancelled). Pull
+    ///         payments mean a challenger with a reverting `receive()` cannot
+    ///         block resolution. Never pausable: funds can always exit.
+    function withdrawRefund() external nonReentrant {
+        uint256 amount = pendingWithdrawals[msg.sender];
+        if (amount == 0) revert NothingToWithdraw();
+        pendingWithdrawals[msg.sender] = 0;
+        (bool ok, ) = payable(msg.sender).call{value: amount}("");
+        require(ok, "withdraw failed");
+        emit RefundWithdrawn(msg.sender, amount);
     }
 
     /// @notice Owner withdraws forfeited challenger bonds.

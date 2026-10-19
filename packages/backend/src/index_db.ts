@@ -76,9 +76,10 @@ export function listAlerts(limit = 50): Array<{
   payload: unknown;
   createdAt: string;
 }> {
+  const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.floor(limit), 1), 500) : 50;
   const rows = db()
     .prepare("SELECT * FROM alerts ORDER BY id DESC LIMIT ?")
-    .all(Math.min(Math.max(limit, 1), 500)) as Array<{
+    .all(safeLimit) as Array<{
     id: number;
     kind: string;
     block_number: number;
@@ -104,9 +105,10 @@ export function listAlerts(limit = 50): Array<{
 
 /** Alerts newer than `afterId`, oldest first, for the webhook dispatcher. */
 export function listAlertsAfter(afterId: number, limit = 50): ReturnType<typeof listAlerts> {
+  const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.floor(limit), 1), 500) : 50;
   const rows = db()
     .prepare("SELECT * FROM alerts WHERE id > ? ORDER BY id ASC LIMIT ?")
-    .all(afterId, Math.min(Math.max(limit, 1), 500)) as Array<{
+    .all(afterId, safeLimit) as Array<{
     id: number;
     kind: string;
     block_number: number;

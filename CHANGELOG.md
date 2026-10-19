@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Contract: pull-payment refunds.** Challenge refunds (upheld or cancelled) are
+  credited to `pendingWithdrawals` and claimed with `withdrawRefund()` instead of
+  being pushed. A challenger contract whose `receive()` reverts can no longer
+  block `resolveChallenge`/`finalizeChallenge`/`cancelChallenge`; the completion
+  and bond can always be settled. Events: `RefundCredited`, `RefundWithdrawn`.
+  Tests: `test/RefundSafety.test.ts`; the Foundry ETH-conservation invariant now
+  accounts for credited-but-unclaimed refunds.
+- **Backend bug fixes**: async route rejections now reach the JSON error handler
+  (`express-async-errors`), so an RPC/database error can't kill the process;
+  IPv4-mapped IPv6 private targets (`[::ffff:127.0.0.1]`) are now rejected by the
+  webhook SSRF guard; Prometheus HTTP labels bucket unknown methods as `OTHER`
+  (bounded cardinality); non-numeric `limit`/`offset`/`minScore` query params
+  fall back instead of erroring; invalid indexer env values can no longer become
+  NaN (1 ms hot loop).
 - **Challenge liveness** — `cancelChallenge(completionId)` lets the challenger
   reclaim the bond after a 90-day `CHALLENGE_TIMEOUT` when a pending (typically
   contested) challenge is never resolved. The completion stays challenged (no

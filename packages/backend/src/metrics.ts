@@ -14,14 +14,24 @@ import { webhookStatus } from "./webhooks.js";
 
 const httpRequests = new Map<string, { method: string; status: string; count: number }>();
 
-/** Count every HTTP response by method + status class (2xx/4xx/...) . */
+// Bound label cardinality: HTTP methods are attacker-controlled tokens, so only
+// well-known verbs are labelled and everything else is bucketed as OTHER.
+const KNOWN_METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]);
+
+export function normalizeHttpMethod(method: string): string {
+  const upper = method.toUpperCase();
+  return KNOWN_METHODS.has(upper) ? upper : "OTHER";
+}
+
+/** Count every HTTP response by method (bounded) + status class (2xx/4xx/...). */
 export function metricsMiddleware(req: Request, res: Response, next: NextFunction): void {
   res.on("finish", () => {
     const status = `${Math.floor(res.statusCode / 100)}xx`;
-    const key = `${req.method}:${status}`;
+    const method = normalizeHttpMethod(req.method);
+    const key = `${method}:${status}`;
     const entry = httpRequests.get(key);
     if (entry) entry.count += 1;
-    else httpRequests.set(key, { method: req.method, status, count: 1 });
+    else httpRequests.set(key, { method, status, count: 1 });
   });
   next();
 }

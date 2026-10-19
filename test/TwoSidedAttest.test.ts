@@ -169,6 +169,8 @@ describe("ReputationOracleNetwork v0.2 — two-sided attestation (F11)", () => {
 
       expect(await ron.disputeCount(agent.address)).to.eq(1n);
       expect((await ron.getCompletion(1)).disputed).to.eq(true);
+      expect(await ron.pendingWithdrawals(challenger.address)).to.eq(BOND);
+      await expect(ron.connect(challenger).withdrawRefund()).to.emit(ron, "RefundWithdrawn");
       expect(await ethers.provider.getBalance(challenger.address)).to.be.gt(before);
     });
 

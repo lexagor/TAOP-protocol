@@ -74,7 +74,9 @@ export function isPrivateHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
   if (host === "0.0.0.0" || host === "::" || host === "::1") return true;
-  if (host.startsWith("::ffff:")) return isPrivateHost(host.slice("::ffff:".length));
+  if (host.startsWith("::ffff:")) {
+    return isPrivateHost(mappedIpv4(host) ?? host.slice("::ffff:".length));
+  }
   const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if (v4) {
     const [a, b] = [Number(v4[1]), Number(v4[2])];
@@ -87,6 +89,15 @@ export function isPrivateHost(hostname: string): boolean {
   if (/^f[cd][0-9a-f]{2}:/.test(host)) return true; // fc00::/7 unique-local
   if (/^fe[89ab][0-9a-f]:/.test(host)) return true; // fe80::/10 link-local
   return false;
+}
+
+/** Convert an IPv4-mapped IPv6 address in hex form (`::ffff:7f00:1`) to dotted. */
+function mappedIpv4(host: string): string | null {
+  const m = host.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (!m) return null;
+  const hi = Number.parseInt(m[1], 16);
+  const lo = Number.parseInt(m[2], 16);
+  return `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
 }
 
 /** Validate a subscriber URL; throws with an actionable message on refusal. */
