@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+// solhint-disable gas-small-strings, avoid-low-level-calls
+
 /// @dev Test helper: a challenger contract whose receive() reverts. Refunds are
 ///      pull-based, so this must not be able to block challenge resolution.
 contract RejectingChallenger {
