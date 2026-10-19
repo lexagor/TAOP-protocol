@@ -448,7 +448,7 @@ export async function pollOnce(state: BackendState, opts: PollOptions): Promise<
         { block: cursor, stored, chainHash },
         "[indexer] reorg detected — rebuilding index from logs",
       );
-      resetIndexerDerived();
+      resetIndexerDerived(cursor);
       cursor = null;
     }
   }

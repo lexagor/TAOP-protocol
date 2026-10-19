@@ -52,7 +52,10 @@ app.use(
 // the Timelock. It must therefore never be exposed to the public internet
 // without an API key.
 const HOST = process.env.HOST ?? "127.0.0.1";
-const PORT = Number(process.env.PORT ?? 4000);
+const PORT = (() => {
+  const n = Number(process.env.PORT ?? 4000);
+  return Number.isFinite(n) && n >= 1 && n <= 65535 ? Math.floor(n) : 4000;
+})();
 const API_KEY = (process.env.TAOP_API_KEY ?? "").trim() || null;
 const WRITES_DISABLED = process.env.DEMO_READ_ONLY === "true";
 
@@ -142,6 +145,21 @@ function requireApiKey(req: express.Request, res: express.Response, next: expres
 }
 
 const api = express.Router();
+
+// Reject malformed path params early with a 400 (instead of an async 500),
+// before any route tries BigInt(id) or passes the address to ethers.
+api.param("id", (req, res, next, id) => {
+  if (!/^\d+$/.test(id) || id.length > 78) {
+    return res.status(400).json({ error: "Invalid id" });
+  }
+  next();
+});
+api.param("address", (req, res, next, address) => {
+  if (!ethers.isAddress(address)) {
+    return res.status(400).json({ error: "Invalid address" });
+  }
+  next();
+});
 api.use(readLimiter);
 api.use(writeLimiter);
 api.use(requireApiKey);

@@ -186,3 +186,33 @@ describe("webhook URL validation (SSRF hygiene)", () => {
     expect(status.configError).toMatch(/private\/loopback/);
   });
 });
+
+describe("webhook delivery hardening", () => {
+  it("does not follow redirects (SSRF via redirect)", async () => {
+    wh.resetWebhookState(idb.listAlerts(1)[0]?.id ?? 0);
+    let leaked = 0;
+    const server = http.createServer((req, res) => {
+      if (req.url === "/leak") {
+        leaked += 1;
+        res.statusCode = 200;
+        res.end("leaked");
+        return;
+      }
+      res.statusCode = 302;
+      res.setHeader("location", "/leak");
+      res.end();
+    });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+
+    idb.recordAlert("RedirectTest", 50, "0xredir", {});
+    const result = await wh.pollWebhooksOnce({
+      config: cfg(`http://127.0.0.1:${port}/hook`, null),
+      fetchImpl: fetch,
+    });
+    expect(result.failed).toBe(1);
+    expect(result.delivered).toBe(0);
+    expect(leaked).toBe(0);
+  });
+});

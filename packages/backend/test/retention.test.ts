@@ -36,6 +36,15 @@ describe("database retention", () => {
     expect(remaining.every((a) => a.id > deliveredUpTo)).toBe(true);
   });
 
+  it("records each (tx, kind, block) alert once (retry-idempotent)", () => {
+    const before = idb.listAlerts(100).length;
+    idb.recordAlert("Retry", 7, "0xdedupe", { ok: true });
+    idb.recordAlert("Retry", 7, "0xdedupe", { ok: true });
+    const matches = idb.listAlerts(100).filter((a) => a.txHash === "0xdedupe");
+    expect(matches).toHaveLength(1);
+    expect(idb.listAlerts(100).length).toBe(before + 1);
+  });
+
   it("disables pruning when keep <= 0", () => {
     expect(idb.pruneAlerts(0)).toBe(0);
     expect(idb.pruneAlerts(-5)).toBe(0);

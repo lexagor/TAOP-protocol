@@ -78,7 +78,8 @@ contracts into SQLite and serves `/api/discover` from that index.
 ## 4. Alerts
 
 `GET /api/alerts?limit=50` returns protocol events indexed from logs (newest
-first). Kinds and suggested responses:
+first). Alerts from blocks orphaned by a reorg are removed; `recordAlert` is
+idempotent per `(tx, kind, block)`. Kinds and suggested responses:
 
 | Kind | Meaning | Response |
 |---|---|---|

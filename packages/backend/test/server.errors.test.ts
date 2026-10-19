@@ -50,6 +50,16 @@ describe("API error handling", () => {
     expect(res.body).toEqual({ error: "Invalid JSON body" });
   });
 
+  it("rejects malformed path params with a 400", async () => {
+    const badId = await request(app).get("/api/completions/abc");
+    expect(badId.status).toBe(400);
+    expect(badId.body).toEqual({ error: "Invalid id" });
+
+    const badAddress = await request(app).get("/api/agents/not-an-address/score");
+    expect(badAddress.status).toBe(400);
+    expect(badAddress.body).toEqual({ error: "Invalid address" });
+  });
+
   it("falls back safely on non-numeric query limits", async () => {
     for (const path of ["/api/alerts?limit=abc", "/api/admin/audit?limit=abc", "/api/discover?limit=abc"]) {
       const res = await request(app).get(path);

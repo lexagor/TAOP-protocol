@@ -55,6 +55,7 @@ describe("F10 indexer — confirmation depth + reorg safety", () => {
     // Simulate previously-indexed derived state + a stored cursor hash.
     idb.bumpAgent("0xabc", { completions: 5, confirmed: 3, lastActivity: 1 });
     expect(scoreCount()).toBe(1);
+    idb.recordAlert("TestAlert", 10, "0xfeed", { stale: true });
     idb.setIndexerLastBlock(10);
     idb.setIndexerLastHash("0xaaaa");
 
@@ -65,6 +66,8 @@ describe("F10 indexer — confirmation depth + reorg safety", () => {
     expect(ix.indexerStatus().reorgsDetected).toBe(before + 1);
     // Derived state was cleared; a rebuild from logs (none here) leaves it empty.
     expect(scoreCount()).toBe(0);
+    // Alerts from the orphaned fork must not linger.
+    expect(idb.listAlerts(10).some((a) => a.kind === "TestAlert")).toBe(false);
     expect(idb.getIndexerLastBlock()).toBe(95);
   });
 

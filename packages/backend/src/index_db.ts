@@ -61,11 +61,27 @@ export function initIndexSchema(): void {
 // --- alerts (F12) ---
 
 export function recordAlert(kind: string, blockNumber: number, txHash: string, payload: unknown): void {
+  // Idempotent per (tx, kind, block): a re-poll after a failed enrichment must
+  // not duplicate the alert. (One alert per kind per transaction is the model.)
+  const createdAt = new Date().toISOString();
   db()
     .prepare(
-      "INSERT INTO alerts (kind, block_number, tx_hash, payload, created_at) VALUES (?, ?, ?, ?, ?)",
+      `INSERT INTO alerts (kind, block_number, tx_hash, payload, created_at)
+       SELECT ?, ?, ?, ?, ?
+       WHERE NOT EXISTS (
+         SELECT 1 FROM alerts WHERE tx_hash = ? AND kind = ? AND block_number = ?
+       )`,
     )
-    .run(kind, blockNumber, txHash, JSON.stringify(payload ?? {}), new Date().toISOString());
+    .run(
+      kind,
+      blockNumber,
+      txHash,
+      JSON.stringify(payload ?? {}),
+      createdAt,
+      txHash,
+      kind,
+      blockNumber,
+    );
 }
 
 export function listAlerts(limit = 50): Array<{
@@ -170,10 +186,13 @@ export function setIndexerLastHash(hash: string): void {
 
 /**
  * Drop the indexer's derived state so it can be rebuilt from logs after a reorg.
- * Only indexer-owned tables are cleared: `capabilities` (shared with the demo
- * cache) and `completions` are re-upserted as logs are replayed.
+ * `capabilities` (shared with the demo cache) and `completions` are re-upserted
+ * as logs are replayed. Alerts from the orphaned fork (block >= fromBlock) are
+ * removed too — otherwise `/api/alerts` and webhooks would surface events that
+ * no longer exist on the canonical chain.
  */
-export function resetIndexerDerived(): void {
+export function resetIndexerDerived(fromBlock = 0): void {
+  db().prepare("DELETE FROM alerts WHERE block_number >= ?").run(fromBlock);
   db().exec(`
     DELETE FROM agent_scores;
     DELETE FROM completion_receipts;

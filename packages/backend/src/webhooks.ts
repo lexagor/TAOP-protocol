@@ -193,6 +193,9 @@ async function deliverAlert(
       headers,
       body,
       signal: controller.signal,
+      // Never follow redirects: a compromised/typo'd subscriber could otherwise
+      // bounce the delivery to a private address (SSRF via redirect).
+      redirect: "manual",
     });
     if (!res.ok) throw new Error(`webhook responded ${res.status}`);
   } finally {

@@ -29,9 +29,13 @@ export async function pinJSON(content: Record<string, unknown>, name: string): P
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${JWT}` },
     body,
+    signal: AbortSignal.timeout(15_000),
   });
   if (!r.ok) {
-    throw new Error(`Pinata pin failed: ${r.status} ${await r.text()}`);
+    // Don't echo the response body: it can contain account details and is
+    // surfaced to API clients.
+    logger.warn({ status: r.status }, "[ipfs] Pinata pin failed");
+    throw new Error(`Pinata pin failed: HTTP ${r.status}`);
   }
   const data = (await r.json()) as PinataPinResponse;
   return `ipfs://${data.IpfsHash}`;

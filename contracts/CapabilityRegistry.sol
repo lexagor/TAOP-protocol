@@ -41,6 +41,9 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable2Step, ReentrancyGuard, 
     uint256 public slashedEthPool; // slashed ETH bonds, owner-withdrawable
 
     mapping(bytes32 => uint256[]) public capabilitiesByType; // for efficient discovery by type
+    /// @dev 1-based position of a capability id within its type index, so
+    ///      withdrawal is O(1) instead of scanning an unbounded array.
+    mapping(bytes32 => mapping(uint256 => uint256)) private _typeIndexPos;
 
     event CapabilityRegistered(uint256 capabilityId, address indexed creator);
     event CapabilityCertified(uint256 capabilityId, address indexed certifier);
@@ -104,6 +107,7 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable2Step, ReentrancyGuard, 
             slashed: false
         });
         capabilitiesByType[capabilityType].push(capabilityId);
+        _typeIndexPos[capabilityType][capabilityId] = capabilitiesByType[capabilityType].length;
         emit CapabilityRegistered(capabilityId, msg.sender);
     }
 
@@ -130,20 +134,18 @@ contract CapabilityRegistry is ERC721Enumerable, Ownable2Step, ReentrancyGuard, 
         return true;
     }
 
-    /// @notice Remove `capabilityId` from its type index (swap-and-pop) so
-    ///         discovery never yields burned capabilities (v0.1.2 fix: previously
-    ///         a withdrawn bond left a stale id that made discovery revert for
-    ///         every consumer).
+    /// @notice Remove `capabilityId` from its type index in O(1) (swap-and-pop)
+    ///         so discovery never yields burned capabilities and withdrawal gas
+    ///         does not grow with the number of capabilities of a type.
     function _removeFromTypeIndex(bytes32 capabilityType, uint256 capabilityId) private {
+        uint256 pos = _typeIndexPos[capabilityType][capabilityId]; // 1-based; set on registration
         uint256[] storage list = capabilitiesByType[capabilityType];
-        uint256 len = list.length;
-        for (uint256 i = 0; i < len; i++) {
-            if (list[i] == capabilityId) {
-                list[i] = list[len - 1];
-                list.pop();
-                return;
-            }
-        }
+        uint256 idx = pos - 1;
+        uint256 lastId = list[list.length - 1];
+        list[idx] = lastId;
+        _typeIndexPos[capabilityType][lastId] = pos;
+        list.pop();
+        delete _typeIndexPos[capabilityType][capabilityId];
     }
 
     /// @notice Creator reclaims their un-slashed ETH bond. Burns the NFT and

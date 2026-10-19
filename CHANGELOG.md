@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Deep-audit fixes**: Registry type-index removal is now O(1) (position map;
+  withdrawal gas no longer grows with the number of capabilities of a type);
+  the indexer purges alerts from orphaned blocks on a reorg; alerts are
+  idempotent per `(tx, kind, block)` so a retried poll can't duplicate them;
+  webhook deliveries never follow redirects (SSRF via redirect); Pinata calls
+  time out after 15s and no longer echo the response body; malformed `:id` /
+  `:address` path params return 400; invalid `PORT` falls back to 4000.
 - **Contract: pull-payment refunds.** Challenge refunds (upheld or cancelled) are
   credited to `pendingWithdrawals` and claimed with `withdrawRefund()` instead of
   being pushed. A challenger contract whose `receive()` reverts can no longer

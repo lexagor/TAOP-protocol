@@ -94,6 +94,13 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
   and numeric query params (`limit`/`offset`/`minScore`) fall back to defaults
   instead of producing NaN or SQL errors. Invalid `INDEXER_*` env values are
   clamped (a NaN interval would otherwise become a 1 ms hot loop).
+- **Reorg-safe alerts**: on a reorg the indexer deletes alerts from the orphaned
+  fork (`block >= fork block`), and `recordAlert` is idempotent per
+  `(tx, kind, block)` so a retried event application cannot duplicate alerts.
+- **Webhook delivery**: redirects are never followed (`redirect: "manual"`),
+  preventing redirect-based SSRF; Pinata calls have a 15s timeout and errors
+  don't echo response bodies. Malformed `:id`/`:address` path params are
+  rejected with 400 before reaching ethers.
 - **Container runs unprivileged**: the runtime image uses the `node` user
   (uid 1000) with only `/app/data` (SQLite) writable; CI asserts the uid and
   boots the image read-only. A second smoke test runs it on a **read-only
@@ -142,6 +149,9 @@ toggled in GitHub settings. See also [`SELF-AUDIT.md`](SELF-AUDIT.md),
   (`withdrawRefund`), so a reverting challenger receiver can't block resolution.
   Foundry ETH conservation: `balance == pending bonds + slashed pool + credited
   refunds`.
+- **O(1) capability index removal**: a position map replaces the unbounded linear
+  scan in `withdrawBond`, so gas does not grow with the number of capabilities of
+  a type.
 - **v0.3 (code, pending redeploy):** `Pausable` circuit breaker on both contracts
   (exits stay open), settable attestation cooldown, and a diversity-adjusted
   credit score (distinct counterparties) so self-dealing can't inflate ranking.
