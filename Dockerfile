@@ -6,7 +6,7 @@
 #   - DEMO_READ_ONLY=true -> public read-only demo (writes return 503)
 # Provide secrets at runtime (fly secrets / docker -e), never in the image.
 
-FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS build
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS build
 WORKDIR /app
 # Native modules (e.g. better-sqlite3) compile with node-gyp when no prebuilt
 # binary exists for the platform; the build stage is discarded from the runtime
@@ -41,7 +41,7 @@ RUN rm -f packages/sdk/src/*.js packages/sdk/src/*.js.map packages/sdk/src/*.d.t
 # better-sqlite3, @taopp/sdk, ...) are unaffected.
 RUN npm prune --omit=dev --ignore-scripts
 
-FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS run
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS run
 WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
