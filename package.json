@@ -27,6 +27,7 @@
     "deploy:panel": "hardhat run scripts/deploy-reviewer-panel.ts",
     "deploy:panel:sepolia": "hardhat run scripts/deploy-reviewer-panel.ts --network baseSepolia",
     "e2e:ruling": "hardhat run scripts/e2e-ruling.ts",
+    "e2e:ruling:sepolia": "hardhat run scripts/e2e-ruling-sepolia.ts --network baseSepolia",
     "sdk:build": "npm run build -w @taopp/sdk",
     "mcp:build": "npm run build -w @taopp/mcp-server",
     "mcp:dev": "npm run dev -w @taopp/mcp-server",

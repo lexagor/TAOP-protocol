@@ -91,6 +91,13 @@ npm run deploy:ruling
 npm run e2e:ruling
 ```
 
+Base Sepolia mock-stack E2E (requires `DEPLOYER_PK` with testnet ETH and
+`BASE_SEPOLIA_RPC_URL`; deploys throwaway reviewers):
+
+```bash
+npm run e2e:ruling:sepolia
+```
+
 Base Sepolia / Base:
 
 ```bash

@@ -87,6 +87,20 @@ numbers in the audit packet.
   was removed by the two-step `publishRuling` → `payFee` flow).
 - Mutation spot-check: 42/42 caught (0 survived).
 
+## Base Sepolia end-to-end proof
+
+On 2026-11-02 the full mock-USDC flow was run on Base Sepolia (chain 84532):
+
+- MockUSDC: `0xf9dcB4E6e714884D0389d7679bb5fE987001756b`
+- ReviewerPanelAdapter: `0xEE828092175e3bd03fDC9f6F273593eB9fe4e72B`
+- RulingOracle: `0x220ED653dFF33b82eF5B6e5672914F706Eb3c024`
+
+The run exercised a free wronged-party challenge upheld by two reviewers
+(`FINALIZED` / `PAY`) and a third-party challenge overturned to `REFUND`, with
+the payer made whole and one loss recorded. The reviewer keys were throwaway
+test wallets; the operator was the funded deployer. This proves the mechanics,
+not a production deployment.
+
 ## Release
 
 Final release tag: `v0.6.1-ruling-oracle` (the earlier `v0.6.0-ruling-oracle`
