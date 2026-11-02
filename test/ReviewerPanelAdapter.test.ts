@@ -96,6 +96,7 @@ describe("ReviewerPanelAdapter", () => {
   ) {
     const r = req(f, overrides);
     await f.oracle.connect(f.owner).publishRuling(r);
+    await f.oracle.connect(f.feePayer).payFee(r.caseId);
     return r;
   }
 

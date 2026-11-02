@@ -63,6 +63,7 @@ async function main() {
       ruling,
     };
     await oracle.connect(owner).publishRuling(request);
+    await oracle.connect(feePayer).payFee(caseId);
     return request;
   };
 

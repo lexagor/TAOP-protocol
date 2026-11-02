@@ -53,6 +53,7 @@ const MUTANTS = [
   { file: "contracts/RulingOracle.sol", find: "if (liveCases >= MAX_LIVE_CASES) revert LiveCasesExceeded();", replace: "if (false) revert LiveCasesExceeded();", label: "RulingOracle ignores live-case cap" },
   { file: "contracts/RulingOracle.sol", find: "if (block.timestamp >= c.challengeDeadline) revert ChallengeWindowClosed();", replace: "if (false) revert ChallengeWindowClosed();", label: "RulingOracle accepts late challenges" },
   { file: "contracts/RulingOracle.sol", find: "if (finalRuling == Ruling.REFUND) _recordLoss(caseId, c);", replace: "if (false) _recordLoss(caseId, c);", label: "RulingOracle skips overturned loss record" },
+  { file: "contracts/RulingOracle.sol", find: "if (msg.sender != c.feePayer) revert NotFeePayer();", replace: "if (false) revert NotFeePayer();", label: "RulingOracle lets anyone pay another party's fee" },
   { file: "contracts/RulingOracle.sol", find: "if (c.challenger != address(0) && c.challenger != wronged) {", replace: "if (c.challenger != address(0)) {", label: "RulingOracle pays wronged challenger a double bounty" },
   { file: "contracts/RulingOracle.sol", find: "if (c.status == Status.FINALIZED || c.status == Status.OVERTURNED) {", replace: "if (false) {", label: "RulingOracle reverts on late resolution" },
   // ReviewerPanelAdapter

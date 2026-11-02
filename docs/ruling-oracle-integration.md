@@ -20,6 +20,7 @@ of the original ruling, so the escrow does not need to flip it again.
 |---|---|---|
 | `ruling` | `1` | `PAY`: pay the provider |
 | `ruling` | `2` | `REFUND`: refund the payer |
+| `status` | `5` | `PENDING_FEE`: offer published, fee not paid yet |
 | `status` | `1` | `RULED`: provisional, do not settle |
 | `status` | `2` | `CHALLENGED`: appeal in progress, do not settle |
 | `status` | `3` | `FINALIZED`: settle using `ruling` |
@@ -35,8 +36,9 @@ read example is in `examples/ruling-escrow-read.ts`.
 2. The marketplace gives the operator: provider, payer, fee payer, ERC-8004
    `agentId` (or `0`), value (≤ `CASE_CAP`), `specHash`, public `evidenceHash`,
    and an `evidenceURI`.
-3. The fee payer approves `FEE` (25 USDC) to the oracle. The operator calls
-   `publishRuling`.
+3. The operator calls `publishRuling` to publish the offer. The named fee payer
+   approves `FEE` (25 USDC) and calls `payFee`; this starts the challenge clock.
+   The fee payer is `msg.sender`, so no arbitrary `transferFrom` is possible.
 4. The ruling is provisional for 48h. The wronged party may challenge for free;
    anyone else posts 10% of the value (minimum 25 USDC).
 5. If challenged, the operator has 72h to escalate to the reviewer panel. Two

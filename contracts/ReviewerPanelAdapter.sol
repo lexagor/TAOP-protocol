@@ -29,9 +29,10 @@ contract ReviewerPanelAdapter is IEscalationOracle, EIP712, Ownable2Step, Reentr
     uint256 public constant REQUIRED_SIGNATURES = 2;
     uint256 public constant RESOLUTION_WINDOW = 24 hours;
 
-    // solhint-disable-next-line gas-small-strings
+    // solhint-disable gas-small-strings
     bytes32 public constant REVIEW_TYPEHASH =
         keccak256("Review(bytes32 requestId,bytes32 caseId,bytes32 evidenceHash,bool upheld)");
+    // solhint-enable gas-small-strings
 
     struct Request {
         bytes32 caseId;

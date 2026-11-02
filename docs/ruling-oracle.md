@@ -32,23 +32,24 @@ deployment is required to change them.
 ## Lifecycle
 
 ```
-publishRuling (operator, fee paid)
+publishRuling (operator offer, no fee)
         │
-        ├── no challenge ──► finalizeUnchallenged (anyone after 48h)
-        │                        │
-        │                        └── final REFUND → loss record
-        │
-        └── challenge (wronged party free; others post 10%/min $25)
+        └── payFee (named fee payer, starts the challenge clock, charges $25)
                  │
-                 ├── escalateRuling (operator, within 72h)
-                 │        │
-                 │        ├── 2-of-3 reviewers call resolveEscalation(upheld=true)  → FINALIZED
-                 │        └── 2-of-3 reviewers call resolveEscalation(upheld=false) → OVERTURNED
-                 │             (24h panel deadline; timeout → challenge succeeds)
-                 │             (or after 30d silence, anyone may defaultOverturn)
+                 ├── no challenge ──► finalizeUnchallenged (anyone after 48h)
+                 │                        └── final REFUND → loss record
                  │
-                 └── operator does not escalate within 72h
-                          └── defaultOverturn (anyone) → challenge succeeds
+                 └── challenge (wronged party free; others post 10%/min $25)
+                          │
+                          ├── escalateRuling (operator, within 72h)
+                          │        │
+                          │        ├── 2-of-3 reviewers resolve(upheld=true)  → FINALIZED
+                          │        └── 2-of-3 reviewers resolve(upheld=false) → OVERTURNED
+                          │             (24h panel deadline; timeout → challenge succeeds)
+                          │             (or after 30d silence, anyone may defaultOverturn)
+                          │
+                          └── operator does not escalate within 72h
+                                   └── defaultOverturn (anyone) → challenge succeeds
 ```
 
 On an overturned `PAY` ruling, the payer receives `value` from the operator
@@ -63,15 +64,18 @@ bounded, named-panel process, not a trustless court.
 `outcome(caseId)` returns `(ruling, status, finalizedAt, evidenceHash)`. A
 marketplace escrow should act only when `status` is `FINALIZED` (3) or
 `OVERTURNED` (4); `ruling` is already the final direction (for `OVERTURNED` it
-is the opposite of the original ruling).
+is the opposite of the original ruling). `PENDING_FEE` (5) means the operator
+has published an offer but the fee payer has not activated it yet.
 
 ## Integration contract for a marketplace
 
 1. Keep case funds in the marketplace's own escrow.
 2. Send the case to the operator: `caseId`, provider, payer, fee payer, ERC-8004
    `agentId` (or `0`), value, `specHash`, public `evidenceHash`, `evidenceURI`.
-3. Have the fee payer approve `FEE` (25 USDC) to the oracle. The operator calls
-   `publishRuling`.
+3. The operator calls `publishRuling` to publish the offer. The named fee payer
+   then approves `FEE` (25 USDC) and calls `payFee`; that starts the challenge
+   clock. The fee payer is always `msg.sender`, so an operator cannot pull from
+   an arbitrary address.
 4. After the challenge/appeal process, read `outcome(caseId)` and settle the
    escrow. Do not treat a `RULED` or `CHALLENGED` ruling as final.
 

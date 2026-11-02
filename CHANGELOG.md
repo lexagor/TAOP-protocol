@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no-custody, USDC-bonded oracle for public-evidence agent work. Pilot
   parameters: $300/case cap, 5 live cases, $3,000 operator bond, 48h challenge
   window, 72h escalation window, $25 flat fee, 10%/min-$25 third-party challenge
-  bond, free wronged-party challenge, 512-byte evidence URI cap. A challenge
+  bond, free wronged-party challenge, 512-byte evidence URI cap. Publication is
+  an offer; the named fee payer calls `payFee` to activate the case and start
+  the challenge clock (the fee transfer is always from `msg.sender`). A challenge
   escalates through `IEscalationOracle` to the new `ReviewerPanelAdapter`
   (three named reviewers, 2-of-3 EIP-712 signatures, 24h timeout). If the
   operator does not escalate, anyone can overturn by default. Overturned

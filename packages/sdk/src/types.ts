@@ -82,7 +82,7 @@ export const LORA_CAPABILITY_TYPE = "LoRA";
 /** Phase-0 adjudication: 0 = none, 1 = PAY (provider clean), 2 = REFUND. */
 export type Ruling = 0 | 1 | 2;
 /** 0 = none, 1 = ruled, 2 = challenged, 3 = finalized, 4 = overturned. */
-export type RulingStatus = 0 | 1 | 2 | 3 | 4;
+export type RulingStatus = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface PublishRulingRequest {
   caseId: string;

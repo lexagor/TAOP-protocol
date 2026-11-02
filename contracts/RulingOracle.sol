@@ -52,7 +52,8 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         RULED,
         CHALLENGED,
         FINALIZED,
-        OVERTURNED
+        OVERTURNED,
+        PENDING_FEE
     }
 
     struct Case {
@@ -114,6 +115,7 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
     event BondWithdrawn(address indexed operator, uint256 amount);
     event TreasuryUpdated(address indexed previousTreasury, address indexed nextTreasury);
     event FeePaid(bytes32 indexed caseId, address indexed feePayer, uint256 amount);
+    event RulingActivated(bytes32 indexed caseId, address indexed feePayer, uint64 challengeDeadline);
     event RulingPublished(
         bytes32 indexed caseId,
         address indexed provider,
@@ -141,6 +143,7 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
     event LateResolutionIgnored(bytes32 indexed requestId, bool rulingUpheld);
 
     error NotEscalationOracle();
+    error NotFeePayer();
     error InvalidCase();
     error CaseExists();
     error CaseNotPending();
@@ -204,9 +207,12 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
 
     // --- Rulings ---
 
-    /// @notice Publish a provisional ruling and charge the flat case fee.
-    /// @param req Everything the marketplace attests to; `feePayer` must have
-    ///        approved this contract for `FEE`.
+    /// @notice Publish an offer for a provisional ruling. The ruling becomes
+    ///         active only after its `feePayer` calls `payFee`, which starts the
+    ///         challenge clock and charges the flat fee. This split keeps the
+    ///         fee payer's ERC-20 approval bound to the caller instead of letting
+    ///         the operator pull from an arbitrary address.
+    /// @param req Everything the marketplace attests to.
     function publishRuling(PublishRequest calldata req) external onlyOwner nonReentrant {
         if (req.caseId == bytes32(0) || req.provider == address(0) || req.payer == address(0)) {
             revert InvalidCase();
@@ -222,8 +228,6 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         if (bytes(req.evidenceURI).length > MAX_URI_LEN) {
             revert URITooLong(bytes(req.evidenceURI).length);
         }
-        if (operatorBond < BOND_FLOOR) revert BondBelowFloor();
-        if (liveCases >= MAX_LIVE_CASES) revert LiveCasesExceeded();
 
         Case storage c = _cases[req.caseId];
         c.provider = req.provider;
@@ -232,17 +236,11 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         c.agentId = req.agentId;
         c.value = uint64(req.value);
         c.ruling = req.ruling;
-        c.status = Status.RULED;
-        c.ruledAt = uint64(block.timestamp);
-        c.challengeDeadline = uint64(block.timestamp + CHALLENGE_WINDOW);
+        c.status = Status.PENDING_FEE;
         c.specHash = req.specHash;
         c.evidenceHash = req.evidenceHash;
         c.evidenceURI = req.evidenceURI;
 
-        liveExposure += req.value;
-        liveCases += 1;
-        USDC.safeTransferFrom(req.feePayer, treasury, FEE);
-        emit FeePaid(req.caseId, req.feePayer, FEE);
         emit RulingPublished(
             req.caseId,
             req.provider,
@@ -253,6 +251,25 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
             req.specHash,
             req.evidenceHash
         );
+    }
+
+    /// @notice Activate a published offer. Only the named fee payer can pay, so
+    ///         the ERC-20 transfer is always from `msg.sender`.
+    function payFee(bytes32 caseId) external nonReentrant {
+        Case storage c = _cases[caseId];
+        if (c.status != Status.PENDING_FEE) revert CaseNotPending();
+        if (msg.sender != c.feePayer) revert NotFeePayer();
+        if (operatorBond < BOND_FLOOR) revert BondBelowFloor();
+        if (liveCases >= MAX_LIVE_CASES) revert LiveCasesExceeded();
+
+        c.status = Status.RULED;
+        c.ruledAt = uint64(block.timestamp);
+        c.challengeDeadline = uint64(block.timestamp + CHALLENGE_WINDOW);
+        liveExposure += c.value;
+        liveCases += 1;
+        USDC.safeTransferFrom(msg.sender, treasury, FEE);
+        emit FeePaid(caseId, msg.sender, FEE);
+        emit RulingActivated(caseId, msg.sender, c.challengeDeadline);
     }
 
     /// @notice Finalize an unchallenged ruling after the 48h window.
@@ -291,6 +308,7 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         if (c.status != Status.CHALLENGED) revert CaseNotPending();
         if (block.timestamp >= c.escalationDeadline) revert EscalationTooLate();
         if (c.escalationId != bytes32(0)) revert EscalationExists();
+        // slither-disable-next-line reentrancy-no-eth
         bytes32 id = ESCALATION.escalate(caseId, uint8(c.ruling), c.evidenceHash);
         if (id == bytes32(0) || caseByEscalation[id] != bytes32(0)) revert EscalationFailed();
         c.escalationId = id;
@@ -372,9 +390,11 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         c.challengeBond = 0;
         if (bond != 0) {
             challengeBonds -= bond;
+            // slither-disable-next-line incorrect-equality
             address wronged = c.ruling == Ruling.PAY ? c.provider : c.payer;
             USDC.safeTransfer(wronged, bond);
         }
+        // slither-disable-next-line incorrect-equality
         if (c.ruling == Ruling.REFUND) _recordLoss(caseId, c);
         emit RulingFinalized(caseId, c.ruling, c.finalizedAt);
     }
@@ -384,7 +404,9 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         c.finalizedAt = uint64(block.timestamp);
         _releaseExposure(c);
 
+        // slither-disable-next-line incorrect-equality
         address wronged = c.ruling == Ruling.PAY ? c.payer : c.provider;
+        // slither-disable-next-line incorrect-equality
         Ruling finalRuling = c.ruling == Ruling.PAY ? Ruling.REFUND : Ruling.PAY;
 
         // Pay the wronged party from the operator bond (cap <= bond/2).

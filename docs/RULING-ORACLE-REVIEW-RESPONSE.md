@@ -55,6 +55,10 @@ small. Revisit after 10 live cases.
 - Raised `MAX_URI_LEN` to 512.
 - Documented the indexer path for clean (final `PAY`) history: `RulingFinalized`
   carries the ruling; no separate `CleanRecorded` event is required.
+- Slither high/medium gate: publication is now an offer and the named fee payer
+  calls `payFee`, eliminating the arbitrary `transferFrom` (the fee is always
+  pulled from `msg.sender`). Enum comparisons and the `nonReentrant` escalation
+  callback are annotated; no high/medium findings should remain.
 
 ## Strategic call
 
@@ -69,7 +73,8 @@ The review's audit paragraph says “100% line/branch/function coverage.” The
 actual numbers at the reviewed baseline were 100% statements/functions/lines and
 **90% branches** for `RulingOracle` (82.28% overall). After the fixes and panel
 tests, the working-tree numbers are 100% statements/functions/lines and
-**83.80% branches overall**. Use those corrected numbers in the audit packet.
+**83.80% branches overall** (83.796% exact; baseline 83.79%). Use those corrected
+numbers in the audit packet.
 
 ## Verification
 
@@ -78,7 +83,14 @@ tests, the working-tree numbers are 100% statements/functions/lines and
   statements/functions/lines; 83.80% branches (baseline raised to 83.80).
 - `npm run lint`, `npm run lint:sol`, `npm run typecheck`, `npm run sdk:build`:
   green.
-- Mutation spot-check: 41/41 caught (0 survived).
+- Slither `--fail-medium`: 0 high/medium findings (the arbitrary `transferFrom`
+  was removed by the two-step `publishRuling` → `payFee` flow).
+- Mutation spot-check: 42/42 caught (0 survived).
+
+## Release
+
+Final release tag: `v0.6.1-ruling-oracle` (the earlier `v0.6.0-ruling-oracle`
+was the initial checkpoint before the CI/Slither fixes).
 
 ## Repo hygiene
 

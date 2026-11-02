@@ -6,7 +6,8 @@ Use this tree for all reviews, deploys, and raise materials:
 - **Remote:** `https://github.com/lexagor/TAOP-protocol.git`
 - **Branch:** `main`
 - **Baseline before the Phase-0 work:** `54716d5`
-- **Phase-0 release tag:** `v0.6.0-ruling-oracle`
+- **Phase-0 release tag:** `v0.6.1-ruling-oracle`
+- **Initial checkpoint tag:** `v0.6.0-ruling-oracle`
 
 The other checkouts found on disk had no commits ahead of `origin/main`, but
 they had dirty worktrees and different histories. They were moved on

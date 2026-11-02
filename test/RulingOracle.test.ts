@@ -16,7 +16,7 @@ describe("RulingOracle", () => {
   const VALUE = USDC(300);
 
   const Ruling = { NONE: 0, PAY: 1, REFUND: 2 };
-  const Status = { NONE: 0, RULED: 1, CHALLENGED: 2, FINALIZED: 3, OVERTURNED: 4 };
+  const Status = { NONE: 0, RULED: 1, CHALLENGED: 2, FINALIZED: 3, OVERTURNED: 4, PENDING_FEE: 5 };
 
   let seq = 0;
 
@@ -66,12 +66,21 @@ describe("RulingOracle", () => {
     };
   }
 
-  async function publish(
+  async function publishOnly(
     fixture: Awaited<ReturnType<typeof deployFixture>>,
     overrides: Record<string, unknown> = {},
   ) {
     const r = req(fixture, overrides);
     await fixture.oracle.connect(fixture.owner).publishRuling(r);
+    return r;
+  }
+
+  async function publish(
+    fixture: Awaited<ReturnType<typeof deployFixture>>,
+    overrides: Record<string, unknown> = {},
+  ) {
+    const r = await publishOnly(fixture, overrides);
+    await fixture.oracle.connect(fixture.feePayer).payFee(r.caseId);
     return r;
   }
 
@@ -228,16 +237,14 @@ describe("RulingOracle", () => {
   });
 
   describe("publishing rulings", () => {
-    it("publishes, charges the flat fee, stores the case, and emits events", async () => {
+    it("publishes an offer, then activates it when the fee payer pays", async () => {
       const f = await deployFixture();
       const r = req(f);
       const treasuryBefore = await balance(f, f.treasury.address);
       const feePayerBefore = await balance(f, f.feePayer.address);
 
       await expect(f.oracle.connect(f.owner).publishRuling(r))
-        .to.emit(f.oracle, "FeePaid")
-        .withArgs(r.caseId, f.feePayer.address, FEE)
-        .and.to.emit(f.oracle, "RulingPublished")
+        .to.emit(f.oracle, "RulingPublished")
         .withArgs(
           r.caseId,
           f.provider.address,
@@ -248,6 +255,21 @@ describe("RulingOracle", () => {
           r.specHash,
           r.evidenceHash,
         );
+
+      const pending = await f.oracle.getCase(r.caseId);
+      expect(pending.status).to.eq(BigInt(Status.PENDING_FEE));
+      expect(await f.oracle.liveCases()).to.eq(0n);
+      expect(await f.oracle.liveExposure()).to.eq(0n);
+      expect(await balance(f, f.treasury.address)).to.eq(treasuryBefore);
+
+      await expect(f.oracle.connect(f.other).payFee(r.caseId)).to.be.revertedWithCustomError(
+        f.oracle,
+        "NotFeePayer",
+      );
+      await expect(f.oracle.connect(f.feePayer).payFee(r.caseId))
+        .to.emit(f.oracle, "FeePaid")
+        .withArgs(r.caseId, f.feePayer.address, FEE)
+        .and.to.emit(f.oracle, "RulingActivated");
 
       expect(await balance(f, f.treasury.address)).to.eq(treasuryBefore + FEE);
       expect(await balance(f, f.feePayer.address)).to.eq(feePayerBefore - FEE);
@@ -266,11 +288,21 @@ describe("RulingOracle", () => {
       expect(c.challengeBond).to.eq(0n);
       expect(await f.oracle.challengeBonds()).to.eq(0n);
       expect(await balance(f, await f.oracle.getAddress())).to.eq(BOND);
+      await expect(f.oracle.connect(f.feePayer).payFee(r.caseId)).to.be.revertedWithCustomError(
+        f.oracle,
+        "CaseNotPending",
+      );
+      await expect(f.oracle.connect(f.feePayer).payFee(ethers.id("unknown"))).to.be.revertedWithCustomError(
+        f.oracle,
+        "CaseNotPending",
+      );
     });
 
-    it("requires the operator bond floor", async () => {
+    it("requires the operator bond floor at fee payment", async () => {
       const f = await deployFixture(false);
-      await expect(f.oracle.connect(f.owner).publishRuling(req(f))).to.be.revertedWithCustomError(
+      const r = req(f);
+      await f.oracle.connect(f.owner).publishRuling(r);
+      await expect(f.oracle.connect(f.feePayer).payFee(r.caseId)).to.be.revertedWithCustomError(
         f.oracle,
         "BondBelowFloor",
       );
@@ -319,7 +351,8 @@ describe("RulingOracle", () => {
       for (let i = 0; i < 5; i += 1) ids.push((await publish(f)).caseId);
       expect(await f.oracle.liveCases()).to.eq(5n);
       expect(await f.oracle.liveExposure()).to.eq(BOND / 2n);
-      await expect(f.oracle.connect(f.owner).publishRuling(req(f))).to.be.revertedWithCustomError(
+      const sixth = await publishOnly(f);
+      await expect(f.oracle.connect(f.feePayer).payFee(sixth.caseId)).to.be.revertedWithCustomError(
         f.oracle,
         "LiveCasesExceeded",
       );

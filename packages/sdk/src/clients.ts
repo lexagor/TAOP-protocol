@@ -432,7 +432,7 @@ export class RulingOracleClient {
   async setTreasury(next: string): Promise<ContractTransactionReceipt | null> {
     return (await (await this.c.setTreasury(next)).wait()) ?? null;
   }
-  /** Operator-only. The feePayer must approve the oracle for `FEE`. */
+  /** Operator-only offer. The named fee payer must call `payFee` to activate it. */
   async publishRuling(req: PublishRulingRequest): Promise<ContractTransactionReceipt | null> {
     const tuple = [
       req.caseId,
@@ -447,6 +447,10 @@ export class RulingOracleClient {
       req.ruling,
     ];
     return (await (await this.c.publishRuling(tuple)).wait()) ?? null;
+  }
+  /** Fee payer activates an offer published by the operator. */
+  async payFee(caseId: string): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.payFee(caseId)).wait()) ?? null;
   }
   async finalizeUnchallenged(caseId: string): Promise<ContractTransactionReceipt | null> {
     return (await (await this.c.finalizeUnchallenged(caseId)).wait()) ?? null;
