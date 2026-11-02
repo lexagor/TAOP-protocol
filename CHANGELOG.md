@@ -16,16 +16,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an offer; the named fee payer calls `payFee` to activate the case and start
   the challenge clock (the fee transfer is always from `msg.sender`). A challenge
   escalates through `IEscalationOracle` to the new `ReviewerPanelAdapter`
-  (three named reviewers, 2-of-3 EIP-712 signatures, 24h timeout). If the
+  (three named reviewers, 2-of-3 EIP-712 signatures, 48h timeout). If the
   operator does not escalate, anyone can overturn by default. Overturned
-  rulings pay the wronged party from the operator bond, refund the fee, return
-  the challenger bond, and pay a third-party watcher bounty; a winning wronged
-  party gets the value but no bounty. An operator-funded fee refund is an
-  explicit penalty; the operator never keeps challenge bonds. Final REFUND
-  rulings create non-transferable loss records. Includes mocks, 49 adjudication
-  tests, `scripts/deploy-ruling-oracle.ts`, `scripts/deploy-reviewer-panel.ts`,
-  `scripts/e2e-ruling.ts`, `RulingOracleClient`/`ReviewerPanelClient` in the TS
-  SDK, and `docs/ruling-oracle.md` / `docs/ruling-oracle-integration.md`.
+  rulings pay the wronged party from the operator bond, refund the fee from the
+  in-contract fee reserve, return the challenger bond, and pay a third-party
+  watcher bounty; a winning wronged party gets the value but no bounty. The
+  operator's loss on an overturn is `value + bounty`, not the fee. `outcome()`
+  fails closed (`NONE` until final); `provisionalRuling()` is UI-only. Unpaid
+  offers can be cancelled by the fee payer immediately or by the operator after
+  7 days, making the caseId reusable. Finalized fees accrue in `feePool` for
+  `withdrawFees`; the operator never keeps challenge bonds. Final REFUND rulings
+  create non-transferable loss records. Includes mocks, 56 adjudication tests,
+  `scripts/deploy-ruling-oracle.ts`, `scripts/deploy-reviewer-panel.ts`,
+  `scripts/e2e-ruling.ts`, `scripts/e2e-ruling-sepolia.ts`,
+  `RulingOracleClient`/`ReviewerPanelClient` in the TS SDK, and
+  `docs/ruling-oracle.md` / `docs/ruling-oracle-integration.md`.
 - **v0.5 anti-sybil economics** (contracts, benchmark, SDKs, backend):
   - Ranking scores (`getTwoSidedScore`, `getCreditScore`) are capped at
     `stake / STAKE_PER_POINT` with `STAKE_PER_POINT = 0.01 ETH` and no free tier;

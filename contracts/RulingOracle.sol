@@ -32,6 +32,7 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
     uint256 public constant CHALLENGE_BOND_BPS = 1_000; // 10%
     uint256 public constant MIN_CHALLENGE_BOND = 25e6; // $25
     uint256 public constant FEE = 25e6; // $25 flat per published ruling
+    uint256 public constant PENDING_FEE_TTL = 7 days;
     uint8 public constant MAX_LIVE_CASES = 5;
     uint256 public constant BOND_FLOOR = 3_000e6; // $3,000, i.e. 2x the max live exposure
     uint256 public constant MAX_URI_LEN = 512;
@@ -53,7 +54,8 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         CHALLENGED,
         FINALIZED,
         OVERTURNED,
-        PENDING_FEE
+        PENDING_FEE,
+        CANCELLED
     }
 
     struct Case {
@@ -75,6 +77,7 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         address challenger;
         bytes32 escalationId;
         bool feeRefunded;
+        uint64 publishedAt;
     }
 
     struct LossRecord {
@@ -107,6 +110,12 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
     uint256 public operatorBond;
     /// @notice USDC held on behalf of challengers.
     uint256 public challengeBonds;
+    /// @notice Fees from finalized cases, withdrawable by the treasury.
+    uint256 public feePool;
+    /// @notice Fees held for live/pending cases, before finalization.
+    uint256 public heldFees;
+    /// @notice The fee held for each active case.
+    mapping(bytes32 => uint256) public caseFee;
     /// @notice Sum of case values currently RULED or CHALLENGED.
     uint256 public liveExposure;
     uint8 public liveCases;
@@ -139,11 +148,16 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         uint256 value,
         bytes32 evidenceHash
     );
+    event FeeAccrued(bytes32 indexed caseId, uint256 amount);
+    event FeesWithdrawn(address indexed treasury, uint256 amount);
     event FeeRefunded(bytes32 indexed caseId, address indexed feePayer, uint256 amount);
+    event RulingCancelled(bytes32 indexed caseId, address indexed caller);
     event LateResolutionIgnored(bytes32 indexed requestId, bool rulingUpheld);
 
     error NotEscalationOracle();
     error NotFeePayer();
+    error NotCanceller();
+    error PendingFeeNotExpired();
     error InvalidCase();
     error CaseExists();
     error CaseNotPending();
@@ -240,6 +254,7 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         c.specHash = req.specHash;
         c.evidenceHash = req.evidenceHash;
         c.evidenceURI = req.evidenceURI;
+        c.publishedAt = uint64(block.timestamp);
 
         emit RulingPublished(
             req.caseId,
@@ -267,9 +282,36 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         c.challengeDeadline = uint64(block.timestamp + CHALLENGE_WINDOW);
         liveExposure += c.value;
         liveCases += 1;
-        USDC.safeTransferFrom(msg.sender, treasury, FEE);
+        caseFee[caseId] = FEE;
+        heldFees += FEE;
+        USDC.safeTransferFrom(msg.sender, address(this), FEE);
         emit FeePaid(caseId, msg.sender, FEE);
         emit RulingActivated(caseId, msg.sender, c.challengeDeadline);
+    }
+
+    /// @notice Cancel an unpaid offer. The fee payer may cancel immediately; the
+    ///         operator may cancel after `PENDING_FEE_TTL`. Deleting the case
+    ///         makes the caseId reusable, so a deterministic marketplace id is
+    ///         never bricked by a fee payer who walks away.
+    function cancelUnpaid(bytes32 caseId) external nonReentrant {
+        Case storage c = _cases[caseId];
+        if (c.status != Status.PENDING_FEE) revert CaseNotPending();
+        bool isFeePayer = msg.sender == c.feePayer;
+        if (!isFeePayer && msg.sender != owner()) revert NotCanceller();
+        if (!isFeePayer && block.timestamp < c.publishedAt + PENDING_FEE_TTL) {
+            revert PendingFeeNotExpired();
+        }
+        delete _cases[caseId];
+        emit RulingCancelled(caseId, msg.sender);
+    }
+
+    /// @notice Move finalized fees from the per-case reserve into the treasury pool.
+    function withdrawFees() external onlyOwner nonReentrant {
+        uint256 amount = feePool;
+        if (amount == 0) revert ValueZero();
+        feePool = 0;
+        USDC.safeTransfer(treasury, amount);
+        emit FeesWithdrawn(treasury, amount);
     }
 
     /// @notice Finalize an unchallenged ruling after the 48h window.
@@ -345,20 +387,30 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
 
     // --- Views ---
 
-    /// @notice Final outcome for a marketplace escrow. `status == FINALIZED` is
-    ///         the only state in which the escrow should act; `OVERTURNED` means
-    ///         the opposite of the original ruling is the final outcome.
+    /// @notice Final outcome for a marketplace escrow. Fails closed: `ruling`
+    ///         is NONE unless the case is FINALIZED or OVERTURNED. This makes a
+    ///         forgetful escrow safe instead of settling on a provisional ruling.
     function outcome(bytes32 caseId)
         external
         view
         returns (uint8 ruling, uint8 status, uint64 finalizedAt, bytes32 evidenceHash)
     {
         Case storage c = _cases[caseId];
-        uint8 finalRuling = uint8(c.ruling);
-        if (c.status == Status.OVERTURNED) {
-            finalRuling = c.ruling == Ruling.PAY ? uint8(Ruling.REFUND) : uint8(Ruling.PAY);
+        if (c.status == Status.FINALIZED) {
+            return (uint8(c.ruling), uint8(c.status), c.finalizedAt, c.evidenceHash);
         }
-        return (finalRuling, uint8(c.status), c.finalizedAt, c.evidenceHash);
+        if (c.status == Status.OVERTURNED) {
+            uint8 flipped = c.ruling == Ruling.PAY ? uint8(Ruling.REFUND) : uint8(Ruling.PAY);
+            return (flipped, uint8(c.status), c.finalizedAt, c.evidenceHash);
+        }
+        return (uint8(Ruling.NONE), uint8(c.status), c.finalizedAt, c.evidenceHash);
+    }
+
+    /// @notice The original (possibly provisional) ruling for UIs. Never use this
+    ///         for settlement; use `outcome`.
+    function provisionalRuling(bytes32 caseId) external view returns (uint8 ruling, uint8 status) {
+        Case storage c = _cases[caseId];
+        return (uint8(c.ruling), uint8(c.status));
     }
 
     function challengeBondFor(uint256 value) public pure returns (uint256) {
@@ -396,6 +448,7 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         }
         // slither-disable-next-line incorrect-equality
         if (c.ruling == Ruling.REFUND) _recordLoss(caseId, c);
+        _accrueFee(caseId);
         emit RulingFinalized(caseId, c.ruling, c.finalizedAt);
     }
 
@@ -416,13 +469,8 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
         remaining -= payout;
         if (payout != 0) USDC.safeTransfer(wronged, payout);
 
-        // Refund the case fee to the marketplace.
-        if (!c.feeRefunded && remaining >= FEE) {
-            c.feeRefunded = true;
-            remaining -= FEE;
-            USDC.safeTransfer(c.feePayer, FEE);
-            emit FeeRefunded(caseId, c.feePayer, FEE);
-        }
+        // Refund the case fee from the fee reserve, not the operator bond.
+        _refundFee(caseId, c);
 
         // Return the challenger's bond and pay a watcher bounty from the bond.
         uint64 bond = c.challengeBond;
@@ -448,6 +496,27 @@ contract RulingOracle is Ownable2Step, ReentrancyGuard {
     function _releaseExposure(Case storage c) private {
         liveExposure -= c.value;
         liveCases -= 1;
+    }
+
+    function _accrueFee(bytes32 caseId) private {
+        uint256 fee = caseFee[caseId];
+        if (fee != 0) {
+            caseFee[caseId] = 0;
+            heldFees -= fee;
+            feePool += fee;
+            emit FeeAccrued(caseId, fee);
+        }
+    }
+
+    function _refundFee(bytes32 caseId, Case storage c) private {
+        uint256 fee = caseFee[caseId];
+        if (fee != 0) {
+            caseFee[caseId] = 0;
+            heldFees -= fee;
+            c.feeRefunded = true;
+            USDC.safeTransfer(c.feePayer, fee);
+            emit FeeRefunded(caseId, c.feePayer, fee);
+        }
     }
 
     function _recordLoss(bytes32 caseId, Case storage c) private {

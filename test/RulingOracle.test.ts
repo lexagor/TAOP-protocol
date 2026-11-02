@@ -108,7 +108,9 @@ describe("RulingOracle", () => {
     const held = await balance(fixture, await fixture.oracle.getAddress());
     const bond = await fixture.oracle.operatorBond();
     const challenges = await fixture.oracle.challengeBonds();
-    return { held, bond, challenges };
+    const feePool = await fixture.oracle.feePool();
+    const heldFees = await fixture.oracle.heldFees();
+    return { held, bond, challenges, feePool, heldFees };
   };
 
   describe("deployment and frozen parameters", () => {
@@ -123,6 +125,7 @@ describe("RulingOracle", () => {
       expect(await f.oracle.FEE()).to.eq(FEE);
       expect(await f.oracle.MAX_LIVE_CASES()).to.eq(5n);
       expect(await f.oracle.BOND_FLOOR()).to.eq(BOND);
+      expect(await f.oracle.PENDING_FEE_TTL()).to.eq(7n * 24n * 60n * 60n);
       expect(await f.oracle.MAX_URI_LEN()).to.eq(512n);
       expect(BigInt(await f.oracle.MAX_LIVE_CASES()) * CAP).to.eq(BOND / 2n);
       expect(await f.oracle.treasury()).to.eq(f.treasury.address);
@@ -219,6 +222,11 @@ describe("RulingOracle", () => {
         .to.emit(f.oracle, "BondWithdrawn")
         .withArgs(f.owner.address, BOND);
       expect(await f.oracle.operatorBond()).to.eq(0n);
+      expect(await f.oracle.feePool()).to.eq(FEE);
+      expect(await balance(f, await f.oracle.getAddress())).to.eq(FEE);
+      await expect(f.oracle.connect(f.owner).withdrawFees())
+        .to.emit(f.oracle, "FeesWithdrawn")
+        .withArgs(f.treasury.address, FEE);
       expect(await balance(f, await f.oracle.getAddress())).to.eq(0n);
     });
 
@@ -271,8 +279,11 @@ describe("RulingOracle", () => {
         .withArgs(r.caseId, f.feePayer.address, FEE)
         .and.to.emit(f.oracle, "RulingActivated");
 
-      expect(await balance(f, f.treasury.address)).to.eq(treasuryBefore + FEE);
+      expect(await balance(f, f.treasury.address)).to.eq(treasuryBefore);
       expect(await balance(f, f.feePayer.address)).to.eq(feePayerBefore - FEE);
+      expect(await f.oracle.feePool()).to.eq(0n);
+      expect(await f.oracle.heldFees()).to.eq(FEE);
+      expect(await f.oracle.caseFee(r.caseId)).to.eq(FEE);
       expect(await f.oracle.liveCases()).to.eq(1n);
       expect(await f.oracle.liveExposure()).to.eq(r.value);
 
@@ -287,7 +298,7 @@ describe("RulingOracle", () => {
       expect(c.evidenceURI).to.eq(r.evidenceURI);
       expect(c.challengeBond).to.eq(0n);
       expect(await f.oracle.challengeBonds()).to.eq(0n);
-      expect(await balance(f, await f.oracle.getAddress())).to.eq(BOND);
+      expect(await balance(f, await f.oracle.getAddress())).to.eq(BOND + FEE);
       await expect(f.oracle.connect(f.feePayer).payFee(r.caseId)).to.be.revertedWithCustomError(
         f.oracle,
         "CaseNotPending",
@@ -365,6 +376,92 @@ describe("RulingOracle", () => {
       expect(await f.oracle.liveCases()).to.eq(5n);
     });
 
+    it("fails closed until the case is final and exposes the provisional ruling", async () => {
+      const f = await deployFixture();
+      const r = await publish(f);
+      let [ruling, status] = await f.oracle.outcome(r.caseId);
+      expect(ruling).to.eq(Ruling.NONE);
+      expect(status).to.eq(Status.RULED);
+      expect(await f.oracle.provisionalRuling(r.caseId)).to.deep.eq([
+        BigInt(Ruling.PAY),
+        BigInt(Status.RULED),
+      ]);
+
+      await f.oracle.connect(f.challenger).challenge(r.caseId);
+      [ruling, status] = await f.oracle.outcome(r.caseId);
+      expect(ruling).to.eq(Ruling.NONE);
+      expect(status).to.eq(Status.CHALLENGED);
+      expect(await f.oracle.provisionalRuling(r.caseId)).to.deep.eq([
+        BigInt(Ruling.PAY),
+        BigInt(Status.CHALLENGED),
+      ]);
+
+      await escalate(f, r.caseId);
+      const c = await f.oracle.getCase(r.caseId);
+      await f.esc.connect(f.other).resolve(c.escalationId, true);
+      [ruling, status] = await f.oracle.outcome(r.caseId);
+      expect(ruling).to.eq(Ruling.PAY);
+      expect(status).to.eq(Status.FINALIZED);
+    });
+
+    it("lets the fee payer cancel an unpaid offer and reuses the caseId", async () => {
+      const f = await deployFixture();
+      const r = await publishOnly(f);
+      await expect(f.oracle.connect(f.other).cancelUnpaid(r.caseId)).to.be.revertedWithCustomError(
+        f.oracle,
+        "NotCanceller",
+      );
+      await expect(f.oracle.connect(f.feePayer).cancelUnpaid(r.caseId))
+        .to.emit(f.oracle, "RulingCancelled")
+        .withArgs(r.caseId, f.feePayer.address);
+
+      await f.oracle.connect(f.owner).publishRuling(r);
+      await f.oracle.connect(f.feePayer).payFee(r.caseId);
+      expect((await f.oracle.getCase(r.caseId)).status).to.eq(BigInt(Status.RULED));
+      await expect(f.oracle.connect(f.feePayer).cancelUnpaid(r.caseId)).to.be.revertedWithCustomError(
+        f.oracle,
+        "CaseNotPending",
+      );
+    });
+
+    it("lets the operator cancel an unpaid offer only after the TTL", async () => {
+      const f = await deployFixture();
+      const r = await publishOnly(f);
+      await expect(f.oracle.connect(f.owner).cancelUnpaid(r.caseId)).to.be.revertedWithCustomError(
+        f.oracle,
+        "PendingFeeNotExpired",
+      );
+      await time.increase(7n * 24n * 60n * 60n);
+      await expect(f.oracle.connect(f.owner).cancelUnpaid(r.caseId))
+        .to.emit(f.oracle, "RulingCancelled")
+        .withArgs(r.caseId, f.owner.address);
+      await expect(f.oracle.connect(f.owner).cancelUnpaid(r.caseId)).to.be.revertedWithCustomError(
+        f.oracle,
+        "CaseNotPending",
+      );
+    });
+
+    it("accrues fees only after finalization and lets the treasury withdraw them", async () => {
+      const f = await deployFixture();
+      const r = await publish(f);
+      expect(await f.oracle.feePool()).to.eq(0n);
+      expect(await f.oracle.heldFees()).to.eq(FEE);
+      await expect(f.oracle.connect(f.owner).withdrawFees()).to.be.revertedWithCustomError(
+        f.oracle,
+        "ValueZero",
+      );
+      await time.increase(48n * 60n * 60n);
+      await f.oracle.connect(f.other).finalizeUnchallenged(r.caseId);
+      expect(await f.oracle.feePool()).to.eq(FEE);
+      expect(await f.oracle.heldFees()).to.eq(0n);
+      await expect(f.oracle.connect(f.other).withdrawFees()).to.be.revertedWithCustomError(
+        f.oracle,
+        "OwnableUnauthorizedAccount",
+      );
+      await expect(f.oracle.connect(f.owner).withdrawFees()).to.emit(f.oracle, "FeesWithdrawn");
+      expect(await f.oracle.feePool()).to.eq(0n);
+    });
+
     it("only the owner can publish", async () => {
       const f = await deployFixture();
       await expect(f.oracle.connect(f.other).publishRuling(req(f))).to.be.revertedWithCustomError(
@@ -373,11 +470,17 @@ describe("RulingOracle", () => {
       );
     });
 
-    it("sends future fees to the rotated treasury", async () => {
+    it("sends accrued fees to the rotated treasury", async () => {
       const f = await deployFixture();
       await f.oracle.connect(f.owner).setTreasury(f.other.address);
       const before = await balance(f, f.other.address);
-      await publish(f);
+      const r = await publish(f);
+      expect(await balance(f, f.other.address)).to.eq(before);
+      await time.increase(48n * 60n * 60n);
+      await f.oracle.connect(f.other).finalizeUnchallenged(r.caseId);
+      await expect(f.oracle.connect(f.owner).withdrawFees())
+        .to.emit(f.oracle, "FeesWithdrawn")
+        .withArgs(f.other.address, FEE);
       expect(await balance(f, f.other.address)).to.eq(before + FEE);
     });
   });
@@ -629,7 +732,8 @@ describe("RulingOracle", () => {
       expect((await f.oracle.getCase(r.caseId)).status).to.eq(BigInt(Status.FINALIZED));
       expect(await f.oracle.lossCount(f.provider.address)).to.eq(0n);
       const a = await accounting(f);
-      expect(a.held).to.eq(a.bond + a.challenges);
+      expect(a.held).to.eq(a.bond + a.challenges + a.feePool + a.heldFees);
+      expect(a.feePool).to.eq(FEE);
     });
 
     it("upheld REFUND records a loss and pays the challenger bond to the payer", async () => {
@@ -668,7 +772,7 @@ describe("RulingOracle", () => {
       expect(await balance(f, f.payer.address)).to.eq(payerBefore + VALUE);
       expect(await balance(f, f.feePayer.address)).to.eq(feePayerBefore + FEE);
       expect(await balance(f, f.challenger.address)).to.eq(challengerBefore + USDC(30) + USDC(30));
-      expect(await f.oracle.operatorBond()).to.eq(bondBefore - VALUE - FEE - USDC(30));
+      expect(await f.oracle.operatorBond()).to.eq(bondBefore - VALUE - USDC(30));
       expect(await f.oracle.challengeBonds()).to.eq(0n);
       expect(await f.oracle.lossCount(f.provider.address)).to.eq(1n);
 
@@ -693,7 +797,7 @@ describe("RulingOracle", () => {
       await f.esc.connect(f.other).resolve(c.escalationId, false);
       expect(await balance(f, f.payer.address)).to.eq(payerBefore + VALUE);
       expect(await balance(f, f.feePayer.address)).to.eq(feePayerBefore + FEE);
-      expect(await f.oracle.operatorBond()).to.eq(bondBefore - VALUE - FEE);
+      expect(await f.oracle.operatorBond()).to.eq(bondBefore - VALUE);
       expect(await f.oracle.challengeBonds()).to.eq(0n);
       expect(c.challenger).to.eq(f.payer.address);
       expect(c.challengeBond).to.eq(0n);
@@ -712,7 +816,7 @@ describe("RulingOracle", () => {
       await f.esc.connect(f.other).resolve(c.escalationId, false);
       expect(await balance(f, f.provider.address)).to.eq(providerBefore + VALUE);
       expect(await balance(f, f.feePayer.address)).to.eq(feePayerBefore + FEE);
-      expect(await f.oracle.operatorBond()).to.eq(bondBefore - VALUE - FEE);
+      expect(await f.oracle.operatorBond()).to.eq(bondBefore - VALUE);
       expect(await f.oracle.challengeBonds()).to.eq(0n);
       expect(c.challenger).to.eq(f.provider.address);
       expect(c.challengeBond).to.eq(0n);
@@ -825,7 +929,7 @@ describe("RulingOracle", () => {
       await f.esc.connect(f.other).resolve(c.escalationId, false);
 
       const a = await accounting(f);
-      expect(a.held).to.eq(a.bond + a.challenges);
+      expect(a.held).to.eq(a.bond + a.challenges + a.feePool + a.heldFees);
       await f.oracle.connect(f.owner).withdrawBond(a.bond);
       expect(await balance(f, await f.oracle.getAddress())).to.eq(0n);
     });

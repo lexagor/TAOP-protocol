@@ -59,3 +59,34 @@ Do not buy a $30K audit before the raise. Get a paid one-day review from a known
 ## Repo hygiene (blocking for any external review)
 
 There are at least four checkouts of this project on disk (`~/Documents/new-credit-bureau`, `~/Documents/cline-desktop/credit-bureau/new-credit-bureau`, `~/Documents/GitHub/new-credit-bureau`, `~/Documents/15-07-grok/...`). This review is against the cline-desktop tree; earlier reviews were against `~/Documents/new-credit-bureau` at `e877d21`, which does not contain `MIN_BOND` or this contract. That mismatch produced a false "invented constant" finding. Pick one canonical tree, push to GitHub, archive the rest, and pin the commit hash in every review request.
+
+---
+
+# Round 2 verification — `8ec1513` / tag `v0.6.1-ruling-oracle` (2 Nov 2026, later)
+
+Verified by running the suite in the canonical tree: **168 passing**, clean working tree, tag present, `npm audit --omit=dev` = **7 advisories (5 moderate, 2 high)**, all transitive through `@modelcontextprotocol/sdk` (hono, express, body-parser, qs, zod) and `express-rate-limit` (ip-address). Sepolia addresses could not be independently checked here (the RPC call was blocked); confirm on Basescan before quoting them.
+
+## Fixed
+- Double bounty when the wronged party challenges (`c.challenger != wronged`) — fixed, with a test.
+- `ESCALATION_WINDOW` 72h, `MAX_URI_LEN` 512, `CasesLive()`, `LateResolutionIgnored` — all present.
+- Fee now pulled from `msg.sender == feePayer` in `payFee`, which removes the arbitrary-send-erc20 class. Good fix.
+
+## Still open / newly introduced
+
+### A. `outcome()` fails open (highest remaining risk)
+It returns `c.ruling` for **every** status, including `PENDING_FEE` (5), `RULED` (1) and `CHALLENGED` (2). The one-pager tells integrators to check status, but a 20-line escrow written by a marketplace dev will eventually settle on a provisional ruling. **Fix: return `Ruling.NONE` unless status is FINALIZED or OVERTURNED**, and expose `provisionalRuling(caseId)` separately. Fail-closed beats documentation.
+
+### B. `PENDING_FEE` has no cancel or expiry (new bug from the fee split)
+`publishRuling` consumes `caseId` before payment. If the fee payer never calls `payFee`, that caseId is permanently `PENDING_FEE`, cannot be re-published, and `outcome()` never reaches a terminal state. A marketplace that derives `caseId` from its escrow id bricks that escrow. **Fix: `cancelUnpaid(caseId)` after a TTL (operator or feePayer), and allow re-publish of a cancelled id.**
+
+### C. Fee refund is still funded by the operator bond
+`payFee` sends FEE to `treasury`; `_overturn` then transfers FEE to `feePayer` and subtracts it from `operatorBond`. Treasury keeps the fee, the operator reimburses it. **Fix: hold fees in a `feePool` in-contract, refund from the pool, let treasury withdraw accrued fees.** Then the invariant "operator loses at most `value + bounty`" is actually true.
+
+### D. Panel liveness is unhedged
+24h window, no reviewer bond, no reviewer pay, reviewers chosen by the operator. Any two unavailable reviewers means every challenge auto-overturns and the operator pays. For the pilot: **48h window, one reviewer nominated by the marketplace, names published, and a written on-call commitment** (a small retainer if affordable). Also: when the oracle ignores a late resolution, the panel still records `resolved=true` — emit `ResolutionIgnored` from the panel too, or check oracle status first, so the two contracts cannot disagree in public.
+
+### E. `escalate()` is still non-payable
+Correct for Phase 0, but it means the UMA adapter later needs a pre-funded accounting layer or a redeploy. Write that in the Phase-1 note so nobody is surprised.
+
+## Dependency pass (do before mainnet, cheap now)
+`npm audit fix`, then re-run 168 tests + SDK build + typecheck. The highs are DoS-class (`body-parser` trailing bytes, `zod` memory exhaustion) reachable through the MCP/HTTP surface; the moderates are path/host handling in `hono`/`fast-uri` and quadratic parsing in `ip-address`. None are fund-loss bugs, all are trivial to patch.

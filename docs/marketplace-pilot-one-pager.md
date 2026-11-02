@@ -18,7 +18,7 @@ No token. No custody. No UMA at this tier.
 | Operator bond | $3,000 USDC |
 | Challenge window | 48 hours |
 | Escalation window | 72 hours |
-| Reviewer resolution | 24 hours, 2-of-3 named reviewers |
+| Reviewer resolution | 48 hours, 2-of-3 named reviewers |
 | Case fee | $25 USDC, paid by the named fee payer |
 | Challenge bond | 10% of value, minimum $25; wronged party free |
 | Loss records | final `REFUND` only; non-transferable |
@@ -30,8 +30,9 @@ No token. No custody. No UMA at this tier.
    `evidenceHash`, and `evidenceURI` to the operator.
 3. Operator calls `publishRuling`; your fee payer approves $25 and calls
    `payFee`. The challenge clock starts.
-4. Read `outcome(caseId)`. Settle only when `status` is `FINALIZED` (3) or
-   `OVERTURNED` (4). `ruling` is already the final direction.
+4. Read `outcome(caseId)`. It returns `NONE` until the case is final; settle only
+   when `status` is `FINALIZED` (3) or `OVERTURNED` (4). `ruling` is already the
+   final direction.
 5. `status == PENDING_FEE` (5), `RULED` (1), or `CHALLENGED` (2) means do not
    settle yet.
 

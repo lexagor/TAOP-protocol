@@ -408,6 +408,18 @@ export class RulingOracleClient {
   challengeBonds(): Promise<bigint> {
     return this.c.challengeBonds() as Promise<bigint>;
   }
+  feePool(): Promise<bigint> {
+    return this.c.feePool() as Promise<bigint>;
+  }
+  heldFees(): Promise<bigint> {
+    return this.c.heldFees() as Promise<bigint>;
+  }
+  caseFee(caseId: string): Promise<bigint> {
+    return this.c.caseFee(caseId) as Promise<bigint>;
+  }
+  pendingFeeTtl(): Promise<bigint> {
+    return this.c.PENDING_FEE_TTL() as Promise<bigint>;
+  }
   liveExposure(): Promise<bigint> {
     return this.c.liveExposure() as Promise<bigint>;
   }
@@ -452,6 +464,12 @@ export class RulingOracleClient {
   async payFee(caseId: string): Promise<ContractTransactionReceipt | null> {
     return (await (await this.c.payFee(caseId)).wait()) ?? null;
   }
+  async cancelUnpaid(caseId: string): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.cancelUnpaid(caseId)).wait()) ?? null;
+  }
+  async withdrawFees(): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.withdrawFees()).wait()) ?? null;
+  }
   async finalizeUnchallenged(caseId: string): Promise<ContractTransactionReceipt | null> {
     return (await (await this.c.finalizeUnchallenged(caseId)).wait()) ?? null;
   }
@@ -470,6 +488,10 @@ export class RulingOracleClient {
     rulingUpheld: boolean,
   ): Promise<ContractTransactionReceipt | null> {
     return (await (await this.c.resolveEscalation(requestId, rulingUpheld)).wait()) ?? null;
+  }
+  async provisionalRuling(caseId: string): Promise<{ ruling: Ruling; status: RulingStatus }> {
+    const r = (await this.c.provisionalRuling(caseId)) as [bigint, bigint];
+    return { ruling: Number(r[0]) as Ruling, status: Number(r[1]) as RulingStatus };
   }
   async getCase(caseId: string): Promise<RulingCase> {
     const r = (await this.c.getCase(caseId)) as [
@@ -491,6 +513,7 @@ export class RulingOracleClient {
       string,
       string,
       boolean,
+      bigint,
     ];
     return {
       provider: r[0],
@@ -511,6 +534,7 @@ export class RulingOracleClient {
       challenger: r[15],
       escalationId: r[16],
       feeRefunded: r[17],
+      publishedAt: r[18],
     };
   }
   /** The only signal a marketplace escrow should act on. */

@@ -213,6 +213,8 @@ async function main() {
     bondFloorUsdc: "3000",
     challengeWindowSeconds: 48 * 60 * 60,
     escalationWindowSeconds: 72 * 60 * 60,
+    pendingFeeTtlSeconds: 7 * 24 * 60 * 60,
+    panelResolutionWindowSeconds: 48 * 60 * 60,
     maxUriLen: 512,
     deployedAt: new Date().toISOString(),
     deployedBlock,

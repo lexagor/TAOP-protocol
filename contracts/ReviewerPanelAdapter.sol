@@ -13,6 +13,13 @@ interface IRulingOracleResolution {
     function resolveEscalation(bytes32 requestId, bool rulingUpheld) external;
 }
 
+interface IRulingOracleView {
+    function outcome(bytes32 caseId)
+        external
+        view
+        returns (uint8 ruling, uint8 status, uint64 finalizedAt, bytes32 evidenceHash);
+}
+
 /**
  * @title ReviewerPanelAdapter
  * @notice Phase-0 appeal layer for RulingOracle: three named reviewers, any two
@@ -27,7 +34,7 @@ interface IRulingOracleResolution {
 contract ReviewerPanelAdapter is IEscalationOracle, EIP712, Ownable2Step, ReentrancyGuard {
     uint256 public constant REVIEWER_COUNT = 3;
     uint256 public constant REQUIRED_SIGNATURES = 2;
-    uint256 public constant RESOLUTION_WINDOW = 24 hours;
+    uint256 public constant RESOLUTION_WINDOW = 48 hours;
 
     // solhint-disable gas-small-strings
     bytes32 public constant REVIEW_TYPEHASH =
@@ -63,6 +70,7 @@ contract ReviewerPanelAdapter is IEscalationOracle, EIP712, Ownable2Step, Reentr
         bytes32 indexed requestId, bool upheld, address indexed signerA, address indexed signerB
     );
     event ReviewTimedOut(bytes32 indexed requestId);
+    event ResolutionIgnored(bytes32 indexed requestId);
 
     error NotOracle();
     error ZeroAddress();
@@ -140,6 +148,13 @@ contract ReviewerPanelAdapter is IEscalationOracle, EIP712, Ownable2Step, Reentr
         Request storage r = _requests[requestId];
         if (r.caseId == bytes32(0)) revert RequestNotFound();
         if (r.resolved) revert RequestResolved();
+        (bool isFinal, uint8 finalRuling) = _finalOutcome(r.caseId);
+        if (isFinal) {
+            r.resolved = true;
+            r.upheld = finalRuling == r.ruling;
+            emit ResolutionIgnored(requestId);
+            return;
+        }
         if (block.timestamp > r.deadline) revert ResolutionWindowClosed();
         if (signatures.length != REQUIRED_SIGNATURES) revert InvalidSignatures();
 
@@ -160,6 +175,13 @@ contract ReviewerPanelAdapter is IEscalationOracle, EIP712, Ownable2Step, Reentr
         Request storage r = _requests[requestId];
         if (r.caseId == bytes32(0)) revert RequestNotFound();
         if (r.resolved) revert RequestResolved();
+        (bool isFinal, uint8 finalRuling) = _finalOutcome(r.caseId);
+        if (isFinal) {
+            r.resolved = true;
+            r.upheld = finalRuling == r.ruling;
+            emit ResolutionIgnored(requestId);
+            return;
+        }
         if (block.timestamp <= r.deadline) revert ResolutionWindowOpen();
 
         r.resolved = true;
@@ -176,6 +198,12 @@ contract ReviewerPanelAdapter is IEscalationOracle, EIP712, Ownable2Step, Reentr
         return _hashTypedDataV4(
             keccak256(abi.encode(REVIEW_TYPEHASH, requestId, caseId, evidenceHash, upheld))
         );
+    }
+
+    function _finalOutcome(bytes32 caseId) private view returns (bool isFinal, uint8 ruling) {
+        // slither-disable-next-line unused-return
+        (uint8 r, uint8 status,,) = IRulingOracleView(oracle).outcome(caseId);
+        return (status == 3 || status == 4, r);
     }
 
     function _isReviewer(Request storage r, address signer) private view returns (bool) {

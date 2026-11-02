@@ -174,7 +174,11 @@ async function main() {
   assert((await oracle.liveCases()) === 0n, "all cases settled");
   const held = await usdc.balanceOf(await oracle.getAddress());
   assert(
-    held === (await oracle.operatorBond()) + (await oracle.challengeBonds()),
+    held ===
+      (await oracle.operatorBond()) +
+        (await oracle.challengeBonds()) +
+        (await oracle.feePool()) +
+        (await oracle.heldFees()),
     "USDC accounting invariant",
   );
 

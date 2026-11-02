@@ -13,14 +13,16 @@ require(status == 3 || status == 4, "ruling not final"); // FINALIZED or OVERTUR
 require(ruling == 1 || ruling == 2, "no ruling");        // PAY or REFUND
 ```
 
-`ruling` is already the **final direction**. For `OVERTURNED` it is the opposite
-of the original ruling, so the escrow does not need to flip it again.
+`outcome()` fails closed: `ruling` is `NONE` unless the case is final. For
+`OVERTURNED` it is the opposite of the original ruling, so the escrow does not
+need to flip it again. `provisionalRuling(caseId)` is for UI display only.
 
 | Constant | Value | Meaning |
 |---|---|---|
 | `ruling` | `1` | `PAY`: pay the provider |
 | `ruling` | `2` | `REFUND`: refund the payer |
 | `status` | `5` | `PENDING_FEE`: offer published, fee not paid yet |
+| `status` | `6` | `CANCELLED`: unpaid offer cancelled; caseId reusable |
 | `status` | `1` | `RULED`: provisional, do not settle |
 | `status` | `2` | `CHALLENGED`: appeal in progress, do not settle |
 | `status` | `3` | `FINALIZED`: settle using `ruling` |
@@ -43,7 +45,7 @@ read example is in `examples/ruling-escrow-read.ts`.
    anyone else posts 10% of the value (minimum 25 USDC).
 5. If challenged, the operator has 72h to escalate to the reviewer panel. Two
    of three named reviewers sign the outcome with EIP-712. If no quorum arrives
-   within 24h, anyone can time the appeal out and the challenge succeeds.
+   within 48h, anyone can time the appeal out and the challenge succeeds.
 6. The marketplace reads `outcome(caseId)` and settles its own escrow.
 
 ## Integration checklist

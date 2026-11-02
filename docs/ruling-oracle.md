@@ -20,7 +20,9 @@ UMA OOv3 is deliberately deferred to the Phase-1 $2K+ tier.
 | Challenge window | `48 hours` after publication |
 | Escalation window | `72 hours` after a challenge |
 | Appeal resolution timeout | `30 days` after escalation (fallback to overturn) |
-| Case fee | `25 USDC` flat, paid by the marketplace/payer at publication |
+| Reviewer panel window | `48 hours` after escalation |
+| Case fee | `25 USDC` flat, held in escrow and refunded from the fee reserve on overturn |
+| Pending-fee TTL | `7 days` before the operator can cancel an unpaid offer |
 | Challenge bond | `10%` of case value, minimum `25 USDC` |
 | Evidence URI cap | `512` bytes |
 | Wronged-party challenge | free |
@@ -45,7 +47,7 @@ publishRuling (operator offer, no fee)
                           │        │
                           │        ├── 2-of-3 reviewers resolve(upheld=true)  → FINALIZED
                           │        └── 2-of-3 reviewers resolve(upheld=false) → OVERTURNED
-                          │             (24h panel deadline; timeout → challenge succeeds)
+                          │             (48h panel deadline; timeout → challenge succeeds)
                           │             (or after 30d silence, anyone may defaultOverturn)
                           │
                           └── operator does not escalate within 72h
@@ -53,19 +55,23 @@ publishRuling (operator offer, no fee)
 ```
 
 On an overturned `PAY` ruling, the payer receives `value` from the operator
-bond, the fee is refunded by the operator, the challenger's bond is returned, and
-a **third-party** challenger receives a watcher bounty. A wronged party that
-challenges for free receives the value but no bounty. The operator never keeps a
-challenge bond. The same rules apply symmetrically to an overturned `REFUND`
-ruling. A failed third-party challenge bond goes to the wronged party, not the
-operator; the operator is compensated by the case fee. This is intentionally a
-bounded, named-panel process, not a trustless court.
+bond, the fee is refunded from the in-contract fee reserve, the challenger's bond
+is returned, and a **third-party** challenger receives a watcher bounty. A
+wronged party that challenges for free receives the value but no bounty. The
+operator never keeps a challenge bond. The same rules apply symmetrically to an
+overturned `REFUND` ruling. A failed third-party challenge bond goes to the
+wronged party, not the operator; the operator is compensated by the case fee.
+The operator's loss on an overturn is therefore `value + bounty`; the fee is not
+an operator penalty. This is intentionally a bounded, named-panel process, not a
+trustless court.
 
-`outcome(caseId)` returns `(ruling, status, finalizedAt, evidenceHash)`. A
-marketplace escrow should act only when `status` is `FINALIZED` (3) or
-`OVERTURNED` (4); `ruling` is already the final direction (for `OVERTURNED` it
-is the opposite of the original ruling). `PENDING_FEE` (5) means the operator
-has published an offer but the fee payer has not activated it yet.
+`outcome(caseId)` **fails closed**: it returns `Ruling.NONE` unless the case is
+`FINALIZED` (3) or `OVERTURNED` (4). For those terminal states, `ruling` is the
+final direction (for `OVERTURNED` it is the opposite of the original ruling).
+`provisionalRuling(caseId)` exposes the original ruling for UIs, never for
+settlement. `PENDING_FEE` (5) means the operator has published an offer but the
+fee payer has not activated it yet; `CANCELLED` (6) means the offer was cancelled
+and its caseId is reusable.
 
 ## Integration contract for a marketplace
 
@@ -77,7 +83,12 @@ has published an offer but the fee payer has not activated it yet.
    clock. The fee payer is always `msg.sender`, so an operator cannot pull from
    an arbitrary address.
 4. After the challenge/appeal process, read `outcome(caseId)` and settle the
-   escrow. Do not treat a `RULED` or `CHALLENGED` ruling as final.
+   escrow. `outcome` returns `NONE` until final, so a missing status check cannot
+   settle a provisional ruling.
+5. If the fee payer walks away, either party can use `cancelUnpaid`: the fee
+   payer immediately, the operator after 7 days. The caseId is then reusable.
+6. Finalized fees accrue in `feePool`; the treasury calls `withdrawFees` to
+   collect them. Overturned fees are refunded from the fee reserve.
 
 The SDK client is `RulingOracleClient` in `packages/sdk/src/clients.ts`; the
 ABI is `RULING_ORACLE_ABI` in `packages/sdk/src/abis.ts`.
@@ -139,11 +150,13 @@ npm run deploy:ruling:sepolia
 - **Named reviewer panel, not a trustless court.** Three named reviewers, any
   two of whom sign the outcome. They are not bonded on-chain in Phase 0; the
   operator bond is the economic backstop. Reviewer bonds/slashing are a Phase-1
-  upgrade.
+  upgrade. For the pilot, publish the reviewer names, have at least one reviewer
+  nominated by the marketplace, use a 48h window, and keep a written on-call
+  commitment (a small retainer if affordable).
 - **UMA OOv3 is deferred.** At a $300 cap, the OOv3 assertion bond and DVM
   escalation cost more than the case. UMA belongs to the $2K+ tier with a
-  ≥$20K bond; the non-payable `IEscalationOracle` can be served by a pre-funded
-  adapter or a future oracle version.
+  ≥$20K bond. `IEscalationOracle` is intentionally non-payable in Phase 0; a
+  Phase-1 UMA adapter needs a pre-funded accounting layer or a redeployed oracle.
 - **No pause.** Settlement paths cannot be frozen; the operator can stop
   publishing but cannot block challenges, finalization, or default overturns.
 - **ERC-8004 identity is attested, not verified on-chain.** The operator/market

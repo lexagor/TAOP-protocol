@@ -89,7 +89,7 @@ async function main() {
     reviewerPanel: panelAddr,
     owner,
     reviewers,
-    resolutionWindowSeconds: 24 * 60 * 60,
+    resolutionWindowSeconds: 48 * 60 * 60,
     requiredSignatures: 2,
     reviewersConfigured: configured,
     deployedAt: new Date().toISOString(),

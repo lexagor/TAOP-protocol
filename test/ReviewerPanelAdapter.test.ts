@@ -195,6 +195,12 @@ describe("ReviewerPanelAdapter", () => {
       ).to.be.revertedWithCustomError(f.panel, "InvalidReviewers");
     });
 
+    it("uses a 48h reviewer window", async () => {
+      const f = await deployFixture();
+      expect(await f.panel.RESOLUTION_WINDOW()).to.eq(48n * 60n * 60n);
+      expect(await f.panel.REQUIRED_SIGNATURES()).to.eq(2n);
+    });
+
     it("wires the oracle once and only the owner", async () => {
       const [owner, other] = await ethers.getSigners();
       const panel = await (await ethers.getContractFactory("ReviewerPanelAdapter")).deploy(
@@ -353,7 +359,7 @@ describe("ReviewerPanelAdapter", () => {
       ).to.be.revertedWithCustomError(f.panel, "RequestResolved");
     });
 
-    it("rejects signatures after the 24h window", async () => {
+    it("rejects signatures after the 48h window", async () => {
       const f = await deployFixture();
       const { r, c } = await escalatedCase(f);
       const request = await f.panel.getRequest(c.escalationId);
@@ -366,7 +372,41 @@ describe("ReviewerPanelAdapter", () => {
   });
 
   describe("timeout and reviewer rotation", () => {
-    it("times out to an overturn after 24h, but not before", async () => {
+    it("records an ignored resolve when the oracle is already final", async () => {
+      const f = await deployFixture();
+      const { r, c } = await escalatedCase(f);
+      const oracleCase = await f.oracle.getCase(r.caseId);
+      await time.setNextBlockTimestamp(
+        oracleCase.escalationDeadline + 30n * 24n * 60n * 60n,
+      );
+      await f.oracle.connect(f.other).defaultOverturn(r.caseId);
+      await expect(f.panel.connect(f.other).resolve(c.escalationId, true, []))
+        .to.emit(f.panel, "ResolutionIgnored")
+        .withArgs(c.escalationId);
+      const request = await f.panel.getRequest(c.escalationId);
+      expect(request.resolved).to.eq(true);
+      expect(request.upheld).to.eq(false);
+    });
+
+    it("records an ignored resolution when the oracle is already final", async () => {
+      const f = await deployFixture();
+      const { r, c } = await escalatedCase(f);
+      const oracleCase = await f.oracle.getCase(r.caseId);
+      await time.setNextBlockTimestamp(
+        oracleCase.escalationDeadline + 30n * 24n * 60n * 60n,
+      );
+      await f.oracle.connect(f.other).defaultOverturn(r.caseId);
+      expect((await f.oracle.getCase(r.caseId)).status).to.eq(BigInt(Status.OVERTURNED));
+
+      await expect(f.panel.connect(f.other).timeout(c.escalationId))
+        .to.emit(f.panel, "ResolutionIgnored")
+        .withArgs(c.escalationId);
+      const request = await f.panel.getRequest(c.escalationId);
+      expect(request.resolved).to.eq(true);
+      expect(request.upheld).to.eq(false);
+    });
+
+    it("times out to an overturn after 48h, but not before", async () => {
       const f = await deployFixture();
       const { r, c } = await escalatedCase(f);
       const request = await f.panel.getRequest(c.escalationId);
