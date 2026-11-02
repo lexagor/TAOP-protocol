@@ -33,6 +33,8 @@ npm-debug.log*
 
 # Hardhat
 deployments.json
+ruling-oracle-deployment.json
+reviewer-panel-deployment.json
 # Keep example
 !deployments.json.example
 

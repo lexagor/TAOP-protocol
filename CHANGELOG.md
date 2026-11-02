@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 0 bonded adjudication oracle** (`contracts/RulingOracle.sol`): a
+  no-custody, USDC-bonded oracle for public-evidence agent work. Pilot
+  parameters: $300/case cap, 5 live cases, $3,000 operator bond, 48h challenge
+  window, 72h escalation window, $25 flat fee, 10%/min-$25 third-party challenge
+  bond, free wronged-party challenge, 512-byte evidence URI cap. A challenge
+  escalates through `IEscalationOracle` to the new `ReviewerPanelAdapter`
+  (three named reviewers, 2-of-3 EIP-712 signatures, 24h timeout). If the
+  operator does not escalate, anyone can overturn by default. Overturned
+  rulings pay the wronged party from the operator bond, refund the fee, return
+  the challenger bond, and pay a third-party watcher bounty; a winning wronged
+  party gets the value but no bounty. An operator-funded fee refund is an
+  explicit penalty; the operator never keeps challenge bonds. Final REFUND
+  rulings create non-transferable loss records. Includes mocks, 49 adjudication
+  tests, `scripts/deploy-ruling-oracle.ts`, `scripts/deploy-reviewer-panel.ts`,
+  `scripts/e2e-ruling.ts`, `RulingOracleClient`/`ReviewerPanelClient` in the TS
+  SDK, and `docs/ruling-oracle.md` / `docs/ruling-oracle-integration.md`.
 - **v0.5 anti-sybil economics** (contracts, benchmark, SDKs, backend):
   - Ranking scores (`getTwoSidedScore`, `getCreditScore`) are capped at
     `stake / STAKE_PER_POINT` with `STAKE_PER_POINT = 0.01 ETH` and no free tier;

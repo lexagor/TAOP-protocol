@@ -25,6 +25,33 @@ describe("EIP-170 contract size guard", () => {
     expect(size).to.be.lessThan(MAX_DEPLOYED_BYTES);
   });
 
+  it("ReviewerPanelAdapter stays deployable", async () => {
+    const [owner] = await ethers.getSigners();
+    const Panel = await ethers.getContractFactory("ReviewerPanelAdapter");
+    const panel = await Panel.deploy(owner.address);
+    await panel.waitForDeployment();
+    const code = await ethers.provider.getCode(await panel.getAddress());
+    const size = (code.length - 2) / 2;
+    expect(size).to.be.greaterThan(0);
+    expect(size).to.be.lessThan(MAX_DEPLOYED_BYTES);
+  });
+
+  it("RulingOracle stays deployable", async () => {
+    const [owner, usdc, escalation, treasury] = await ethers.getSigners();
+    const Oracle = await ethers.getContractFactory("RulingOracle");
+    const oracle = await Oracle.deploy(
+      usdc.address,
+      escalation.address,
+      treasury.address,
+      owner.address,
+    );
+    await oracle.waitForDeployment();
+    const code = await ethers.provider.getCode(await oracle.getAddress());
+    const size = (code.length - 2) / 2;
+    expect(size).to.be.greaterThan(0);
+    expect(size).to.be.lessThan(MAX_DEPLOYED_BYTES);
+  });
+
   it("CapabilityRegistry stays deployable", async () => {
     const [owner] = await ethers.getSigners();
     const Registry = await ethers.getContractFactory("CapabilityRegistry");

@@ -1,6 +1,6 @@
 import { ethers, type Contract, type ContractRunner, type ContractTransactionReceipt } from "ethers";
-import { RON_ABI, CAPABILITY_REGISTRY_ABI } from "./abis.js";
-import type { Capability, Completion, CreditScore, ScoreDetails, SelfAttestScore, ScoreType, TwoSidedScore } from "./types.js";
+import { RON_ABI, CAPABILITY_REGISTRY_ABI, RULING_ORACLE_ABI, REVIEWER_PANEL_ABI } from "./abis.js";
+import type { Capability, Completion, CreditScore, PublishRulingRequest, ReviewerRequest, Ruling, RulingCase, RulingLossRecord, RulingOutcome, RulingStatus, ScoreDetails, SelfAttestScore, ScoreType, TwoSidedScore } from "./types.js";
 
 /** Extract an event argument from a receipt (v0.1.2): ids must come from the
  *  emitted event, never from supply counters (which diverge after burns). */
@@ -374,4 +374,230 @@ export async function loadDeployment(path: string) {
   const fs = await import("node:fs/promises");
   const raw = await fs.readFile(path, "utf8");
   return JSON.parse(raw) as import("./types.js").Deployment;
+}
+/** Phase-0 bonded adjudication oracle client. */
+export class RulingOracleClient {
+  private readonly c: Contract;
+  constructor(address: string, runner?: ContractRunner) {
+    this.c = new ethers.Contract(address, RULING_ORACLE_ABI, runner);
+  }
+  get address(): string {
+    return this.c.target as string;
+  }
+  caseCap(): Promise<bigint> {
+    return this.c.CASE_CAP() as Promise<bigint>;
+  }
+  fee(): Promise<bigint> {
+    return this.c.FEE() as Promise<bigint>;
+  }
+  bondFloor(): Promise<bigint> {
+    return this.c.BOND_FLOOR() as Promise<bigint>;
+  }
+  challengeWindow(): Promise<bigint> {
+    return this.c.CHALLENGE_WINDOW() as Promise<bigint>;
+  }
+  escalationWindow(): Promise<bigint> {
+    return this.c.ESCALATION_WINDOW() as Promise<bigint>;
+  }
+  escalationResolutionTimeout(): Promise<bigint> {
+    return this.c.ESCALATION_RESOLUTION_TIMEOUT() as Promise<bigint>;
+  }
+  operatorBond(): Promise<bigint> {
+    return this.c.operatorBond() as Promise<bigint>;
+  }
+  challengeBonds(): Promise<bigint> {
+    return this.c.challengeBonds() as Promise<bigint>;
+  }
+  liveExposure(): Promise<bigint> {
+    return this.c.liveExposure() as Promise<bigint>;
+  }
+  liveCases(): Promise<bigint> {
+    return this.c.liveCases() as Promise<bigint>;
+  }
+  challengeBondFor(value: bigint): Promise<bigint> {
+    return this.c.challengeBondFor(value) as Promise<bigint>;
+  }
+  maxUriLen(): Promise<bigint> {
+    return this.c.MAX_URI_LEN() as Promise<bigint>;
+  }
+  owner(): Promise<string> {
+    return this.c.owner() as Promise<string>;
+  }
+  async depositBond(amount: bigint): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.depositBond(amount)).wait()) ?? null;
+  }
+  async withdrawBond(amount: bigint): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.withdrawBond(amount)).wait()) ?? null;
+  }
+  async setTreasury(next: string): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.setTreasury(next)).wait()) ?? null;
+  }
+  /** Operator-only. The feePayer must approve the oracle for `FEE`. */
+  async publishRuling(req: PublishRulingRequest): Promise<ContractTransactionReceipt | null> {
+    const tuple = [
+      req.caseId,
+      req.provider,
+      req.payer,
+      req.feePayer,
+      req.agentId,
+      req.value,
+      req.specHash,
+      req.evidenceHash,
+      req.evidenceURI,
+      req.ruling,
+    ];
+    return (await (await this.c.publishRuling(tuple)).wait()) ?? null;
+  }
+  async finalizeUnchallenged(caseId: string): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.finalizeUnchallenged(caseId)).wait()) ?? null;
+  }
+  async challenge(caseId: string): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.challenge(caseId)).wait()) ?? null;
+  }
+  async escalateRuling(caseId: string): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.escalateRuling(caseId)).wait()) ?? null;
+  }
+  async defaultOverturn(caseId: string): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.defaultOverturn(caseId)).wait()) ?? null;
+  }
+  /** Normally called by the configured escalation adapter, not an end user. */
+  async resolveEscalation(
+    requestId: string,
+    rulingUpheld: boolean,
+  ): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.resolveEscalation(requestId, rulingUpheld)).wait()) ?? null;
+  }
+  async getCase(caseId: string): Promise<RulingCase> {
+    const r = (await this.c.getCase(caseId)) as [
+      string,
+      string,
+      string,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      string,
+      string,
+      string,
+      string,
+      string,
+      boolean,
+    ];
+    return {
+      provider: r[0],
+      payer: r[1],
+      feePayer: r[2],
+      agentId: r[3],
+      value: r[4],
+      ruling: Number(r[5]) as Ruling,
+      status: Number(r[6]) as RulingStatus,
+      ruledAt: r[7],
+      challengeDeadline: r[8],
+      challengeBond: r[9],
+      escalationDeadline: r[10],
+      finalizedAt: r[11],
+      specHash: r[12],
+      evidenceHash: r[13],
+      evidenceURI: r[14],
+      challenger: r[15],
+      escalationId: r[16],
+      feeRefunded: r[17],
+    };
+  }
+  /** The only signal a marketplace escrow should act on. */
+  async outcome(caseId: string): Promise<RulingOutcome> {
+    const r = (await this.c.outcome(caseId)) as [bigint, bigint, bigint, string];
+    return {
+      ruling: Number(r[0]) as Ruling,
+      status: Number(r[1]) as RulingStatus,
+      finalizedAt: r[2],
+      evidenceHash: r[3],
+    };
+  }
+  lossCount(provider: string): Promise<bigint> {
+    return this.c.lossCount(provider) as Promise<bigint>;
+  }
+  async lossAt(provider: string, index: number | bigint): Promise<RulingLossRecord> {
+    const r = (await this.c.lossAt(provider, index)) as [string, string, bigint, bigint, bigint, string];
+    return {
+      caseId: r[0],
+      provider: r[1],
+      agentId: r[2],
+      value: r[3],
+      finalizedAt: r[4],
+      evidenceHash: r[5],
+    };
+  }
+}
+
+
+/** Phase-0 reviewer panel client. Reviewers sign EIP-712 reviews off-chain. */
+export class ReviewerPanelClient {
+  private readonly c: Contract;
+  constructor(address: string, runner?: ContractRunner) {
+    this.c = new ethers.Contract(address, REVIEWER_PANEL_ABI, runner);
+  }
+  get address(): string {
+    return this.c.target as string;
+  }
+  resolutionWindow(): Promise<bigint> {
+    return this.c.RESOLUTION_WINDOW() as Promise<bigint>;
+  }
+  requiredSignatures(): Promise<bigint> {
+    return this.c.REQUIRED_SIGNATURES() as Promise<bigint>;
+  }
+  oracle(): Promise<string> {
+    return this.c.oracle() as Promise<string>;
+  }
+  owner(): Promise<string> {
+    return this.c.owner() as Promise<string>;
+  }
+  async reviewers(): Promise<[string, string, string]> {
+    const r = (await this.c.reviewers()) as [string, string, string];
+    return [r[0], r[1], r[2]];
+  }
+  async getRequest(requestId: string): Promise<ReviewerRequest> {
+    const r = (await this.c.getRequest(requestId)) as [
+      string,
+      bigint,
+      string,
+      [string, string, string],
+      bigint,
+      boolean,
+      boolean,
+    ];
+    return {
+      caseId: r[0],
+      ruling: Number(r[1]),
+      evidenceHash: r[2],
+      reviewers: [r[3][0], r[3][1], r[3][2]],
+      deadline: r[4],
+      resolved: r[5],
+      upheld: r[6],
+    };
+  }
+  reviewDigest(requestId: string, upheld: boolean): Promise<string> {
+    return this.c.reviewDigest(requestId, upheld) as Promise<string>;
+  }
+  async setOracle(next: string): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.setOracle(next)).wait()) ?? null;
+  }
+  async setReviewers(next: [string, string, string]): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.setReviewers(next)).wait()) ?? null;
+  }
+  async resolve(
+    requestId: string,
+    upheld: boolean,
+    signatures: [string, string],
+  ): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.resolve(requestId, upheld, signatures)).wait()) ?? null;
+  }
+  async timeout(requestId: string): Promise<ContractTransactionReceipt | null> {
+    return (await (await this.c.timeout(requestId)).wait()) ?? null;
+  }
 }

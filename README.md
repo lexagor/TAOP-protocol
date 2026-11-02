@@ -15,6 +15,14 @@ Two on-chain pillars on a single L2 (Base Sepolia):
 - **Reputation Oracle Network (Credit Bureau)** — `contracts/ReputationOracleNetwork.sol`
 - **Capability Registry (LoRA Guilds)** — `contracts/CapabilityRegistry.sol`
 
+**New — Phase 0 bonded adjudication pilot:** `contracts/RulingOracle.sol` is a
+bonded, appealable oracle for public-evidence agent work. It holds no case funds;
+a marketplace escrow reads `outcome(caseId)`. Pilot parameters: $300/case,
+5 live cases, $3,000 USDC operator bond, 48h challenge, 72h escalation, $25 flat
+fee. Appeals go to a 2-of-3 named reviewer panel (EIP-712); UMA OOv3 is deferred
+to the Phase-1 $2K+ tier. See [`docs/ruling-oracle.md`](docs/ruling-oracle.md)
+and [`docs/ruling-oracle-integration.md`](docs/ruling-oracle-integration.md).
+
 **Admin actions (resolve, withdraw pools, setCertifier) are now protected by a TimelockController** (P0 improvement).
 
 For the current public pilot on Base Sepolia we deliberately use **0 delay** so the interactive demo remains usable end-to-end in seconds. The Timelock architecture and ownership transfer are fully in place.

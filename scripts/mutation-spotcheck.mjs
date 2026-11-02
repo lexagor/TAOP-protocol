@@ -48,6 +48,20 @@ const MUTANTS = [
   { file: "contracts/ReputationOracleNetwork.sol", find: "stake[c.agent] = agentStake - slash;", replace: "stake[c.agent] = agentStake;", label: "RON upheld dispute does not slash stake" },
   { file: "contracts/ReputationOracleNetwork.sol", find: "        (score, decayBps) = _decayedScore(confirmedCount_, disputeCount_, lastActivity_);\n        score = _capByStake(agent, score);", replace: "        (score, decayBps) = _decayedScore(confirmedCount_, disputeCount_, lastActivity_);", label: "RON two-sided score not stake-capped" },
   { file: "contracts/ReputationOracleNetwork.sol", find: "        (score, decayBps) = _decayedScore(distinctCounterparties_, disputeCount_, lastActivity_);\n        score = _capByStake(agent, score);", replace: "        (score, decayBps) = _decayedScore(distinctCounterparties_, disputeCount_, lastActivity_);", label: "RON credit score not stake-capped" },
+  // RulingOracle (Phase 0 adjudication)
+  { file: "contracts/RulingOracle.sol", find: "if (operatorBond < BOND_FLOOR) revert BondBelowFloor();", replace: "if (false) revert BondBelowFloor();", label: "RulingOracle ignores bond floor" },
+  { file: "contracts/RulingOracle.sol", find: "if (liveCases >= MAX_LIVE_CASES) revert LiveCasesExceeded();", replace: "if (false) revert LiveCasesExceeded();", label: "RulingOracle ignores live-case cap" },
+  { file: "contracts/RulingOracle.sol", find: "if (block.timestamp >= c.challengeDeadline) revert ChallengeWindowClosed();", replace: "if (false) revert ChallengeWindowClosed();", label: "RulingOracle accepts late challenges" },
+  { file: "contracts/RulingOracle.sol", find: "if (finalRuling == Ruling.REFUND) _recordLoss(caseId, c);", replace: "if (false) _recordLoss(caseId, c);", label: "RulingOracle skips overturned loss record" },
+  { file: "contracts/RulingOracle.sol", find: "if (c.challenger != address(0) && c.challenger != wronged) {", replace: "if (c.challenger != address(0)) {", label: "RulingOracle pays wronged challenger a double bounty" },
+  { file: "contracts/RulingOracle.sol", find: "if (c.status == Status.FINALIZED || c.status == Status.OVERTURNED) {", replace: "if (false) {", label: "RulingOracle reverts on late resolution" },
+  // ReviewerPanelAdapter
+  { file: "contracts/ReviewerPanelAdapter.sol", find: "if (signerA == signerB) revert InvalidSignatures();", replace: "if (false) revert InvalidSignatures();", label: "ReviewerPanel accepts the same signer twice" },
+  { file: "contracts/ReviewerPanelAdapter.sol", find: "if (block.timestamp > r.deadline) revert ResolutionWindowClosed();", replace: "if (false) revert ResolutionWindowClosed();", label: "ReviewerPanel accepts late signatures" },
+  { file: "contracts/ReviewerPanelAdapter.sol", find: "r.reviewers = _reviewers;", replace: "// mutated: no reviewer snapshot", label: "ReviewerPanel does not snapshot reviewers" },
+  { file: "contracts/ReviewerPanelAdapter.sol", find: "if (block.timestamp <= r.deadline) revert ResolutionWindowOpen();", replace: "if (false) revert ResolutionWindowOpen();", label: "ReviewerPanel allows timeout before the deadline" },
+  { file: "contracts/ReviewerPanelAdapter.sol", find: "if (next[i] == address(0)) revert InvalidReviewers();", replace: "if (false) revert InvalidReviewers();", label: "ReviewerPanel accepts a zero reviewer" },
+  { file: "contracts/RulingOracle.sol", find: "operatorBond = remaining;", replace: "// mutated: operator bond not debited", label: "RulingOracle does not debit operator bond" },
   { file: "contracts/CapabilityRegistry.sol", find: "if (bond < MIN_BOND) revert BondTooSmall(bond, MIN_BOND);", replace: "if (false) revert BondTooSmall(bond, MIN_BOND);", label: "Registry minimum bond ignored" },
 ];
 
